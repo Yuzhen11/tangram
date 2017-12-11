@@ -1,6 +1,7 @@
 include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 add_library(xyz STATIC
+  $<TARGET_OBJECTS:base-objs>
   $<TARGET_OBJECTS:core-objs>
   )
 

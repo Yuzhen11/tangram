@@ -41,5 +41,6 @@ set(HUSKY_EXTERNAL_INCLUDE ${ZMQ_INCLUDE_DIR} ${GLOG_INCLUDE_DIR} ${GFLAGS_INCLU
 # External Libraries
 set(HUSKY_EXTERNAL_LIB ${GLOG_LIBRARY} ${GFLAGS_LIBRARY} ${ZMQ_LIBRARY} ${CMAKE_THREAD_LIBS_INIT})
 
+add_subdirectory(base)
 add_subdirectory(core)
 add_subdirectory(test)
