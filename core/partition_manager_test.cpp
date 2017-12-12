@@ -17,37 +17,32 @@ TEST_F(TestPartitionManager, Construct) {
 }
 
 TEST_F(TestPartitionManager, Insert) {
-  auto* p1 = new FakePartition<int>;
-  auto* p2 = new FakePartition<int>;
+  auto p1 = std::make_shared<FakePartition<int>>();
+  auto p2 = std::make_shared<FakePartition<int>>();
   PartitionManager manager;
-  manager.Insert(0, 0, p1);
-  manager.Insert(0, 1, p2);
+  manager.Insert(0, 0, std::move(p1));
+  manager.Insert(0, 1, std::move(p2));
+}
+
+TEST_F(TestPartitionManager, InsertRemove) {
+  auto p1 = std::make_shared<FakePartition<int>>();
+  auto p2 = std::make_shared<FakePartition<int>>();
+  PartitionManager manager;
+  manager.Insert(0, 0, std::move(p1));
+  manager.Insert(0, 1, std::move(p2));
+  manager.Remove(0, 1);
 }
 
 TEST_F(TestPartitionManager, InsertGet) {
-  auto* p1 = new FakePartition<int>;
-  auto* p2 = new FakePartition<int>;
+  auto p1 = std::make_shared<FakePartition<int>>();
+  auto p2 = std::make_shared<FakePartition<int>>();
   PartitionManager manager;
-  manager.Insert(0, 0, p1);
-  manager.Insert(0, 1, p2);
-  {
-    auto item1 = manager.Get(0, 1);
-    auto item2 = manager.Get(0, 1);
-    EXPECT_EQ(*item2.p_count, 2);
-    EXPECT_EQ(*item2.p_count, *item1.p_count);
-    EXPECT_EQ(item2.partition, item1.partition);
-    EXPECT_EQ(manager.CheckCount(0, 1), 2);
-  }
-  EXPECT_EQ(manager.CheckCount(0, 1), 0);
-}
-TEST_F(TestPartitionManager, InsertRemove) {
-  auto* p1 = new FakePartition<int>;
-  auto* p2 = new FakePartition<int>;
-  PartitionManager manager;
-  manager.Insert(0, 0, p1);
-  manager.Insert(0, 1, p2);
-  manager.Remove(0, 0);
-  manager.Remove(0, 1);
+  manager.Insert(0, 0, std::move(p1));
+  manager.Insert(0, 1, std::move(p2));
+  auto get_p1 = manager.Get(0, 1);
+  EXPECT_EQ(get_p1.use_count(), 2);
+  auto get_p2 = manager.Get(0, 1);
+  EXPECT_EQ(get_p2.use_count(), 3);
 }
 
 }  // namespace

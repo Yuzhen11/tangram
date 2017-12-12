@@ -8,36 +8,29 @@ PartitionManager::~PartitionManager() {
   for (auto& kv: partitions_) {
     for (auto& inner_kv: kv.second) {
       CHECK(inner_kv.second);
-      CHECK_EQ(partition_count_[kv.first][inner_kv.first], 0) 
+      CHECK_EQ(partitions_[kv.first][inner_kv.first].use_count(), 1) 
           << "cannot remove (collection_id, partition_id):(" << kv.first << "," << inner_kv.first 
-          << "), count:" << partition_count_[kv.first][inner_kv.first] << ", which is not 0.";
-      delete inner_kv.second;
+          << "), count:" << partitions_[kv.first][inner_kv.first].use_count() << ", which is not 1.";
+      partitions_[kv.first].erase(inner_kv.first);
     }
   }
 }
 
-PartitionManager::PartitionItem PartitionManager::Get(int collection_id, int partition_id) {
+std::shared_ptr<AbstractPartition> PartitionManager::Get(int collection_id, int partition_id) {
   CHECK(partitions_[collection_id].find(collection_id) != partitions_[collection_id].end());
-  CHECK(partition_count_[collection_id].find(collection_id) != partition_count_[collection_id].end());
-  PartitionItem item(partitions_[collection_id][partition_id], &partition_count_[collection_id][partition_id]);
-  return std::move(item);  // Have to use move to return since copy constructor is disabled.
+  return partitions_[collection_id][partition_id];
 }
 
-void PartitionManager::Insert(int collection_id, int partition_id, AbstractPartition* p) {
+void PartitionManager::Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&& p) {
   CHECK(partitions_[collection_id].find(partition_id) == partitions_[collection_id].end());
-  CHECK(partition_count_[collection_id].find(partition_id) == partition_count_[collection_id].end());
-  partitions_[collection_id][partition_id] = p;
-  partition_count_[collection_id][partition_id] = 0;
+  CHECK_EQ(p.use_count(), 1) << "the partition has only one reference.";
+  partitions_[collection_id][partition_id] = std::move(p);
 }
 
 void PartitionManager::Remove(int collection_id, int partition_id) {
-  CHECK_EQ(partition_count_[collection_id][partition_id], 0) 
+  CHECK_EQ(partitions_[collection_id][partition_id].use_count(), 1) 
       << "cannot remove (collection_id, partition_id):(" << collection_id << "," << partition_id 
-      << "), count:" << partition_count_[collection_id][partition_id] << ", which is not 0.";
-  partition_count_[collection_id].erase(partition_id);
-  if (partition_count_[collection_id].size() == 0) partition_count_.erase(collection_id);
-  CHECK(partitions_[collection_id][partition_id] != nullptr);
-  delete partitions_[collection_id][partition_id];
+      << "), count:" << partitions_[collection_id][partition_id].use_count() << ", which is not 1.";
   partitions_[collection_id].erase(partition_id);
   if (partitions_[collection_id].size() == 0) partitions_.erase(collection_id);
 }
