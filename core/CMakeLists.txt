@@ -1,6 +1,7 @@
 include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 file(GLOB core-src-files
+    partition_manager.cpp
     thread_pool.cpp
     tmp.cpp
   )
