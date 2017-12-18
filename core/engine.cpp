@@ -5,7 +5,7 @@
 namespace xyz {
 
 Engine::Engine(int thread_pool_size, std::unique_ptr<AbstractPartitionManager>&& partition_manager, 
-        std::unique_ptr<AbstractOutputManager>&& output_manager)
+        std::shared_ptr<AbstractOutputManager>&& output_manager)
     : thread_pool_(thread_pool_size), thread_pool_size_(thread_pool_size),
       partition_manager_(std::move(partition_manager)), output_manager_(std::move(output_manager)){}
 
@@ -22,8 +22,8 @@ void Engine::RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartiti
   auto it = plans_.find(plan_id);
   CHECK(it != plans_.end()) << "plan_id not found: " << plan_id; 
   if (phase == 0) {
-    const auto& map = it->second.GetMap();
-    thread_pool_.enqueue(map, partition, output_manager_.get());
+    const auto& map = it->second.map;
+    thread_pool_.enqueue(map, partition, output_manager_);
   } else if (phase == 1) {
     // TODO
   } else {

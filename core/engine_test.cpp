@@ -17,35 +17,32 @@ class FakePartition : public AbstractPartition {
 };
 
 TEST_F(TestEngine, Create) {
-  std::shared_ptr<AbstractOutputManager> manager;
   std::unique_ptr<AbstractPartitionManager> partition_manager(new PartitionManager);
-  std::unique_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
+  std::shared_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
   const int thread_pool_size = 4;
   Engine engine(thread_pool_size, std::move(partition_manager), std::move(output_manager));
 }
 
 TEST_F(TestEngine, AddPlanItem) {
-  std::shared_ptr<AbstractOutputManager> manager;
   std::unique_ptr<AbstractPartitionManager> partition_manager(new PartitionManager);
-  std::unique_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
+  std::shared_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
   const int thread_pool_size = 4;
   Engine engine(thread_pool_size, std::move(partition_manager), std::move(output_manager));
 
-  PlanItem::MapFuncT map = [](std::shared_ptr<AbstractPartition>, AbstractOutputManager*) {
+  PlanItem::MapFuncT map = [](std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractOutputManager>) {
     LOG(INFO) << "Map";
   };
   PlanItem::JoinFuncT join = [](std::shared_ptr<AbstractPartition>) {
     LOG(INFO) << "join";
   };
   const int plan_id = 0;
-  PlanItem plan(map, join);
+  PlanItem plan(plan_id, 0, 0, map, join);
   engine.AddPlan(plan_id, plan);
 }
 
 TEST_F(TestEngine, RunPlanItem) {
-  std::shared_ptr<AbstractOutputManager> manager;
   std::unique_ptr<AbstractPartitionManager> partition_manager(new PartitionManager);
-  std::unique_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
+  std::shared_ptr<AbstractOutputManager> output_manager(new FakeOutputManager);
   const int collection_id = 0;
   const int partition_id = 0;
   auto p1 = std::make_shared<FakePartition<int>>();
@@ -54,14 +51,14 @@ TEST_F(TestEngine, RunPlanItem) {
   const int thread_pool_size = 4;
   Engine engine(thread_pool_size, std::move(partition_manager), std::move(output_manager));
 
-  PlanItem::MapFuncT map = [](std::shared_ptr<AbstractPartition>, AbstractOutputManager*) {
+  PlanItem::MapFuncT map = [](std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractOutputManager>) {
     LOG(INFO) << "Map";
   };
   PlanItem::JoinFuncT join = [](std::shared_ptr<AbstractPartition>) {
     LOG(INFO) << "join";
   };
   const int plan_id = 0;
-  PlanItem plan(map, join);
+  PlanItem plan(plan_id, 0, 0, map, join);
   engine.AddPlan(plan_id, plan);
 
   const int phase = 0;

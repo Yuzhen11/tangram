@@ -12,7 +12,7 @@ namespace xyz {
 
 class Engine {
  public:
-  Engine(int thread_pool_size, std::unique_ptr<AbstractPartitionManager>&&, std::unique_ptr<AbstractOutputManager>&&);
+  Engine(int thread_pool_size, std::unique_ptr<AbstractPartitionManager>&&, std::shared_ptr<AbstractOutputManager>&&);
   ~Engine();
   void RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartition> partition);
   /*
@@ -31,7 +31,7 @@ class Engine {
   ThreadPool thread_pool_;
   std::map<int, PlanItem> plans_;
   std::unique_ptr<AbstractPartitionManager> partition_manager_;
-  std::unique_ptr<AbstractOutputManager> output_manager_;
+  std::shared_ptr<AbstractOutputManager> output_manager_;
 };
 
 }  // namespace
