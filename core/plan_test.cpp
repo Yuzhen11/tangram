@@ -3,12 +3,13 @@
 
 #include "core/plan.hpp"
 #include "core/seq_partition.hpp"
+#include "core/map_output.hpp"
 
 namespace xyz {
 namespace {
 
 /*
- * This test depends on SeqPartition.
+ * This test depends on SeqPartition and MapOutput.
  */
 class TestPlan: public testing::Test {};
 
@@ -53,9 +54,9 @@ TEST_F(TestPlan, GetPlanItem) {
   auto partition = std::make_shared<SeqPartition<ObjT>>();
   partition->Add(ObjT{10});
   partition->Add(ObjT{20});
-  auto output_manager = std::make_shared<OutputManager<int, int>>();
-  plan_item.map(partition, output_manager);
-  auto output = output_manager->Get();
+  auto map_output = std::make_shared<MapOutput<int, int>>();
+  plan_item.map(partition, map_output);
+  auto output = map_output->Get();
   ASSERT_EQ(output.size(), 2);
   EXPECT_EQ(output[0], std::make_pair(10, 1));
   EXPECT_EQ(output[1], std::make_pair(20, 1));

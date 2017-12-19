@@ -5,9 +5,9 @@
 namespace xyz {
 
 Engine::Engine(int thread_pool_size, std::unique_ptr<AbstractPartitionManager>&& partition_manager, 
-        std::shared_ptr<AbstractOutputManager>&& output_manager)
+        std::shared_ptr<AbstractMapOutput>&& map_output)
     : thread_pool_(thread_pool_size), thread_pool_size_(thread_pool_size),
-      partition_manager_(std::move(partition_manager)), output_manager_(std::move(output_manager)){}
+      partition_manager_(std::move(partition_manager)), map_output_(std::move(map_output)){}
 
 Engine::~Engine() {
   // TODO cautions: when the partition_manager destroyed, some partitions may still be
@@ -23,7 +23,7 @@ void Engine::RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartiti
   CHECK(it != plans_.end()) << "plan_id not found: " << plan_id; 
   if (phase == 0) {
     const auto& map = it->second.map;
-    thread_pool_.enqueue(map, partition, output_manager_);
+    thread_pool_.enqueue(map, partition, map_output_);
   } else if (phase == 1) {
     // TODO
   } else {

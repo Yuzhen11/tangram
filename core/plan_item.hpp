@@ -4,7 +4,7 @@
 #include <memory>
 
 #include "core/abstract_partition.hpp"
-#include "core/abstract_output_manager.hpp"
+#include "core/abstract_map_output.hpp"
 
 namespace xyz {
 
@@ -14,7 +14,7 @@ namespace xyz {
  */
 class PlanItem {
  public:
-  using MapFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractOutputManager>)>;
+  using MapFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutput>)>;
   using JoinFuncT = std::function<void(std::shared_ptr<AbstractPartition>)>;
 
   PlanItem(int _plan_id, int _map_collection_id, int _join_collection_id, 

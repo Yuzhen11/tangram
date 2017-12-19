@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/collection.hpp"
-#include "core/output_manager.hpp"
+#include "core/abstract_map_output.hpp"
 
 #include "core/plan_item.hpp"
 #include "core/abstract_partition.hpp"
@@ -9,7 +9,6 @@
 namespace xyz {
 
 /*
- * This class depends on the real implementation of OutputManager and Partition.
  * Requires T2 to be in the form {T2::KeyT, T2::ValT}
  */
 template<typename T1, typename T2, typename MsgT>
@@ -36,9 +35,9 @@ class Plan {
   }
 
   PlanItem GetPlanItem() {
-    PlanItem::MapFuncT map = [this](std::shared_ptr<AbstractPartition> _partition, std::shared_ptr<AbstractOutputManager> _output) {
+    PlanItem::MapFuncT map = [this](std::shared_ptr<AbstractPartition> _partition, std::shared_ptr<AbstractMapOutput> _output) {
       auto* p = static_cast<TypedPartition<T1>*>(_partition.get());
-      auto* output = static_cast<OutputManager<typename T2::KeyT, MsgT>*>(_output.get());
+      auto* output = static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(_output.get());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
       for (auto& elem : *p) {

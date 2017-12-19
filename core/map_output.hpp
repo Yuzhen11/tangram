@@ -1,16 +1,16 @@
 #pragma once
 
-#include "abstract_output_manager.hpp"
+#include "core/abstract_map_output.hpp"
 
 #include <vector>
 
 namespace xyz {
 
 template<typename KeyT, typename MsgT>
-class OutputManager: public AbstractOutputManager {
+class MapOutput: public TypedMapOutput<KeyT, MsgT> {
  public:
-  virtual ~OutputManager() {}
-  void Add(std::pair<KeyT, MsgT> msg) {
+  virtual ~MapOutput() {}
+  virtual void Add(std::pair<KeyT, MsgT> msg) override {
     buffer_.push_back(std::move(msg));
   }
 
