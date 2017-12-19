@@ -48,8 +48,20 @@ TEST_F(TestSArrayBinStream, Int) {
   ASSERT_EQ(bin.Size(), 8);
   int c, d;
   bin >> c >> d;
-  EXPECT_EQ(c, 10);
-  EXPECT_EQ(d, 20);
+  EXPECT_EQ(c, a);
+  EXPECT_EQ(d, b);
+  ASSERT_EQ(bin.Size(), 0);
+}
+
+TEST_F(TestSArrayBinStream, String) {
+  SArrayBinStream bin;
+  std::string a = "hi";
+  std::string b = "hello";
+  bin << a << b;
+  std::string c, d;
+  bin >> c >> d;
+  EXPECT_EQ(c, a);
+  EXPECT_EQ(d, b);
   ASSERT_EQ(bin.Size(), 0);
 }
 

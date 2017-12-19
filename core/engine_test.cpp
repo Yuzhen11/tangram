@@ -10,6 +10,8 @@ namespace {
 class TestEngine : public testing::Test {};
 
 class FakeMapOutput : public AbstractMapOutput {
+ public:
+  virtual SArrayBinStream Serialize() override {}
 };
 
 template <typename T>
