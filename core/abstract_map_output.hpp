@@ -17,5 +17,4 @@ class TypedMapOutput : public AbstractMapOutput {
   virtual void Add(std::pair<KeyT, MsgT> msg) = 0;
 };
 
-}  // namespace
-
+}  // namespace xyz
