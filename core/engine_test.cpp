@@ -11,7 +11,8 @@ class TestEngine : public testing::Test {};
 
 class FakeMapOutput : public AbstractMapOutput {
  public:
-  virtual SArrayBinStream Serialize() override {}
+  virtual std::vector<SArrayBinStream> Serialize() override {}
+  virtual void Combine() override {};
 };
 
 template <typename T>

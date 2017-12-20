@@ -9,14 +9,15 @@ namespace xyz {
 
 struct Control {};
 
-enum class Flag : char { kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet, kGetChunk, kOther };
-static const char* FlagName[] = {"kExit", "kBarrier", "kResetWorkerInModel", "kClock", "kAdd", "kGet", "kGetChunk", "kOther"};
+// enum class Flag : char { kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet, kGetChunk, kOther };
+// static const char* FlagName[] = {"kExit", "kBarrier", "kResetWorkerInModel", "kClock", "kAdd", "kGet", "kGetChunk", "kOther"};
 
 struct Meta {
   int sender;
   int recver;
-  int model_id;
-  Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
+  int partition_id;
+  int collection_id;
+  // Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
   uint32_t version;
 
   std::string DebugString() const {
@@ -24,8 +25,9 @@ struct Meta {
     ss << "Meta: { ";
     ss << "sender: " << sender;
     ss << ", recver: " << recver;
-    ss << ", model_id: " << model_id;
-    ss << ", flag: " << FlagName[static_cast<int>(flag)];
+    ss << ", collection_id: " << collection_id;
+    ss << ", partition_id: " << partition_id;
+    // ss << ", flag: " << FlagName[static_cast<int>(flag)];
     ss << ", version: " << version;
     ss << "}";
     return ss.str();

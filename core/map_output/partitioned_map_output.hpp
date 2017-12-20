@@ -10,6 +10,9 @@
 
 namespace xyz {
 
+/*
+ * Not thread-safe
+ */
 template<typename KeyT, typename MsgT>
 class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
  public:
@@ -31,9 +34,51 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     }
   }
 
-  virtual SArrayBinStream Serialize() override {
-    // TODO
+  virtual void Combine() override {
+    if (!this->combine_func_) 
+      return;
+    for (auto& buffer : buffer_) {
+      std::sort(buffer.begin(), buffer.end(), 
+        [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
+      Merge(buffer, this->combine_func_);
+    }
   }
+
+  // Now we push into SArrayBinStream one by one.
+  // May consider to use SArray as the underlying storage for SArrayMapOuput, so
+  // that no need to serialize at all when the KeyT and MsgT are both trivially
+  // copyable.
+  virtual std::vector<SArrayBinStream> Serialize() override {
+    std::vector<SArrayBinStream> rets;
+    rets.reserve(buffer_.size());
+    for (int i = 0; i < buffer_.size(); ++ i) {
+      SArrayBinStream bin;
+      for (auto& p : buffer_[i]) {
+        bin << p.first << p.second;
+      }
+      rets.push_back(std::move(bin));
+    }
+    return rets;
+  }
+
+  static void Merge(std::vector<std::pair<KeyT, MsgT>>& buffer, 
+          const std::function<MsgT(const MsgT&, const MsgT&)>& combine) {
+    int l = 0;
+    for (int r = 1; r < buffer.size(); ++ r) {
+      if (buffer[l].first == buffer[r].first) {
+        buffer[l].second = combine(buffer[l].second, buffer[r].second);
+      } else {
+        l += 1;
+        if (l != r) {
+          buffer[l] = buffer[r];
+        }
+      }
+    }
+    if (!buffer.empty()) {
+      buffer.resize(l+1);
+    }
+  }
+
 
   // For test use only.
   std::vector<std::vector<std::pair<KeyT, MsgT>>> GetBuffer() { return buffer_; }

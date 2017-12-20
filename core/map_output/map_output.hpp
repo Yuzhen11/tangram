@@ -4,6 +4,8 @@
 
 #include <vector>
 
+#include "glog/logging.h"
+
 namespace xyz {
 
 template<typename KeyT, typename MsgT>
@@ -17,16 +19,12 @@ class MapOutput: public TypedMapOutput<KeyT, MsgT> {
     buffer_.insert(buffer_.end(), msgs.begin(), msgs.end());
   }
 
-  virtual SArrayBinStream Serialize() override {
-    SArrayBinStream bin;
-    // Now we push into binstream one by one.
-    // May consider to use SArray as the underlying storage for SArrayMapOuput, so
-    // that no need to serialize at all when the KeyT and MsgT are both trivially
-    // copyable.
-    for (auto& p : buffer_) {
-      bin << p.first << p.second;
-    }
-    return bin;
+  virtual void Combine() override {
+    CHECK(false) << "Not implemented";
+  }
+
+  virtual std::vector<SArrayBinStream> Serialize() override {
+    CHECK(false) << "Not implemented";
   }
 
   // For debug usage
