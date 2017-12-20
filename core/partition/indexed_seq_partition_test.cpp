@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/indexed_seq_partition.hpp"
+#include "core/partition/indexed_seq_partition.hpp"
 
 namespace xyz {
 namespace {

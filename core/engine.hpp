@@ -4,8 +4,8 @@
 #include <memory>
 
 #include "core/thread_pool.hpp"
-#include "core/abstract_partition_manager.hpp"
-#include "core/abstract_map_output.hpp"
+#include "core/partition/abstract_partition_manager.hpp"
+#include "core/map_output/abstract_map_output.hpp"
 #include "core/plan_item.hpp"
 
 namespace xyz {

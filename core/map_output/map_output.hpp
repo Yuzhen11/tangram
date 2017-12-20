@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/abstract_map_output.hpp"
+#include "core/map_output/abstract_map_output.hpp"
 
 #include <vector>
 
@@ -12,6 +12,9 @@ class MapOutput: public TypedMapOutput<KeyT, MsgT> {
   virtual ~MapOutput() {}
   virtual void Add(std::pair<KeyT, MsgT> msg) override {
     buffer_.push_back(std::move(msg));
+  }
+  virtual void Add(std::vector<std::pair<KeyT, MsgT>> msgs) override {
+    buffer_.insert(buffer_.end(), msgs.begin(), msgs.end());
   }
 
   virtual SArrayBinStream Serialize() override {

@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/hash_key_to_part_mapper.hpp"
+#include "core/index/hash_key_to_part_mapper.hpp"
 
 namespace xyz {
 namespace {

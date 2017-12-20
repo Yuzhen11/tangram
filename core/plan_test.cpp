@@ -2,8 +2,8 @@
 #include "glog/logging.h"
 
 #include "core/plan.hpp"
-#include "core/seq_partition.hpp"
-#include "core/map_output.hpp"
+#include "core/partition/seq_partition.hpp"
+#include "core/map_output/map_output.hpp"
 
 namespace xyz {
 namespace {

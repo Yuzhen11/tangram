@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/abstract_key_to_part_mapper.hpp"
+#include "core/index/abstract_key_to_part_mapper.hpp"
 
 namespace xyz {
 

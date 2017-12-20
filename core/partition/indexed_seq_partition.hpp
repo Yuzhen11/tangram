@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/seq_partition.hpp"
+#include "core/partition/seq_partition.hpp"
 
 #include <vector>
 #include <unordered_map>

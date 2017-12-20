@@ -1,4 +1,4 @@
-#include "core/partition_manager.hpp"
+#include "core/partition/partition_manager.hpp"
 
 #include "glog/logging.h"
 

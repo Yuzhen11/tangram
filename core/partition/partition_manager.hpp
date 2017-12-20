@@ -1,8 +1,8 @@
 #pragma once
 
-#include "core/abstract_partition_manager.hpp"
+#include "core/partition/abstract_partition_manager.hpp"
 
-#include "core/abstract_partition.hpp"
+#include "core/partition/abstract_partition.hpp"
 
 #include <map>
 

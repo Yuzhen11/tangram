@@ -3,8 +3,8 @@
 #include <functional>
 #include <memory>
 
-#include "core/abstract_partition.hpp"
-#include "core/abstract_map_output.hpp"
+#include "core/partition/abstract_partition.hpp"
+#include "core/map_output/abstract_map_output.hpp"
 
 namespace xyz {
 

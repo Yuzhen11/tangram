@@ -2,7 +2,7 @@
 #include "glog/logging.h"
 
 #include "core/engine.hpp"
-#include "core/partition_manager.hpp"
+#include "core/partition/partition_manager.hpp"
 
 namespace xyz {
 namespace {

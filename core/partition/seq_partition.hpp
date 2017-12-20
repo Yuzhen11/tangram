@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/abstract_partition.hpp"
+#include "core/partition/abstract_partition.hpp"
 
 namespace xyz {
 

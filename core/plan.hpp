@@ -1,10 +1,10 @@
 #pragma once
 
 #include "core/collection.hpp"
-#include "core/abstract_map_output.hpp"
+#include "core/map_output/abstract_map_output.hpp"
 
 #include "core/plan_item.hpp"
-#include "core/abstract_partition.hpp"
+#include "core/partition/abstract_partition.hpp"
 
 namespace xyz {
 
