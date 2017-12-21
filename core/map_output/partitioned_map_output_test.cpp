@@ -48,11 +48,11 @@ TEST_F(TestPartitionedMapOutput, AddVector) {
   EXPECT_EQ(buffer[3].size(), 0);
 }
 
-TEST_F(TestPartitionedMapOutput, Merge) {
+TEST_F(TestPartitionedMapOutput, CombineOneBuffer) {
   std::vector<std::pair<int, int>> buffer{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
   auto combine = [](int a, int b) { return a + b; };
   const std::vector<std::pair<int, int>> expected{{3, 1}, {2, 2}, {3, 5}};
-  PartitionedMapOutput<int, int>::Merge(buffer, combine);
+  PartitionedMapOutput<int, int>::CombineOneBuffer(buffer, combine);
   ASSERT_EQ(buffer.size(), expected.size());
   for (int i = 0; i < buffer.size(); ++ i) {
     EXPECT_EQ(buffer[i], expected[i]);

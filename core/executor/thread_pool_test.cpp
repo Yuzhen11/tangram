@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/thread_pool.hpp"
+#include "core/executor/thread_pool.hpp"
 
 #include <chrono>
 

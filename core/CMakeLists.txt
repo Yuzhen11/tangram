@@ -2,9 +2,10 @@ include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 file(GLOB core-src-files
     engine.cpp
-    thread_pool.cpp
     tmp.cpp
     partition/partition_manager.cpp
+    executor/thread_pool.cpp
+    executor/executor.cpp
   )
 
 add_library(core-objs OBJECT ${core-src-files})

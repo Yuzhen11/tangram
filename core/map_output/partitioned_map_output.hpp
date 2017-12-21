@@ -40,7 +40,7 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     for (auto& buffer : buffer_) {
       std::sort(buffer.begin(), buffer.end(), 
         [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
-      Merge(buffer, this->combine_func_);
+      CombineOneBuffer(buffer, this->combine_func_);
     }
   }
 
@@ -61,7 +61,7 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     return rets;
   }
 
-  static void Merge(std::vector<std::pair<KeyT, MsgT>>& buffer, 
+  static void CombineOneBuffer(std::vector<std::pair<KeyT, MsgT>>& buffer, 
           const std::function<MsgT(const MsgT&, const MsgT&)>& combine) {
     int l = 0;
     for (int r = 1; r < buffer.size(); ++ r) {
