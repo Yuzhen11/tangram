@@ -74,6 +74,20 @@ TEST_F(TestPartitionedMapOutput, Combine) {
   }
 }
 
+TEST_F(TestPartitionedMapOutput, SerializeOneBuffer) {
+  std::vector<std::pair<std::string, int>> v{{"abc", 1}, {"hello", 2}};
+  SArrayBinStream bin = PartitionedMapOutput<std::string, int>::SerializeOneBuffer(v);
+  std::string s;
+  int a;
+  bin >> s >> a;
+  EXPECT_EQ(s, "abc");
+  EXPECT_EQ(a, 1);
+  bin >> s >> a;
+  EXPECT_EQ(s, "hello");
+  EXPECT_EQ(a, 2);
+  EXPECT_EQ(bin.Size(), 0);
+}
+
 TEST_F(TestPartitionedMapOutput, Serialize) {
   auto mapper = std::make_shared<HashKeyToPartMapper<std::string>>(4);
   PartitionedMapOutput<std::string, int> output(mapper);

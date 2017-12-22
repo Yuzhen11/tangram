@@ -6,7 +6,7 @@
 #include "core/executor/thread_pool.hpp"
 #include "core/partition/abstract_partition_manager.hpp"
 #include "core/map_output/abstract_map_output.hpp"
-#include "core/plan_item.hpp"
+#include "core/plan/plan_item.hpp"
 
 namespace xyz {
 

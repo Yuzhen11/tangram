@@ -52,13 +52,17 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     std::vector<SArrayBinStream> rets;
     rets.reserve(buffer_.size());
     for (int i = 0; i < buffer_.size(); ++ i) {
-      SArrayBinStream bin;
-      for (auto& p : buffer_[i]) {
-        bin << p.first << p.second;
-      }
-      rets.push_back(std::move(bin));
+      rets.push_back(SerializeOneBuffer(buffer_[i]));
     }
     return rets;
+  }
+
+  static SArrayBinStream SerializeOneBuffer(const std::vector<std::pair<KeyT, MsgT>>& buffer) {
+    SArrayBinStream bin;
+    for (auto& p : buffer) {
+      bin << p.first << p.second;
+    }
+    return bin;
   }
 
   static void CombineOneBuffer(std::vector<std::pair<KeyT, MsgT>>& buffer, 
@@ -79,6 +83,10 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     }
   }
 
+  const std::vector<std::pair<KeyT, MsgT>>& GetBuffer(int part_id) const {
+    CHECK_LE(part_id, buffer_.size());
+    return buffer_[part_id];
+  }
 
   // For test use only.
   std::vector<std::vector<std::pair<KeyT, MsgT>>> GetBuffer() { return buffer_; }

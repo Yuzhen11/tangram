@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/plan.hpp"
+#include "core/plan/plan.hpp"
 #include "core/partition/seq_partition.hpp"
 #include "core/map_output/map_output.hpp"
 

@@ -3,7 +3,7 @@
 #include "core/collection.hpp"
 #include "core/map_output/abstract_map_output.hpp"
 
-#include "core/plan_item.hpp"
+#include "core/plan/plan_item.hpp"
 #include "core/partition/abstract_partition.hpp"
 
 namespace xyz {
