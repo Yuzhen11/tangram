@@ -4,21 +4,23 @@
 #include <sstream>
 
 #include "base/third_party/sarray.h"
+#include "base/node.hpp"
 
 namespace xyz {
 
 struct Control {};
 
-// enum class Flag : char { kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet, kGetChunk, kOther };
-// static const char* FlagName[] = {"kExit", "kBarrier", "kResetWorkerInModel", "kClock", "kAdd", "kGet", "kGetChunk", "kOther"};
+enum class Flag : char {kExit, kBarrier, kRegister, kHeartbeat};
+static const char* FlagName[] = {"kExit", "kRegister", "kBarrier", "kHeartbeat"};
 
 struct Meta {
   int sender;
   int recver;
   int partition_id;
   int collection_id;
-  // Flag flag;  // {kExit, kBarrier, kResetWorkerInModel, kClock, kAdd, kGet}
-  uint32_t version;
+  Flag flag;  // { kExit, kBarrier, kHeartbeat};
+  Node node;
+  int timestamp;
 
   std::string DebugString() const {
     std::stringstream ss;
@@ -27,8 +29,8 @@ struct Meta {
     ss << ", recver: " << recver;
     ss << ", collection_id: " << collection_id;
     ss << ", partition_id: " << partition_id;
-    // ss << ", flag: " << FlagName[static_cast<int>(flag)];
-    ss << ", version: " << version;
+    ss << ", flag: " << FlagName[static_cast<int>(flag)];
+    ss << ", timestamp: " << timestamp;
     ss << "}";
     return ss.str();
   }
