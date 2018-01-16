@@ -1,20 +1,29 @@
 #pragma once
 
+#include <atomic>
+#include <map>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+#include <zmq.h>
+
 #include "base/threadsafe_queue.hpp"
 #include "base/node.hpp"
-
+#include "base/message.hpp"
+// #include "comm/resender.hpp"
 #include "glog/logging.h"
 
 namespace xyz {
 
 class Mailbox {
  public:
-  Mailbox(bool is_scheduler, Node scheduler_node);
+  Mailbox(bool is_scheduler, Node scheduler_node, int num_workers);
   ~Mailbox();
 
   void RegisterQueue(uint32_t queue_id, ThreadsafeQueue<Message>* const queue);
   void DeregisterQueue(uint32_t queue_id);
 
+  // return # of bytes sended
   int Send(const Message& msg);
   int Recv(Message* msg);
   void Barrier();
@@ -27,19 +36,28 @@ class Mailbox {
     return my_node_;
   }
  private:
-  int Bind(const Node& node, int max_retry);
-  int Connect(const Node& node);
+  void Bind(const Node& node, int max_retry);
+  void Connect(const Node& node);
 
   bool is_scheduler_;
-  SchedulerInfo scheduler_node_;
+  // whether it is ready for sending
+  std::atomic<bool> ready_{false};
+  Node scheduler_node_;
+  Node my_node_;
+  // all worker nodes
+  std::vector<Node> nodes_;
+  int num_workers_;
 
   std::map<uint32_t, ThreadsafeQueue<Message>* const> queue_map_;
+
+  // Handle different msgs
+  void HandleBarrierMsg(Message* msg);
+  void HandleRegisterMsg(Message* msg);
+  void HandleHeartbeat(Message* msg);
 
   // receiver
   std::thread receiver_thread_;
   void Receiving();
-
-  Node my_node_;
 
   // socket
   void* context_ = nullptr;
@@ -50,6 +68,18 @@ class Mailbox {
   // heartbeat
   std::thread heartbeat_thread_;
   void Heartbeat();
+  // only used by scheduler (ps-lite put these in postoffice)
+  std::mutex heartbeat_mu_;
+  std::unordered_map<int, time_t> heartbeats_;
+
+  // barrier
+  bool barrier_finish_ = false;
+  int barrier_count_ = 0;
+  std::condition_variable barrier_cond_;
+
+  // msg resender
+  // Resender *resender_ = nullptr;
+  std::atomic<int> timestamp_{0};
 };
 
 }  // namespace xyz
