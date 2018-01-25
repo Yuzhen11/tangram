@@ -8,6 +8,9 @@
 
 namespace xyz {
 
+/*
+ * This class may be used for testing only.
+ */
 template<typename KeyT, typename MsgT>
 class MapOutput: public TypedMapOutput<KeyT, MsgT> {
  public:
@@ -24,7 +27,11 @@ class MapOutput: public TypedMapOutput<KeyT, MsgT> {
   }
 
   virtual std::vector<SArrayBinStream> Serialize() override {
-    CHECK(false) << "Not implemented";
+    SArrayBinStream bin;
+    for (auto& p : buffer_) {
+      bin << p.first << p.second;
+    }
+    return {bin};
   }
 
   // For debug usage

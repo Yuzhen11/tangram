@@ -19,16 +19,6 @@ Engine::~Engine() {
 }
 
 void Engine::RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartition> partition) {
-  auto it = plans_.find(plan_id);
-  CHECK(it != plans_.end()) << "plan_id not found: " << plan_id; 
-  if (phase == 0) {
-    const auto& map = it->second.map;
-    thread_pool_.enqueue(map, partition, map_output_);
-  } else if (phase == 1) {
-    // TODO
-  } else {
-    CHECK(false) << "unknown phase: " << phase;
-  }
 }
 
 void Engine::RunPlanItem(int plan_id, int phase, int collection_id, int partition_id) {

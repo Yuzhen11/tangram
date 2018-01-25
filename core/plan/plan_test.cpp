@@ -3,7 +3,7 @@
 
 #include "core/plan/plan.hpp"
 #include "core/partition/seq_partition.hpp"
-#include "core/map_output/map_output.hpp"
+#include "core/map_output/partitioned_map_output.hpp"
 
 namespace xyz {
 namespace {
@@ -38,10 +38,14 @@ TEST_F(TestPlan, Create) {
 
 TEST_F(TestPlan, GetPlanItem) {
   int plan_id = 0;
-  Collection<ObjT> c1{1};
-  Collection<ObjT> c2{2};
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  int num_part = 4;
+  Collection<ObjT> c1{1, nullptr};
+  Collection<ObjT> c2{2, std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
+  auto partition = std::make_shared<SeqPartition<ObjT>>();
+  partition->Add(ObjT{10});
+  partition->Add(ObjT{20});
 
+  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
   auto map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
   };
@@ -51,15 +55,9 @@ TEST_F(TestPlan, GetPlanItem) {
   plan.SetMap(map);
   plan.SetJoin(join);
   PlanItem plan_item = plan.GetPlanItem();
-  auto partition = std::make_shared<SeqPartition<ObjT>>();
-  partition->Add(ObjT{10});
-  partition->Add(ObjT{20});
-  auto map_output = std::make_shared<MapOutput<int, int>>();
-  plan_item.map(partition, map_output);
-  auto output = map_output->Get();
-  ASSERT_EQ(output.size(), 2);
-  EXPECT_EQ(output[0], std::make_pair(10, 1));
-  EXPECT_EQ(output[1], std::make_pair(20, 1));
+  auto map_output = plan_item.map(partition);
+  auto output = static_cast<PartitionedMapOutput<int,int>*>(map_output.get())->GetBuffer();
+  ASSERT_EQ(output.size(), num_part);
 }
 
 }  // namespace

@@ -14,20 +14,27 @@ namespace xyz {
  */
 class PlanItem {
  public:
-  using MapFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutput>)>;
-  using JoinFuncT = std::function<void(std::shared_ptr<AbstractPartition>)>;
+  enum class CombineType {
+    Combine, MergeCombine, None
+  };
+  using MapFuncT = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;
+  using JoinFuncT = std::function<void(std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
+  using CombineFuncT = std::function<void(std::shared_ptr<AbstractMapOutput>)>;
+  using MergeCombinedFuncT = std::function<SArrayBinStream(const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id)>;
 
-  PlanItem(int _plan_id, int _map_collection_id, int _join_collection_id, 
-          MapFuncT _map, JoinFuncT _join)
-      :plan_id(_plan_id), map_collection_id(_map_collection_id), join_collection_id(_join_collection_id),
-       map(_map), join(_join) {}
+  PlanItem(int _plan_id, int _map_collection_id, int _join_collection_id)
+      :plan_id(_plan_id), map_collection_id(_map_collection_id), join_collection_id(_join_collection_id) {}
 
   MapFuncT map;
   JoinFuncT join;
+  CombineFuncT combine;
+  MergeCombinedFuncT merge_combine;
+
   int plan_id;
   int map_collection_id;
   int join_collection_id;
+  CombineType combine_type;
 };
 
-}  // namespace
+}  // namespace xyz
 

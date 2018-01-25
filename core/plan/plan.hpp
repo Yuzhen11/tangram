@@ -6,6 +6,11 @@
 #include "core/plan/plan_item.hpp"
 #include "core/partition/abstract_partition.hpp"
 
+#include "core/map_output/partitioned_map_output_helper.hpp"
+#include "core/map_output/partitioned_map_output.hpp"
+
+#include "core/index/hash_key_to_part_mapper.hpp"
+
 namespace xyz {
 
 /*
@@ -35,18 +40,32 @@ class Plan {
   }
 
   PlanItem GetPlanItem() {
-    PlanItem::MapFuncT map = [this](std::shared_ptr<AbstractPartition> _partition, std::shared_ptr<AbstractMapOutput> _output) {
-      auto* p = static_cast<TypedPartition<T1>*>(_partition.get());
-      auto* output = static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(_output.get());
+    PlanItem plan_item(plan_id_, map_collection_.id, join_collection_.id);
+    // Set the map func.
+    plan_item.map = [this](std::shared_ptr<AbstractPartition> partition) {
+      auto* p = static_cast<TypedPartition<T1>*>(partition.get());
+      CHECK_NOTNULL(join_collection_.mapper);
+      auto output = std::make_shared<PartitionedMapOutput<typename T2::KeyT, MsgT>>(join_collection_.mapper);
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
       for (auto& elem : *p) {
         output->Add(map_(elem));
       }
+      return output;
     };
-    PlanItem::JoinFuncT join = [this](std::shared_ptr<AbstractPartition> partition) {
+    // Set the combine func.
+    plan_item.combine = [this](std::shared_ptr<AbstractMapOutput> map_output) {
+      map_output->Combine();
     };
-    return PlanItem(plan_id_, map_collection_.id, join_collection_.id, map, join);
+    // Set the merge_combine func. Wrap the type inside.
+    plan_item.merge_combine = [this](const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id) {
+      return MergeCombineMultipleMapOutput<typename T2::KeyT, MsgT>(map_outputs, part_id);
+    };
+    // Set the join func.
+    plan_item.join = [this](std::shared_ptr<AbstractPartition> partition, SArrayBinStream bin) {
+      // TODO
+    };
+    return plan_item;
   }
 
  private:
@@ -58,4 +77,4 @@ class Plan {
   CombineFuncT combine_;
 };
 
-}  // namespace
+}  // namespace xyz

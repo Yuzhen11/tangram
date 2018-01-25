@@ -26,5 +26,5 @@ SArrayBinStream MergeCombineMultipleMapOutput(
   return bin;
 }
 
-}  // namespace
+}  // namespace xyz
 

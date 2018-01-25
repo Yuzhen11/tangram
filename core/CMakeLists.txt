@@ -6,6 +6,8 @@ file(GLOB core-src-files
     partition/partition_manager.cpp
     executor/thread_pool.cpp
     executor/executor.cpp
+    plan/function_store.cpp
+    map_output/map_output_storage.cpp
   )
 
 add_library(core-objs OBJECT ${core-src-files})
