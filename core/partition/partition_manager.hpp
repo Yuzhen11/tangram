@@ -1,27 +1,31 @@
 #pragma once
 
-#include "core/partition/abstract_partition_manager.hpp"
-
 #include "core/partition/abstract_partition.hpp"
+#include "core/partition/partition_manager.hpp"
 
+#include "glog/logging.h"
+
+#include <memory>
 #include <map>
 
 namespace xyz {
 
 // Not thread-safe
-class PartitionManager : public AbstractPartitionManager {
+/*
+ * The PartitionItem is designed to be reference-counted in a non threadsafe manner.
+ */
+class PartitionManager {
  public:
-  virtual ~PartitionManager();
-  /*
-   * Get a partition
-   */
-  virtual std::shared_ptr<AbstractPartition> Get(int collection_id, int partition_id) override;
-  /*
-   * Insert a partition
-   */
-  virtual void Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&&) override;
+  PartitionManager() = default;
+  ~PartitionManager();
 
-  virtual void Remove(int collection_id, int partition_id) override;
+  std::shared_ptr<AbstractPartition> Get(int collection_id, int partition_id);
+
+  const std::map<int, std::shared_ptr<AbstractPartition>>& Get(int collection_id);
+
+  void Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&&);
+
+  void Remove(int collection_id, int partition_id);
  private:
   // <collection_id, <partition_id, partition>>
   // Let PartitionManager own the partition.

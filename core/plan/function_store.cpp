@@ -4,6 +4,19 @@
 
 namespace xyz {
 
+const FunctionStore::MapToMapOutputManagerFuncT& FunctionStore::GetMapToMapOutputMangerFunc(int id) {
+  CHECK(map_to_map_output_storage_store_.find(id) != map_to_map_output_storage_store_.end());
+  return map_to_map_output_storage_store_[id];
+}
+const FunctionStore::MapOutputToIntermediateStoreFuncT& FunctionStore::GetMapOutputToIntermediateStoreFunc(int id) {
+  CHECK(map_output_to_intermediate_store_.find(id) != map_output_to_intermediate_store_.end());
+  return map_output_to_intermediate_store_[id];
+}
+const FunctionStore::MapToIntermediateStoreFuncT& FunctionStore::GetMapToIntermediateStoreFunc(int id) {
+  CHECK(map_to_intermediate_store_.find(id) != map_to_intermediate_store_.end());
+  return map_to_intermediate_store_[id];
+}
+
 FunctionStore::MapToMapOutputManagerFuncT FunctionStore::GetMapToMapOutputMangerFunc(PlanItem plan) {
   // Wrap the plan.map into a function which runs the map function and then put it into
   // map_output_storage.

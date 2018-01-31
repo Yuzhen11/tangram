@@ -20,17 +20,13 @@ class FakePartition : public AbstractPartition {
 };
 
 TEST_F(TestEngine, Create) {
-  std::unique_ptr<AbstractPartitionManager> partition_manager(new PartitionManager);
-  std::shared_ptr<AbstractMapOutput> map_output(new FakeMapOutput);
   const int thread_pool_size = 4;
-  Engine engine(thread_pool_size, std::move(partition_manager), std::move(map_output));
+  Engine engine(thread_pool_size);
 }
 
 TEST_F(TestEngine, AddPlanItem) {
-  std::unique_ptr<AbstractPartitionManager> partition_manager(new PartitionManager);
-  std::shared_ptr<AbstractMapOutput> map_output(new FakeMapOutput);
   const int thread_pool_size = 4;
-  Engine engine(thread_pool_size, std::move(partition_manager), std::move(map_output));
+  Engine engine(thread_pool_size);
 
   /*
   PlanItem::MapFuncT map = [](std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutput>) {

@@ -27,6 +27,10 @@ class FunctionStore {
   using MapToIntermediateStoreFuncT = std::function<void(std::shared_ptr<AbstractPartition>, 
                                                          std::shared_ptr<AbstractIntermediateStore>)>;
 
+  const MapToMapOutputManagerFuncT& GetMapToMapOutputMangerFunc(int id);
+  const MapOutputToIntermediateStoreFuncT& GetMapOutputToIntermediateStoreFunc(int id);
+  const MapToIntermediateStoreFuncT& GetMapToIntermediateStoreFunc(int id);
+  // For test use.
   static MapToMapOutputManagerFuncT GetMapToMapOutputMangerFunc(PlanItem plan);
   static MapOutputToIntermediateStoreFuncT GetMapOutputToIntermediateStoreFunc(PlanItem plan);
   static MapToIntermediateStoreFuncT GetMapToIntermediateStoreFunc(PlanItem plan);

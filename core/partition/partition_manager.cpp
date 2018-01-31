@@ -23,6 +23,11 @@ std::shared_ptr<AbstractPartition> PartitionManager::Get(int collection_id, int 
   return partitions_[collection_id][partition_id];
 }
 
+
+const std::map<int, std::shared_ptr<AbstractPartition>>& PartitionManager::Get(int collection_id) {
+  return partitions_[collection_id];
+}
+
 void PartitionManager::Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&& p) {
   CHECK(partitions_[collection_id].find(partition_id) == partitions_[collection_id].end());
   CHECK_EQ(p.use_count(), 1) << "the partition has only one reference.";
