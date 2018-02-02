@@ -10,6 +10,8 @@ class TestPartitionManager : public testing::Test {};
 
 template <typename T>
 class FakePartition : public AbstractPartition {
+  virtual void FromBin(SArrayBinStream& bin) override {}
+  virtual void ToBin(SArrayBinStream& bin) override {}
 };
 
 TEST_F(TestPartitionManager, Construct) {

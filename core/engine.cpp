@@ -13,14 +13,6 @@ Engine::Engine(int thread_pool_size)
 Engine::~Engine() {
 }
 
-void Engine::RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartition> partition) {
-}
-
-void Engine::RunPlanItem(int plan_id, int phase, int collection_id, int partition_id) {
-  auto part = partition_manager_->Get(collection_id, partition_id);
-  RunPlanItem(plan_id, phase, part);
-}
-
 void Engine::AddPlan(PlanItem plan_item) {
   int plan_id = plan_item.plan_id;
   CHECK(plans_.find(plan_id) == plans_.end());
@@ -34,7 +26,7 @@ void Engine::RunLocalPartitions(int plan_id) {
   auto& func = function_store_->GetMapToIntermediateStoreFunc(plan_id);
   auto& parts = partition_manager_->Get(collection_id);
   for (auto& part : parts) {
-    executor_->Add([this, part, func](){ func(part.second, intermediate_store_); });
+    executor_->Add([this, part, func](){ func(part.second->partition, intermediate_store_); });
   }
 }
 

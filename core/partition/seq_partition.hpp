@@ -19,7 +19,18 @@ class SeqPartition : public TypedPartition<ObjT> {
     std::sort(storage_.begin(), storage_.end(), [](const ObjT& a, const ObjT& b) { return a.Key() < b.Key(); });
   }
 
+  virtual ObjT Get(typename ObjT::KeyT) override {
+    CHECK(false) << "not implemented";
+  }
+
   virtual size_t GetSize() const override { return storage_.size(); }
+
+  virtual void FromBin(SArrayBinStream& bin) override {
+    bin >> storage_;
+  }
+  virtual void ToBin(SArrayBinStream& bin) override {
+    bin << storage_;
+  }
 
   /*
    * Implement the Iterator to support range-based for loop

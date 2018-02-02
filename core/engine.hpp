@@ -16,12 +16,6 @@ class Engine {
  public:
   Engine(int thread_pool_size);
   ~Engine();
-  void RunPlanItem(int plan_id, int phase, std::shared_ptr<AbstractPartition> partition);
-  /*
-   * Run by the contorller, push the lambda of the planitem into the threadpool.
-   * Called during the runtime.
-   */
-  void RunPlanItem(int plan_id, int phase, int collection_id, int partition_id);
   /*
    * Add a plan to the engine.
    * Called in the plan construction phase.

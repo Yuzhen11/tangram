@@ -68,7 +68,6 @@ class Plan {
     return plan_item;
   }
 
- private:
   int plan_id_;
   Collection<T1> map_collection_;
   Collection<T2> join_collection_;

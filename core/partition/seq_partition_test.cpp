@@ -45,6 +45,16 @@ TEST_F(TestSeqPartition, Iterate) {
   }
 }
 
+TEST_F(TestSeqPartition, Bin) {
+  SeqPartition<ObjT> part;
+  part.Add(ObjT{2, 3});
+  part.Add(ObjT{1, 2});
+  SArrayBinStream bin;
+  part.ToBin(bin);
+  SeqPartition<ObjT> new_part;
+  new_part.FromBin(bin);
+  ASSERT_EQ(new_part.GetSize(), 2);
+}
 
 }  // namespace
 }  // namespace xyz

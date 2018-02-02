@@ -75,4 +75,24 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::basic_string<OutputT>&
     return stream;
 }
 
+template <typename InputT>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::vector<InputT>& v) {
+    size_t len = v.size();
+    stream << len;
+    for (int i = 0; i < v.size(); ++i)
+        stream << v[i];
+    return stream;
+}
+
+template <typename OutputT>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::vector<OutputT>& v) {
+    size_t len;
+    stream >> len;
+    v.clear();
+    v.resize(len);
+    for (int i = 0; i < v.size(); ++i)
+        stream >> v[i];
+    return stream;
+}
+
 }  // namespace xyz

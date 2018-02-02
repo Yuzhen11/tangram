@@ -1,7 +1,6 @@
 #pragma once
 
 #include "core/partition/abstract_partition.hpp"
-#include "core/partition/partition_manager.hpp"
 
 #include "glog/logging.h"
 
@@ -9,6 +8,11 @@
 #include <map>
 
 namespace xyz {
+
+struct VersionedPartition {
+  int version;
+  std::shared_ptr<AbstractPartition> partition;
+};
 
 // Not thread-safe
 /*
@@ -19,9 +23,12 @@ class PartitionManager {
   PartitionManager() = default;
   ~PartitionManager();
 
-  std::shared_ptr<AbstractPartition> Get(int collection_id, int partition_id);
+  std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id);
 
-  const std::map<int, std::shared_ptr<AbstractPartition>>& Get(int collection_id);
+  bool Has(int collection_id, int partition_id, int version);
+  std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id, int version);
+
+  const std::map<int, std::shared_ptr<VersionedPartition>>& Get(int collection_id);
 
   void Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&&);
 
@@ -29,7 +36,7 @@ class PartitionManager {
  private:
   // <collection_id, <partition_id, partition>>
   // Let PartitionManager own the partition.
-  std::map<int, std::map<int, std::shared_ptr<AbstractPartition>>> partitions_;
+  std::map<int, std::map<int, std::shared_ptr<VersionedPartition>>> partitions_;
 };
 
 }  // namespace

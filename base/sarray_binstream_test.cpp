@@ -65,12 +65,14 @@ TEST_F(TestSArrayBinStream, String) {
   ASSERT_EQ(bin.Size(), 0);
 }
 
-// TODO:  Provide vector overload to enable this
-// TEST_F(TestSArrayBinStream, Vector) {
-//   SArrayBinStream bin;
-//   std::vector<int> v;
-//   bin << v;
-// }
+TEST_F(TestSArrayBinStream, Vector) {
+  SArrayBinStream bin;
+  std::vector<int> v{3, 5, 8};
+  bin << v;
+  std::vector<int> a;
+  bin >> a;
+  EXPECT_EQ(a, v);
+}
 
 }  // namespace
 }  // namespace xyz
