@@ -2,6 +2,7 @@
 
 #include <cinttypes>
 #include <sstream>
+#include <vector>
 
 #include "base/third_party/sarray.h"
 #include "base/node.hpp"
@@ -10,8 +11,8 @@ namespace xyz {
 
 struct Control {};
 
-enum class Flag : char {kExit, kBarrier, kRegister, kHeartbeat};
-static const char* FlagName[] = {"kExit", "kRegister", "kBarrier", "kHeartbeat"};
+enum class Flag : char {kExit, kBarrier, kRegister, kAdd, kGet, kHeartbeat};
+static const char* FlagName[] = {"kExit", "kBarrier", "kRegister", "kAdd", "kGet", "kHeartbeat"};
 
 struct Meta {
   int sender;
@@ -19,7 +20,9 @@ struct Meta {
   int partition_id;
   int collection_id;
   Flag flag;  // { kExit, kBarrier, kHeartbeat};
-  Node node;
+  Node node; // for worker node
+  bool is_recovery = false;
+  Node recovery_node;
   int timestamp;
 
   std::string DebugString() const {
