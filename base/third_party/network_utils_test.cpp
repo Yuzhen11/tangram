@@ -1,7 +1,7 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
-#include "base/third_party/network_utils.h"
+#include "base/third_party/network_utils.cpp"
 
 namespace xyz {
 namespace third_party {

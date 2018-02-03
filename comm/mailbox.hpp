@@ -4,6 +4,7 @@
 #include <map>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 #include <zmq.h>
 
@@ -11,6 +12,8 @@
 #include "base/node.hpp"
 #include "base/message.hpp"
 // #include "comm/resender.hpp"
+#include "base/third_party/network_utils.h"
+#include "base/sarray_binstream.hpp"
 #include "glog/logging.h"
 
 namespace xyz {
@@ -28,8 +31,15 @@ class Mailbox {
   int Recv(Message* msg);
   void Barrier();
 
+  // For testing only
+  void BindAndConnect();
+  void StartReceiving();
+  void StopReceiving();
+  
+  void CloseSockets();
   void Start();
   void Stop();
+  void Connect(const Node& node);
 
   const Node& my_node() const {
     CHECK(ready_) << "call Start() first";
@@ -37,23 +47,34 @@ class Mailbox {
   }
  private:
   void Bind(const Node& node, int max_retry);
-  void Connect(const Node& node);
+  
 
   bool is_scheduler_;
   // whether it is ready for sending
   std::atomic<bool> ready_{false};
   Node scheduler_node_;
   Node my_node_;
-  // all worker nodes
+  // all worker nodes, owned by scheduler
   std::vector<Node> nodes_;
   int num_workers_;
+
+  // node's address string (i.e. ip:port) -> node id
+  // this map is updated when ip:port is received for the first time
+  std::unordered_map<std::string, int> connected_nodes_;
+  // maps the id of node which is added later to the id of node
+// which is with the same ip:port and added first
+std::unordered_map<int, int> shared_node_mapping_;
+const std::vector<int> GetNodeIDs() const;
 
   std::map<uint32_t, ThreadsafeQueue<Message>* const> queue_map_;
 
   // Handle different msgs
   void HandleBarrierMsg(Message* msg);
-  void HandleRegisterMsg(Message* msg);
+  void HandleRegisterMsg(Message* msg, std::vector<Node>& nodes, Node& recovery_node);
+  void HandleRegisterMsgAtScheduler(Message* msg, std::vector<Node>& nodes, Node& recovery_node);
   void HandleHeartbeat(Message* msg);
+
+  void UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std::vector<Node>& nodes, Node& recovery_node);
 
   // receiver
   std::thread receiver_thread_;
@@ -68,9 +89,15 @@ class Mailbox {
   // heartbeat
   std::thread heartbeat_thread_;
   void Heartbeat();
+  void UpdateHeartbeat(int node_id, time_t t);
   // only used by scheduler (ps-lite put these in postoffice)
   std::mutex heartbeat_mu_;
   std::unordered_map<int, time_t> heartbeats_;
+  // make it get from outside in the future
+  int heartbeat_timeout_ = 60;
+  std::vector<int> GetDeadNodes(int t = 60);
+  // start time of the node
+  time_t start_time_;
 
   // barrier
   bool barrier_finish_ = false;
