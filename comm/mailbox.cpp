@@ -261,7 +261,7 @@ void Mailbox::CloseSockets() {
     queue.second->Push(exit_msg);
   }
   // close sockets
-  int linger = 0;  // infinite linger period. Wait for all pending messages to be sent.
+  int linger = 0;
   int rc = zmq_setsockopt(receiver_, ZMQ_LINGER, &linger, sizeof(linger));
   CHECK(rc == 0 || errno == ETERM);
   CHECK_EQ(zmq_close(receiver_), 0);
@@ -495,6 +495,7 @@ void Mailbox::Heartbeat() {
   const int interval = 1;
   while (interval > 0 && ready_.load()) {
     std::this_thread::sleep_for(std::chrono::seconds(interval));
+    if (!ready_.load()) break;
     Message msg;
     msg.meta.recver = scheduler_node_.id;
     msg.meta.flag = Flag::kHeartbeat;
