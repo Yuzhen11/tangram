@@ -4,6 +4,7 @@ file(GLOB core-src-files
     engine.cpp
     tmp.cpp
     partition/partition_manager.cpp
+    partition/fetcher.cpp
     executor/thread_pool.cpp
     executor/executor.cpp
     plan/function_store.cpp

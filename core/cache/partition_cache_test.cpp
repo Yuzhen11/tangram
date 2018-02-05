@@ -29,9 +29,12 @@ struct ObjT {
 // IndexedSeqPartition.
 class TestPartitionCache : public testing::Test {};
 
-class SimpleSender : public AbstractSender {
+class SimpleFetcher : public AbstractFetcher {
  public:
-  virtual void Send(Message msg) override {
+  virtual void FetchRemote(int collection_id, int partition_id, int version) {
+    SArrayBinStream bin;
+    bin << collection_id << partition_id << version;
+    Message msg = bin.ToMsg();
     msgs.Push(std::move(msg));
   }
   Message Get() {
@@ -46,7 +49,7 @@ TEST_F(TestPartitionCache, Construct) {
   auto partition_manager = std::make_shared<PartitionManager>();
   auto mappers = std::make_shared<KeyToPartMappers>();
   auto bin_to_part_mappers = std::make_shared<BinToPartMappers>();
-  auto sender = std::make_shared<SimpleSender>();
+  auto sender = std::make_shared<SimpleFetcher>();
   PartitionCache cache(partition_manager, mappers, bin_to_part_mappers, sender);
 }
 
@@ -54,7 +57,7 @@ TEST_F(TestPartitionCache, Get) {
   auto partition_manager = std::make_shared<PartitionManager>();
   auto mappers = std::make_shared<KeyToPartMappers>();
   auto bin_to_part_mappers = std::make_shared<BinToPartMappers>();
-  auto sender = std::make_shared<SimpleSender>();
+  auto sender = std::make_shared<SimpleFetcher>();
   PartitionCache cache(partition_manager, mappers, bin_to_part_mappers, sender);
   const int collection_id = 0;
   const int part_id = 0;

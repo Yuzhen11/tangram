@@ -11,8 +11,8 @@ namespace xyz {
 
 struct Control {};
 
-enum class Flag : char {kExit, kBarrier, kRegister, kAdd, kGet, kHeartbeat};
-static const char* FlagName[] = {"kExit", "kBarrier", "kRegister", "kAdd", "kGet", "kHeartbeat"};
+enum class Flag : char {kExit, kBarrier, kRegister, kAdd, kGet, kHeartbeat, kFetch, kFetchReply};
+static const char* FlagName[] = {"kExit", "kBarrier", "kRegister", "kAdd", "kGet", "kHeartbeat", "kFetch", "kFetchReply"};
 
 struct Meta {
   int sender;

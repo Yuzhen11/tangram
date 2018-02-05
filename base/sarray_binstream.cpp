@@ -23,8 +23,11 @@ Message SArrayBinStream::ToMsg() const {
 
 void SArrayBinStream::FromMsg(const Message& msg) {
   CHECK_EQ(msg.data.size(), 1);
-  buffer_ = msg.data[0];
-  front_ = 0;
+  FromSArray(msg.data[0]);
+}
+
+third_party::SArray<char> SArrayBinStream::ToSArray() {
+  return buffer_;
 }
 
 }  // namespace xyz

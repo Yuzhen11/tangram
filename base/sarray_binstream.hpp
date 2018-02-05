@@ -22,8 +22,17 @@ class SArrayBinStream {
   void* PopBin(size_t sz);
 
   Message ToMsg() const;
-
   void FromMsg(const Message& msg);
+
+  /*
+   * From and to SArray.
+   */
+  template <typename V>
+  void FromSArray(const third_party::SArray<V>& sarray) {
+    buffer_ = sarray;
+    front_ = 0;
+  }
+  third_party::SArray<char> ToSArray();
  private:
   third_party::SArray<char> buffer_;
   size_t front_ = 0;

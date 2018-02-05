@@ -13,6 +13,24 @@ TEST_F(TestSArrayBinStream, ConstructAndSize) {
   ASSERT_EQ(bin.Size(), 0);
 }
 
+TEST_F(TestSArrayBinStream, FromSArrayToSArray) {
+  SArrayBinStream bin;
+  third_party::SArray<int> s{1, 2};
+  bin.FromSArray(s);
+  ASSERT_EQ(bin.Size(), 8);
+  int a, b;
+  bin >> a >> b;
+  ASSERT_EQ(bin.Size(), 0);
+  EXPECT_EQ(a, 1);
+  EXPECT_EQ(b, 2);
+
+  auto new_s = bin.ToSArray();
+  auto new_ss = static_cast<third_party::SArray<int>>(new_s);
+  ASSERT_EQ(new_ss.size(), 2);
+  EXPECT_EQ(new_ss[0], 1);
+  EXPECT_EQ(new_ss[1], 2);
+}
+
 TEST_F(TestSArrayBinStream, FromMsg) {
   SArrayBinStream bin;
   Message msg;

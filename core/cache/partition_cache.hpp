@@ -8,22 +8,23 @@
 #include "core/index/key_to_part_mappers.hpp"
 #include "core/partition/partition_manager.hpp"
 #include "core/cache/bin_to_part_mappers.hpp"
-#include "comm/abstract_sender.hpp"
+#include "core/partition/abstract_fetcher.hpp"
+#include "core/cache/abstract_partition_cache.hpp"
 
 #include "glog/logging.h"
 
 namespace xyz {
 
-class PartitionCache {
+class PartitionCache : public AbstractPartitionCache {
  public:
   PartitionCache(std::shared_ptr<PartitionManager> partition_manager,
           std::shared_ptr<KeyToPartMappers> mappers,
           std::shared_ptr<BinToPartMappers> bin_to_part_mappers,
-          std::shared_ptr<AbstractSender> sender)
+          std::shared_ptr<AbstractFetcher> fetcher)
       :partition_manager_(partition_manager),
        mappers_(mappers),
        bin_to_part_mappers_(bin_to_part_mappers),
-       sender_(sender) {
+       fetcher_(fetcher) {
   }
 
   template<typename ObjT>
@@ -44,9 +45,7 @@ class PartitionCache {
       // exist, do nothing
     } else {
       // send request and wait
-      Message msg;
-      // TODO: fix message
-      sender_->Send(std::move(msg));
+      fetcher_->FetchRemote(collection_id, partition_id, version);
       partitions_[collection_id][partition_id] = std::make_shared<VersionedPartition>();
       partitions_[collection_id][partition_id]->version = -1;
       cond_.wait(lk, [this, version, collection_id, partition_id] {
@@ -59,7 +58,7 @@ class PartitionCache {
     auto obj = static_cast<TypedPartition<ObjT>*>(part->partition.get())->Get(key);
     return obj;
   }
-  void UpdatePartition(int collection_id, int partition_id, int version, SArrayBinStream bin) {
+  virtual void UpdatePartition(int collection_id, int partition_id, int version, SArrayBinStream bin) override {
     auto part = std::make_shared<VersionedPartition>();
     part->version = version;
     part->partition = bin_to_part_mappers_->Call(collection_id, bin);
@@ -74,7 +73,7 @@ class PartitionCache {
   std::shared_ptr<KeyToPartMappers> mappers_;
   std::shared_ptr<BinToPartMappers> bin_to_part_mappers_;
   std::shared_ptr<PartitionManager> partition_manager_;
-  std::shared_ptr<AbstractSender> sender_;
+  std::shared_ptr<AbstractFetcher> fetcher_;
 
   // The access of the partitions_ should be protected.
   // Finer-grained lock may be used later.
