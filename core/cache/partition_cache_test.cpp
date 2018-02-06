@@ -24,7 +24,6 @@ struct ObjT {
 
 // This test also depends on 
 // PartitionManager,
-// KeyToPartMappers,
 // BinToPartMappers
 // IndexedSeqPartition.
 class TestPartitionCache : public testing::Test {};
@@ -47,24 +46,19 @@ class SimpleFetcher : public AbstractFetcher {
 
 TEST_F(TestPartitionCache, Construct) {
   auto partition_manager = std::make_shared<PartitionManager>();
-  auto mappers = std::make_shared<KeyToPartMappers>();
   auto bin_to_part_mappers = std::make_shared<BinToPartMappers>();
   auto sender = std::make_shared<SimpleFetcher>();
-  PartitionCache cache(partition_manager, mappers, bin_to_part_mappers, sender);
+  PartitionCache cache(partition_manager, bin_to_part_mappers, sender);
 }
 
 TEST_F(TestPartitionCache, Get) {
   auto partition_manager = std::make_shared<PartitionManager>();
-  auto mappers = std::make_shared<KeyToPartMappers>();
   auto bin_to_part_mappers = std::make_shared<BinToPartMappers>();
   auto sender = std::make_shared<SimpleFetcher>();
-  PartitionCache cache(partition_manager, mappers, bin_to_part_mappers, sender);
+  PartitionCache cache(partition_manager, bin_to_part_mappers, sender);
   const int collection_id = 0;
   const int part_id = 0;
   IndexedSeqPartition<ObjT> part;
-  // key to part mapper
-  auto mapper = std::make_shared<HashKeyToPartMapper<int>>(1);
-  mappers->Add(collection_id, mapper);
   // bin to part mapper
   auto bin_to_part = [](SArrayBinStream bin) {
     auto part = std::make_shared<IndexedSeqPartition<ObjT>>();
@@ -75,9 +69,10 @@ TEST_F(TestPartitionCache, Get) {
   const int version = 0;
   const int key = 2;
   std::thread th1([&cache]() {
-    ObjT obj = cache.Get<ObjT>(collection_id, key, version);
-    EXPECT_EQ(obj.key, 2);
-    EXPECT_EQ(obj.val, 3);
+    auto part = cache.GetPartition(collection_id, part_id, version)->partition;
+    auto typed_part = static_cast<IndexedSeqPartition<ObjT>*>(part.get());
+    EXPECT_EQ(typed_part->Get(2).val, 3);
+    EXPECT_EQ(typed_part->Get(1).val, 2);
   });
   std::thread th2([&cache, sender, collection_id, part_id, version]() {
     Message msg = sender->Get();

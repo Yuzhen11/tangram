@@ -2,17 +2,14 @@
 
 #include "core/partition/abstract_partition.hpp"
 
+#include "core/partition/versioned_partition.hpp"
+
 #include "glog/logging.h"
 
 #include <memory>
 #include <map>
 
 namespace xyz {
-
-struct VersionedPartition {
-  int version;
-  std::shared_ptr<AbstractPartition> partition;
-};
 
 // Not thread-safe
 /*

@@ -9,6 +9,7 @@ namespace {
 struct FakePartitionCache : public AbstractPartitionCache {
   virtual void UpdatePartition(int collection_id, int partition_id, int version, SArrayBinStream bin) override {
   }
+  virtual std::shared_ptr<VersionedPartition> GetPartition(int collection_id, int partition_id, int version) override {}
 };
 
 template <typename T>
