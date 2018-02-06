@@ -2,10 +2,9 @@
 
 #include <map>
 
-#include "core/plan/plan_item.hpp"
-#include "core/intermediate/abstract_intermediate_store.hpp"
 
-#include "core/map_output/abstract_map_output.hpp"
+#include "core/plan/abstract_function_store.hpp"
+
 #include "core/map_output/map_output_storage.hpp"
 
 namespace xyz { 
@@ -13,9 +12,11 @@ namespace xyz {
 /*
  * Store all the functions.
  */
-class FunctionStore {
+class FunctionStore : public AbstractFunctionStore {
  public:
-  void AddPlanItem(PlanItem plan);
+  using PartToOutput = AbstractFunctionStore::PartToOutput;
+  using OutputsToBin = AbstractFunctionStore::OutputsToBin;
+  // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
   using MapToMapOutputManagerFuncT = std::function<void(std::shared_ptr<AbstractPartition>, 
                                                         std::shared_ptr<MapOutputManager>)>;
@@ -30,14 +31,19 @@ class FunctionStore {
   const MapToMapOutputManagerFuncT& GetMapToMapOutputMangerFunc(int id);
   const MapOutputToIntermediateStoreFuncT& GetMapOutputToIntermediateStoreFunc(int id);
   const MapToIntermediateStoreFuncT& GetMapToIntermediateStoreFunc(int id);
+
+  virtual void AddPartToIntermediate(int id, PartToOutput func) override;
+  virtual void AddPartToOutputManager(int id, PartToOutput func) override;
+  virtual void AddOutputsToBin(int id, OutputsToBin func) override;
+
   // For test use.
-  static MapToMapOutputManagerFuncT GetMapToMapOutputMangerFunc(PlanItem plan);
-  static MapOutputToIntermediateStoreFuncT GetMapOutputToIntermediateStoreFunc(PlanItem plan);
-  static MapToIntermediateStoreFuncT GetMapToIntermediateStoreFunc(PlanItem plan);
+  static MapToMapOutputManagerFuncT GetPartToOutputManager(int id, PartToOutput map);
+  static MapOutputToIntermediateStoreFuncT GetOutputsToIntermediate(int id, OutputsToBin merge_combine);
+  static MapToIntermediateStoreFuncT GetPartToIntermediate(PartToOutput map);
  private:
-  std::map<int, MapToMapOutputManagerFuncT> map_to_map_output_storage_store_;
-  std::map<int, MapToIntermediateStoreFuncT> map_to_intermediate_store_;
-  std::map<int, MapOutputToIntermediateStoreFuncT> map_output_to_intermediate_store_;
+  std::map<int, MapToMapOutputManagerFuncT> part_to_output_manager_;
+  std::map<int, MapToIntermediateStoreFuncT> part_to_intermediate_;
+  std::map<int, MapOutputToIntermediateStoreFuncT> mapoutput_to_intermediate_;
 };
 
 }  // namespaca xyz

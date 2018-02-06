@@ -23,16 +23,15 @@ struct ObjT {
 
 class TestFunctionStore: public testing::Test {};
 
-TEST_F(TestFunctionStore, GetMapToMapOutputMangerFunc) {
+TEST_F(TestFunctionStore, GetPartToOutputManager) {
   const int plan_id = 0;
-  PlanItem plan_item(plan_id, 0, 0);
   const int num_part = 1;
   auto partition = std::make_shared<SeqPartition<ObjT>>();
   partition->Add(ObjT{10});
   partition->Add(ObjT{20});
   auto map_output_storage = std::make_shared<MapOutputManager>();
 
-  plan_item.map = [](std::shared_ptr<AbstractPartition> partition) {
+  auto map = [](std::shared_ptr<AbstractPartition> partition) {
     auto* p = static_cast<TypedPartition<ObjT>*>(partition.get());
     auto output = std::make_shared<MapOutput<ObjT::KeyT, int>>();
     for (auto& elem : *p) {
@@ -40,7 +39,7 @@ TEST_F(TestFunctionStore, GetMapToMapOutputMangerFunc) {
     }
     return output;
   };
-  auto func = FunctionStore::GetMapToMapOutputMangerFunc(plan_item);
+  auto func = FunctionStore::GetPartToOutputManager(plan_id, map);
   ASSERT_EQ(map_output_storage->Get(0).size(), 0);
   func(partition, map_output_storage);
   ASSERT_EQ(map_output_storage->Get(0).size(), 1);
@@ -53,17 +52,15 @@ TEST_F(TestFunctionStore, GetMapToMapOutputMangerFunc) {
   EXPECT_EQ(vec[1].second, 1);
 }
 
-TEST_F(TestFunctionStore, GetMapToIntermediateStoreFunc) {
+TEST_F(TestFunctionStore, GetPartToIntermediate) {
   const int plan_id = 0;
-  PlanItem plan_item(plan_id, 0, 0);
-  plan_item.combine_type = PlanItem::CombineType::None;
   const int num_part = 1;
   auto partition = std::make_shared<SeqPartition<ObjT>>();
   partition->Add(ObjT{10});
   partition->Add(ObjT{20});
   auto intermediate_store = std::make_shared<SimpleIntermediateStore>();
 
-  plan_item.map = [](std::shared_ptr<AbstractPartition> partition) {
+  auto map = [](std::shared_ptr<AbstractPartition> partition) {
     auto* p = static_cast<TypedPartition<ObjT>*>(partition.get());
     auto output = std::make_shared<MapOutput<ObjT::KeyT, int>>();
     for (auto& elem : *p) {
@@ -71,7 +68,7 @@ TEST_F(TestFunctionStore, GetMapToIntermediateStoreFunc) {
     }
     return output;
   };
-  auto func = FunctionStore::GetMapToIntermediateStoreFunc(plan_item);
+  auto func = FunctionStore::GetPartToIntermediate(map);
   func(partition, intermediate_store);
   auto msgs = intermediate_store->Get();
   ASSERT_EQ(msgs.size(), 1);
