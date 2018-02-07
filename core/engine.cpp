@@ -13,25 +13,12 @@ Engine::Engine(int thread_pool_size)
 Engine::~Engine() {
 }
 
-/*
-void Engine::AddPlan(PlanItem plan_item) {
-  int plan_id = plan_item.plan_id;
-  CHECK(plans_.find(plan_id) == plans_.end());
-  plans_.insert(std::make_pair(plan_id, std::move(plan_item)));
-  function_store_->AddPlanItem(plan_item);
-}
-*/
-
-void Engine::RunLocalPartitions(int plan_id) {
-    /*
-  CHECK(plans_.find(plan_id) != plans_.end()) << "plan does not exist, id: " << plan_id;
-  int collection_id = plans_.find(plan_id)->second.map_collection_id;
-  auto& func = function_store_->GetMapToIntermediateStoreFunc(plan_id);
-  auto& parts = partition_manager_->Get(collection_id);
+void Engine::RunLocalPartitions(PlanSpec plan) {
+  auto& func = function_store_->GetMap(plan.plan_id);
+  auto& parts = partition_manager_->Get(plan.map_collection_id);
   for (auto& part : parts) {
     executor_->Add([this, part, func](){ func(part.second->partition, intermediate_store_); });
   }
-  */
 }
 
 void Engine::Main() {

@@ -11,6 +11,8 @@
 #include "core/index/hash_key_to_part_mapper.hpp"
 
 #include "core/plan/abstract_function_store.hpp"
+#include "core/plan/plan_spec.hpp"
+
 
 namespace xyz {
 
@@ -28,7 +30,9 @@ class Plan {
   using MapPartFuncT = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;
 
   Plan(int _plan_id, Collection<T1> _map_collection, Collection<T2> _join_collection)
-      :plan_id(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {}
+      :plan_id(_plan_id), map_collection(_map_collection), join_collection(_join_collection),
+    plan_spec(plan_id, map_collection.id, join_collection.id, -1) {
+  }
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     auto map_part = GetMapPartFunc();
@@ -57,6 +61,9 @@ class Plan {
       return MergeCombineMultipleMapOutput<typename T2::KeyT, MsgT>(map_outputs, part_id);
     });
   }
+  PlanSpec GetPlanSpec() {
+    return plan_spec;
+  }
 
   MapPartFuncT GetMapPartFunc() {
     CHECK(map != nullptr);
@@ -76,6 +83,7 @@ class Plan {
   int plan_id;
   Collection<T1> map_collection;
   Collection<T2> join_collection;
+  PlanSpec plan_spec;
 
   MapFuncT map;
   JoinFuncT join;

@@ -18,32 +18,34 @@ class FunctionStore : public AbstractFunctionStore {
   using OutputsToBin = AbstractFunctionStore::OutputsToBin;
   // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
-  using MapToMapOutputManagerFuncT = std::function<void(std::shared_ptr<AbstractPartition>, 
+  using PartToOutputManager = std::function<void(std::shared_ptr<AbstractPartition>, 
                                                         std::shared_ptr<MapOutputManager>)>;
   // MapOutput -> IntermediateStore
-  using MapOutputToIntermediateStoreFuncT = std::function<void(const std::vector<std::shared_ptr<AbstractMapOutput>>&, 
+  using MapOutputToIntermediate = std::function<void(const std::vector<std::shared_ptr<AbstractMapOutput>>&, 
                                                                std::shared_ptr<AbstractIntermediateStore>,
                                                                int part_id)>;
   // Partition -> IntermediateStore
-  using MapToIntermediateStoreFuncT = std::function<void(std::shared_ptr<AbstractPartition>, 
+  using PartToIntermediate = std::function<void(std::shared_ptr<AbstractPartition>, 
                                                          std::shared_ptr<AbstractIntermediateStore>)>;
 
-  const MapToMapOutputManagerFuncT& GetMapToMapOutputMangerFunc(int id);
-  const MapOutputToIntermediateStoreFuncT& GetMapOutputToIntermediateStoreFunc(int id);
-  const MapToIntermediateStoreFuncT& GetMapToIntermediateStoreFunc(int id);
+  // Used by engine.
+  const PartToOutputManager& GetMapPart1(int id);
+  const MapOutputToIntermediate& GetMapPart2(int id);
+  const PartToIntermediate& GetMap(int id);
 
+  // Used by plan to register function.
   virtual void AddPartToIntermediate(int id, PartToOutput func) override;
   virtual void AddPartToOutputManager(int id, PartToOutput func) override;
   virtual void AddOutputsToBin(int id, OutputsToBin func) override;
 
   // For test use.
-  static MapToMapOutputManagerFuncT GetPartToOutputManager(int id, PartToOutput map);
-  static MapOutputToIntermediateStoreFuncT GetOutputsToIntermediate(int id, OutputsToBin merge_combine);
-  static MapToIntermediateStoreFuncT GetPartToIntermediate(PartToOutput map);
+  static PartToOutputManager GetPartToOutputManager(int id, PartToOutput map);
+  static MapOutputToIntermediate GetOutputsToIntermediate(int id, OutputsToBin merge_combine);
+  static PartToIntermediate GetPartToIntermediate(PartToOutput map);
  private:
-  std::map<int, MapToMapOutputManagerFuncT> part_to_output_manager_;
-  std::map<int, MapToIntermediateStoreFuncT> part_to_intermediate_;
-  std::map<int, MapOutputToIntermediateStoreFuncT> mapoutput_to_intermediate_;
+  std::map<int, PartToOutputManager> part_to_output_manager_;
+  std::map<int, PartToIntermediate> part_to_intermediate_;
+  std::map<int, MapOutputToIntermediate> mapoutput_to_intermediate_;
 };
 
 }  // namespaca xyz

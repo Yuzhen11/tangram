@@ -4,27 +4,27 @@
 
 namespace xyz {
 
-const FunctionStore::MapToMapOutputManagerFuncT& FunctionStore::GetMapToMapOutputMangerFunc(int id) {
+const FunctionStore::PartToOutputManager& FunctionStore::GetMapPart1(int id) {
   CHECK(part_to_output_manager_.find(id) != part_to_output_manager_.end());
   return part_to_output_manager_[id];
 }
-const FunctionStore::MapOutputToIntermediateStoreFuncT& FunctionStore::GetMapOutputToIntermediateStoreFunc(int id) {
+const FunctionStore::MapOutputToIntermediate& FunctionStore::GetMapPart2(int id) {
   CHECK(mapoutput_to_intermediate_.find(id) != mapoutput_to_intermediate_.end());
   return mapoutput_to_intermediate_[id];
 }
-const FunctionStore::MapToIntermediateStoreFuncT& FunctionStore::GetMapToIntermediateStoreFunc(int id) {
+const FunctionStore::PartToIntermediate& FunctionStore::GetMap(int id) {
   CHECK(part_to_intermediate_.find(id) != part_to_intermediate_.end());
   return part_to_intermediate_[id];
 }
 
-FunctionStore::MapToMapOutputManagerFuncT FunctionStore::GetPartToOutputManager(int id, PartToOutput map) {
+FunctionStore::PartToOutputManager FunctionStore::GetPartToOutputManager(int id, PartToOutput map) {
   return [map, id](std::shared_ptr<AbstractPartition> partition, 
                 std::shared_ptr<MapOutputManager> map_output_storage) {
     auto map_output = map(partition);
     map_output_storage->Add(id, map_output);
   };
 }
-FunctionStore::MapOutputToIntermediateStoreFuncT FunctionStore::GetOutputsToIntermediate(int id, OutputsToBin merge_combine) {
+FunctionStore::MapOutputToIntermediate FunctionStore::GetOutputsToIntermediate(int id, OutputsToBin merge_combine) {
   return [merge_combine, id](const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, 
                 std::shared_ptr<AbstractIntermediateStore> intermediate_store,
                 int part_id) {
@@ -34,7 +34,7 @@ FunctionStore::MapOutputToIntermediateStoreFuncT FunctionStore::GetOutputsToInte
     intermediate_store->Add(msg);
   };
 }
-FunctionStore::MapToIntermediateStoreFuncT FunctionStore::GetPartToIntermediate(PartToOutput map) {
+FunctionStore::PartToIntermediate FunctionStore::GetPartToIntermediate(PartToOutput map) {
   return [map](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractIntermediateStore> intermediate_store) {
     // 1. map
     auto map_output = map(partition); 

@@ -8,6 +8,7 @@
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/plan/function_store.hpp"
 #include "core/intermediate/simple_intermediate_store.hpp"
+#include "core/plan/plan_spec.hpp"
 
 namespace xyz {
 
@@ -15,17 +16,12 @@ class Engine {
  public:
   Engine(int thread_pool_size);
   ~Engine();
-  /*
-   * Add a plan to the engine.
-   * Called in the plan construction phase.
-   */
-  // void AddPlan(PlanItem plan_item);
 
-  void RunLocalPartitions(int plan_id);
+  void RunLocalPartitions(PlanSpec plan);
+
   void Main();
  private:
   int thread_pool_size_;
-  // std::map<int, PlanItem> plans_;
   std::unique_ptr<PartitionManager> partition_manager_;
   std::unique_ptr<Executor> executor_;
   std::unique_ptr<FunctionStore> function_store_;
