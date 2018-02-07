@@ -10,18 +10,17 @@ template <typename ObjT>
 class TypedCache : public AbstractCache {
  public:
   TypedCache(std::shared_ptr<AbstractPartitionCache> partition_cache,
-             std::shared_ptr<KeyToPartMappers> mappers)
-    :partition_cache_(partition_cache), mappers_(mappers) {}
+             std::shared_ptr<KeyToPartMappers> mappers,
+             int collection_id, int version)
+    :partition_cache_(partition_cache), mappers_(mappers), collection_id_(collection_id),
+     version_(version){}
 
-  ObjT Get(ObjT::KeyT key) {
-  }
-
-  ObjT Get(int collection_id, typename ObjT::KeyT key, int version) {
-    CHECK(mappers_->Has(collection_id));
-    auto mapper = mappers_->Get(collection_id);
+  ObjT Get(typename ObjT::KeyT key) {
+    CHECK(mappers_->Has(collection_id_));
+    auto mapper = mappers_->Get(collection_id_);
     int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*>(mapper.get())->Get(key);
 
-    auto part = partition_cache_->GetPartition(collection_id, partition_id, version);
+    auto part = partition_cache_->GetPartition(collection_id_, partition_id, version_);
     auto obj = static_cast<TypedPartition<ObjT>*>(part->partition.get())->Get(key);
     return obj;
   }
@@ -29,6 +28,9 @@ class TypedCache : public AbstractCache {
  private:
   std::shared_ptr<AbstractPartitionCache> partition_cache_;
   std::shared_ptr<KeyToPartMappers> mappers_;
+  int collection_id_;
+  // TODO: the system should decide the version.
+  int version_;
 };
 
 }  // namespace xyz

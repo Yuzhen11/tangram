@@ -64,5 +64,22 @@ void FunctionStore::AddOutputsToBin(int id, OutputsToBin func) {
   mapoutput_to_intermediate_.insert({id, ret});
 }
 
+void FunctionStore::AddMapWith(int id, MapWith func) {
+  partwith_to_intermediate_.insert({id, [func](std::shared_ptr<AbstractPartition> partition,
+                                           std::shared_ptr<AbstractPartitionCache> partition_cache,
+                                           std::shared_ptr<AbstractIntermediateStore> intermediate_store) {
+    // 1. map
+    auto map_output = func(partition, partition_cache); 
+    // 2. serialize
+    auto bins = map_output->Serialize();
+    // 3. add to intermediate_store
+    for (auto& bin: bins) {
+      Message msg = bin.ToMsg();
+      // TODO Add msg header.
+      intermediate_store->Add(msg);
+    }
+  }});
+}
+
 }  // namespaca xyz
 

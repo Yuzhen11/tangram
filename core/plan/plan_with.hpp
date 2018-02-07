@@ -1,13 +1,17 @@
 #pragma once
 
 #include "core/plan/plan.hpp"
+#include "core/cache/typed_cache.hpp"
 
 namespace xyz {
 
 template<typename T1, typename T2, typename MsgT, typename T3>
 class PlanWith : public Plan<T1, T2, MsgT> {
  public:
-  // using MapWithFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&, TypedObjCache<T3>*)>;
+  using MapWithFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&, TypedCache<T3>*)>;
+  using MapPartWithFuncT = 
+      std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
+                                                       std::shared_ptr<AbstractPartitionCache>)>;
 
   PlanWith(int plan_id, Collection<T1> map_collection, 
        Collection<T2> join_collection,
@@ -16,7 +20,41 @@ class PlanWith : public Plan<T1, T2, MsgT> {
         with_collection_(with_collection) {
   }
 
+  void RegisterPlanWith(std::shared_ptr<AbstractFunctionStore> function_store) {
+    auto map_part_with = GetMapPartWithFunc();
+    function_store->AddMapWith(this->plan_id, [this, map_part_with](
+                std::shared_ptr<AbstractPartition> partition,
+                std::shared_ptr<AbstractPartitionCache> partition_cache) {
+      auto map_output = map_part_with(partition, partition_cache);
+      if (this->combine) {
+        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(this->combine);
+        map_output->Combine();
+      }
+      return map_output;
+    });
+  }
+
+  MapPartWithFuncT GetMapPartWithFunc() {
+    CHECK_NOTNULL(mapwith);
+    return [this](std::shared_ptr<AbstractPartition> partition, 
+              std::shared_ptr<AbstractPartitionCache> cache) {
+      // TODO: Fix the version
+      int version = 0;
+      TypedCache<T3> typed_cache(cache, with_collection_.mapper, with_collection_.id, version);
+      auto* p = static_cast<TypedPartition<T1>*>(partition.get());
+      CHECK_NOTNULL(this->join_collection.mapper);
+      auto output = std::make_shared<PartitionedMapOutput<typename T2::KeyT, MsgT>>(this->join_collection.mapper);
+      CHECK_NOTNULL(p);
+      CHECK_NOTNULL(output);
+      for (auto& elem : *p) {
+        output->Add(mapwith(elem, typed_cache));
+      }
+      return output;
+    };
+  }
+
   Collection<T3> with_collection_;
+  MapWithFuncT mapwith;
 };
 
 }  // namespace xyz
