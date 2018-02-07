@@ -31,7 +31,7 @@ class IndexedSeqPartition : public SeqPartition<ObjT> {
   virtual ObjT* FindOrCreate(typename ObjT::KeyT key) override {
     ObjT* obj = Find(key);
     if (obj) {
-      return &(*obj);
+      return obj;
     }
     // If cannot find, add it.
     ObjT new_obj(key);  // Assume the constructor is low cost.
