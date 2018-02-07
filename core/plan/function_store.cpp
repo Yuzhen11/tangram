@@ -16,6 +16,10 @@ const FunctionStore::PartToIntermediate& FunctionStore::GetMap(int id) {
   CHECK(part_to_intermediate_.find(id) != part_to_intermediate_.end());
   return part_to_intermediate_[id];
 }
+const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
+  CHECK(join_functions.find(id) != join_functions.end());
+  return join_functions[id];
+}
 
 FunctionStore::PartToOutputManager FunctionStore::GetPartToOutputManager(int id, PartToOutput map) {
   return [map, id](std::shared_ptr<AbstractPartition> partition, 
@@ -62,6 +66,10 @@ void FunctionStore::AddPartToOutputManager(int id, PartToOutput func) {
 void FunctionStore::AddOutputsToBin(int id, OutputsToBin func) {
   auto ret = GetOutputsToIntermediate(id, func);
   mapoutput_to_intermediate_.insert({id, ret});
+}
+
+void FunctionStore::AddJoinFunc(int id, JoinFuncT func) {
+  join_functions.insert({id, func});
 }
 
 void FunctionStore::AddMapWith(int id, MapWith func) {

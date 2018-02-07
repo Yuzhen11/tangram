@@ -28,6 +28,7 @@ class Plan {
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
   using MapPartFuncT = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;
+  using JoinPartFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
 
   Plan(int _plan_id, Collection<T1> _map_collection, Collection<T2> _join_collection)
       :plan_id(_plan_id), map_collection(_map_collection), join_collection(_join_collection),
@@ -44,6 +45,8 @@ class Plan {
       }
       return map_output;
     });
+
+    function_store->AddJoinFunc(plan_id, GetJoinPartFunc());
   }
 
   void RegisterMergeCombine(std::shared_ptr<AbstractFunctionStore> function_store) {
@@ -77,6 +80,20 @@ class Plan {
         output->Add(map(elem));
       }
       return output;
+    };
+  }
+
+  JoinPartFuncT GetJoinPartFunc() {
+    return [this] (std::shared_ptr<AbstractPartition> partition, SArrayBinStream bin) {
+      // TODO: CHECK_NOTNULL
+      auto* p = static_cast<TypedPartition<T1>*> (partition.get());
+      typename T1::KeyT key;
+      MsgT msg;
+      while (bin) {
+        bin >> key >> msg;
+        auto& obj = p.FindOrCreate(key);
+        join(obj, msg);
+      }
     };
   }
 
