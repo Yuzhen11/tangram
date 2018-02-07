@@ -24,7 +24,7 @@ class Plan {
  public:
   using MapFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&)>;
   // For most of the cases, T2::ValT == MsgT
-  using JoinFuncT = std::function<typename T2::ValT(const typename T2::ValT&, const MsgT&)>;
+  using JoinFuncT = std::function<void(T2*, const MsgT&)>;
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
   using MapPartFuncT = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;

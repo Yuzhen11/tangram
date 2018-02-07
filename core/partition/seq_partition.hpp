@@ -23,6 +23,10 @@ class SeqPartition : public TypedPartition<ObjT> {
     CHECK(false) << "not implemented";
   }
 
+  virtual ObjT* FindOrCreate(typename ObjT::KeyT key) override {
+    CHECK(false) << "not implemented";
+  }
+
   virtual size_t GetSize() const override { return storage_.size(); }
 
   virtual void FromBin(SArrayBinStream& bin) override {

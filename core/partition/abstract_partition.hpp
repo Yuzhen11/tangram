@@ -25,6 +25,12 @@ class TypedPartition : public AbstractPartition {
   virtual size_t GetSize() const = 0;
   virtual ObjT Get(typename ObjT::KeyT) = 0;
 
+  /*
+   * The return pointer will be invalid when the storage size change.
+   * You should assume the pointer is invalid once the partition changes.
+   */
+  virtual ObjT* FindOrCreate(typename ObjT::KeyT) = 0;
+
   virtual void Sort() = 0;
   /*
    * Subclasses need to implement Iterator and implement CreateIterator() function

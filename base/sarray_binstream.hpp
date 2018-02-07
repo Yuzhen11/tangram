@@ -3,6 +3,10 @@
 #include <type_traits>
 #include <cassert>
 
+#include <vector>
+#include <unordered_map>
+#include <map>
+
 #include "base/third_party/sarray.h"
 #include "base/message.hpp"
 
@@ -101,6 +105,62 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::vector<OutputT>& v) {
     v.resize(len);
     for (int i = 0; i < v.size(); ++i)
         stream >> v[i];
+    return stream;
+}
+
+template <typename K, typename V>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::map<K, V>& map) {
+    size_t len = map.size();
+    stream << len;
+    for (auto& elem : map)
+        stream << elem;
+    return stream;
+}
+
+template <typename K, typename V>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::map<K, V>& map) {
+    size_t len;
+    stream >> len;
+    map.clear();
+    for (int i = 0; i < len; i++) {
+        std::pair<K, V> elem;
+        stream >> elem;
+        map.insert(elem);
+    }
+    return stream;
+}
+
+template <typename K, typename V>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::unordered_map<K, V>& unordered_map) {
+    size_t len = unordered_map.size();
+    stream << len;
+    for (auto& elem : unordered_map)
+        stream << elem;
+    return stream;
+}
+
+template <typename K, typename V>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::unordered_map<K, V>& unordered_map) {
+    size_t len;
+    stream >> len;
+    unordered_map.clear();
+    for (int i = 0; i < len; i++) {
+        std::pair<K, V> elem;
+        stream >> elem;
+        unordered_map.insert(elem);
+    }
+    return stream;
+}
+
+template <typename FirstT, typename SecondT>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::pair<FirstT, SecondT>& p) {
+    stream << p.first << p.second;
+    return stream;
+}
+
+template <typename FirstT, typename SecondT>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::pair<FirstT, SecondT>& p) {
+    stream >> p.first >> p.second;
     return stream;
 }
 

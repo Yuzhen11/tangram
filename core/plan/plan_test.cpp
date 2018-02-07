@@ -16,8 +16,10 @@ class TestPlan: public testing::Test {};
 struct ObjT {
   using KeyT = int;
   using ValT = int;
+  ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
   int a;
+  int b;
 };
 
 TEST_F(TestPlan, Create) {
@@ -29,8 +31,8 @@ TEST_F(TestPlan, Create) {
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
   };
-  plan.join = [](int a, int m) {
-    return a + m;
+  plan.join = [](ObjT* obj, int m) {
+    obj->b += m;
   };
 }
 
