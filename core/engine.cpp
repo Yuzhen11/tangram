@@ -16,7 +16,7 @@ Engine::~Engine() {
 void Engine::RunLocalPartitions(PlanSpec plan) {
   auto& func = function_store_->GetMap(plan.plan_id);
   auto& parts = partition_manager_->Get(plan.map_collection_id);
-  for (auto& part : parts) {
+  for (auto part : parts) {
     executor_->Add([this, part, func](){ func(part.second->partition, intermediate_store_); });
   }
 }

@@ -49,7 +49,7 @@ class Plan {
     function_store->AddJoinFunc(plan_id, GetJoinPartFunc());
   }
 
-  void RegisterShuffleCombine(std::shared_ptr<AbstractFunctionStore> function_store) {
+  void RegisterMergeCombine(std::shared_ptr<AbstractFunctionStore> function_store) {
     auto map_part = GetMapPartFunc();
     // part -> mapoutput_manager
     function_store->AddPartToOutputManager(plan_id, [this, map_part](std::shared_ptr<AbstractPartition> partition) {
