@@ -86,12 +86,12 @@ class Plan {
   JoinPartFuncT GetJoinPartFunc() {
     return [this] (std::shared_ptr<AbstractPartition> partition, SArrayBinStream bin) {
       // TODO: CHECK_NOTNULL
-      auto* p = static_cast<TypedPartition<T1>*> (partition.get());
-      typename T1::KeyT key;
+      auto* p = static_cast<TypedPartition<T2>*> (partition.get());
+      typename T2::KeyT key;
       MsgT msg;
       while (bin) {
         bin >> key >> msg;
-        auto& obj = p.FindOrCreate(key);
+        auto* obj = p.FindOrCreate(key);
         join(obj, msg);
       }
     };
