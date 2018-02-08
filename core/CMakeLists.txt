@@ -9,6 +9,7 @@ file(GLOB core-src-files
     executor/executor.cpp
     plan/function_store.cpp
     map_output/map_output_storage.cpp
+    index/part_to_node_manager.cpp
   )
 
 add_library(core-objs OBJECT ${core-src-files})
