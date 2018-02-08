@@ -8,10 +8,22 @@ namespace xyz {
 
 class HashPartToNodeMapper : public AbstractPartToNodeMapper {
  public:
-  HashPartToNodeMapper(int num_nodes) : AbstractPartToNodeMapper(num_nodes) {}
+  HashPartToNodeMapper(int num_nodes): num_nodes_(num_nodes) {}
   virtual int Get(int part_id) {
-    return std::hash<int>()(part_id) % this->num_nodes_;
+    return std::hash<int>()(part_id) % num_nodes_;
   }
+
+  int GetNumNodes() const { return num_nodes_; }
+  void SetNumNodes(int num_nodes) { num_nodes_ = num_nodes; }
+
+  virtual void FromBin(SArrayBinStream& bin) override {
+    CHECK(false) << "Not implemented";
+  }
+  virtual void ToBin(SArrayBinStream& bin) override {
+    CHECK(false) << "Not implemented";
+  }
+ private:
+  int num_nodes_;
 };
 
 }  // namespace xyz

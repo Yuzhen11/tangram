@@ -1,18 +1,17 @@
 #pragma once
 
+#include "base/sarray_binstream.hpp"
+
 namespace xyz {
 
 class AbstractPartToNodeMapper {
  public:
-  AbstractPartToNodeMapper(int num_nodes): num_nodes_(num_nodes)  {}
-  ~AbstractPartToNodeMapper() {}
-
-  int GetNumNodes() const { return num_nodes_; }
-  void SetNumNodes(int num_nodes) { num_nodes_ = num_nodes; }
+  AbstractPartToNodeMapper() = default;
+  ~AbstractPartToNodeMapper() = default;
 
   virtual int Get(int part_id) = 0;
- protected:
-  int num_nodes_;
+  virtual void FromBin(SArrayBinStream& bin) = 0;
+  virtual void ToBin(SArrayBinStream& bin) = 0;
 };
 
 }  // namespace xyz
