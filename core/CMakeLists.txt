@@ -10,6 +10,8 @@ file(GLOB core-src-files
     plan/function_store.cpp
     map_output/map_output_storage.cpp
     index/part_to_node_manager.cpp
+    scheduler/scheduler.cpp
+    scheduler/worker.cpp
   )
 
 add_library(core-objs OBJECT ${core-src-files})

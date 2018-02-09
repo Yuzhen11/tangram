@@ -1,5 +1,7 @@
 #pragma once
 
+#include <thread>
+
 #include "base/threadsafe_queue.hpp"
 #include "base/message.hpp"
 

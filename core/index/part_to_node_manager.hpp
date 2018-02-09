@@ -1,6 +1,5 @@
 #pragma once
 
-#include <thread>
 #include <unordered_map>
 
 #include "base/actor.hpp"

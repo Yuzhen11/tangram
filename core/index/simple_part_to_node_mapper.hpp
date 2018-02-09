@@ -49,8 +49,17 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> v_;
   }
-  virtual void ToBin(SArrayBinStream& bin) override {
+  virtual void ToBin(SArrayBinStream& bin) const override {
     bin << v_;
+  }
+
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const SimplePartToNodeMapper& m) {
+    m.ToBin(stream);
+  	return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, SimplePartToNodeMapper& m) {
+    m.FromBin(stream);
+  	return stream;
   }
  private:
   std::vector<int> v_;

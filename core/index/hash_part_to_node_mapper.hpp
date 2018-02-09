@@ -19,7 +19,7 @@ class HashPartToNodeMapper : public AbstractPartToNodeMapper {
   virtual void FromBin(SArrayBinStream& bin) override {
     CHECK(false) << "Not implemented";
   }
-  virtual void ToBin(SArrayBinStream& bin) override {
+  virtual void ToBin(SArrayBinStream& bin) const override {
     CHECK(false) << "Not implemented";
   }
  private:
