@@ -17,7 +17,7 @@ class FakePartition : public AbstractPartition {
  public:
   virtual void FromBin(SArrayBinStream& bin) override { bin >> a; }
   virtual void ToBin(SArrayBinStream& bin) override { bin << a; }
-
+  virtual size_t GetSize() const override { return 0; }
   int a;
 };
 

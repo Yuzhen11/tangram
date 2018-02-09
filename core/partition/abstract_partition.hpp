@@ -11,6 +11,8 @@ class AbstractPartition {
   virtual ~AbstractPartition() {}
   virtual void FromBin(SArrayBinStream& bin) = 0;
   virtual void ToBin(SArrayBinStream& bin) = 0;
+
+  virtual size_t GetSize() const = 0;
 };
 
 template <typename ObjT>
@@ -22,7 +24,6 @@ class TypedPartition : public AbstractPartition {
   }
   virtual void TypedAdd(ObjT obj) = 0;
 
-  virtual size_t GetSize() const = 0;
   virtual ObjT Get(typename ObjT::KeyT) = 0;
 
   /*

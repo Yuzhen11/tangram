@@ -12,6 +12,7 @@ template <typename T>
 class FakePartition : public AbstractPartition {
   virtual void FromBin(SArrayBinStream& bin) override {}
   virtual void ToBin(SArrayBinStream& bin) override {}
+  virtual size_t GetSize() const override { return 0; }
 };
 
 TEST_F(TestPartitionManager, Construct) {

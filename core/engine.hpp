@@ -9,6 +9,7 @@
 #include "core/plan/function_store.hpp"
 #include "core/intermediate/simple_intermediate_store.hpp"
 #include "core/plan/plan_spec.hpp"
+#include "core/progress_tracker.hpp"
 
 namespace xyz {
 
@@ -26,6 +27,7 @@ class Engine {
   std::unique_ptr<Executor> executor_;
   std::unique_ptr<FunctionStore> function_store_;
   std::shared_ptr<AbstractIntermediateStore> intermediate_store_;
+  std::unique_ptr<ProgressTracker> tracker_;
 };
 
 }  // namespace
