@@ -22,7 +22,7 @@ Message SArrayBinStream::ToMsg() const {
 }
 
 void SArrayBinStream::FromMsg(const Message& msg) {
-  CHECK_EQ(msg.data.size(), 1);
+  //CHECK_EQ(msg.data.size(), 1);
   FromSArray(msg.data[0]);
 }
 

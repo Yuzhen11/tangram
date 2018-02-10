@@ -4,6 +4,7 @@
 
 #include "base/threadsafe_queue.hpp"
 #include "base/message.hpp"
+#include "base/sarray_binstream.hpp"
 
 namespace xyz {
 
@@ -24,7 +25,11 @@ class Actor {
 
   void Stop() {
     Message msg;
-    msg.meta.flag = Flag::kExit;
+    Control ctrl;
+    SArrayBinStream bin;
+    ctrl.flag = Flag::kExit;
+    bin << ctrl;
+    msg.AddData(bin.ToSArray());
     work_queue_.Push(msg);
     work_thread_.join();
   }
@@ -34,7 +39,11 @@ class Actor {
     while (true) {
       Message msg;
       work_queue_.WaitAndPop(&msg);
-      if (msg.meta.flag == Flag::kExit) {
+      Control ctrl;
+      SArrayBinStream bin;
+      bin.FromMsg(msg);
+      bin >> ctrl;
+      if (ctrl.flag == Flag::kExit) {
         break;
       }
       Process(std::move(msg));

@@ -22,10 +22,14 @@ public:
   ~JoinActor() { Stop(); }
 
   virtual void Process(Message msg) override {
+    SArrayBinStream bin_to_ctrl;
     SArrayBinStream bin_to_join;
-    auto &func = function_store_->GetJoin(msg.meta.partition_id); //add plan_id to msg.meta? replace partition_id with plan_id
-    auto part = partition_manager_->Get(msg.meta.collection_id, msg.meta.partition_id);
-    bin_to_join.FromMsg(msg);
+    Control ctrl;
+    bin_to_ctrl.FromSArray(msg.data[0]);
+    bin_to_join.FromSArray(msg.data[1]);
+    bin_to_ctrl >> ctrl;
+    auto &func = function_store_->GetJoin(ctrl.partition_id); //add plan_id to msg.meta? replace partition_id with plan_id
+    auto part = partition_manager_->Get(ctrl.collection_id, ctrl.partition_id);
     executor_->Add([this, part, bin_to_join, func](){
       func(part->partition, bin_to_join);
     });
