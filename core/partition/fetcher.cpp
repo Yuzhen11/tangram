@@ -43,13 +43,23 @@ void Fetcher::FetchReply(Message msg) {
   }
 }
 
-void Fetcher::Process(Message msg) {
-  if (msg.meta.flag == Flag::kFetch) {
-    FetchLocal(msg);
-  } else if (msg.meta.flag == Flag::kFetchReply){
-    FetchReply(msg);
-  } else {
-    CHECK(false) << "Unknown flag in msg: " << FlagName[static_cast<int>(msg.meta.flag)];
+void Fetcher::Main() {
+  while (true) {
+    Message msg;
+    work_queue_.WaitAndPop(&msg);
+    Control ctrl;
+    SArrayBinStream bin;
+    bin.FromMsg(msg);
+    bin >> ctrl;
+    if (ctrl.flag == Flag::kExit) {
+      break;
+    } else if (ctrl.flag == Flag::kFetch) {
+      FetchLocal(msg);
+    } else if (ctrl.flag == Flag::kFetchReply){
+      FetchReply(msg);
+    } else {
+      CHECK(false) << "Unknown flag in msg: " << FlagName[static_cast<int>(ctrl.flag)];
+    }
   }
 }
 

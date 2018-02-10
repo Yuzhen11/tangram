@@ -69,10 +69,10 @@ const std::vector<int> GetNodeIDs() const;
   std::map<uint32_t, ThreadsafeQueue<Message>* const> queue_map_;
 
   // Handle different msgs
-  void HandleBarrierMsg(Message* msg);
+  void HandleBarrierMsg();
   void HandleRegisterMsg(Message* msg, std::vector<Node>& nodes, Node& recovery_node);
-  void HandleRegisterMsgAtScheduler(Message* msg, std::vector<Node>& nodes, Node& recovery_node);
-  void HandleHeartbeat(Message* msg);
+  void HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recovery_node);
+  void HandleHeartbeat(int node_id);
 
   void UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std::vector<Node>& nodes, Node& recovery_node);
 

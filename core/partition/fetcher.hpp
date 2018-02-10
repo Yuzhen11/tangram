@@ -2,7 +2,8 @@
 
 #include <thread>
 
-#include "base/actor.hpp"
+#include "base/threadsafe_queue.hpp"
+#include "base/sarray_binstream.hpp"
 #include "core/index/abstract_part_to_node_mapper.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
 #include "core/partition/partition_manager.hpp"
@@ -21,19 +22,16 @@ namespace xyz {
  * 2. Handle fetch request
  * 3. Handle fetch reply
  */
-class Fetcher : public AbstractFetcher, public Actor {
+class Fetcher : public AbstractFetcher {
  public:
   Fetcher(int qid, std::shared_ptr<PartitionManager> partition_manager,
           std::shared_ptr<AbstractPartitionCache> partition_cache,
           std::shared_ptr<AbstractSender> sender):
-    Actor(qid), partition_manager_(partition_manager),
-    partition_cache_(partition_cache), sender_(sender) {
-    Start();
-  }
+    queue_id_(qid), partition_manager_(partition_manager),
+    partition_cache_(partition_cache), sender_(sender) {}
 
-  virtual ~Fetcher() {
-    Stop();
-  }
+  ThreadsafeQueue<Message>* GetWorkQueue() { return &work_queue_; }
+
   virtual void FetchRemote(int collection_id, int partition_id, int version) override;
 
   /*
@@ -46,12 +44,15 @@ class Fetcher : public AbstractFetcher, public Actor {
    * Invoked by Main().
    */
   void FetchReply(Message msg);
-
-  virtual void Process(Message msg) override;
+  void Main();
  private:
   std::shared_ptr<PartitionManager> partition_manager_;
   std::shared_ptr<AbstractPartitionCache> partition_cache_;
   std::shared_ptr<AbstractSender> sender_;
+
+  uint32_t queue_id_;
+  ThreadsafeQueue<Message> work_queue_;
+  std::thread work_thread_;
 };
 
 }  // namespace xyz

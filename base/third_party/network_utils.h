@@ -17,6 +17,7 @@
 #include <netinet/in.h>
 #endif
 #include <string>
+#include <cstring>
 
 namespace xyz {
 namespace third_party {

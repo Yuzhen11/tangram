@@ -8,32 +8,33 @@
 #include "base/node.hpp"
 
 namespace xyz {
-
-struct Control {};
-
+class SArrayBinStream;
 enum class Flag : char {kExit, kBarrier, kRegister, kAdd, kGet, kHeartbeat, kFetch, kFetchReply};
 static const char* FlagName[] = {"kExit", "kBarrier", "kRegister", "kAdd", "kGet", "kHeartbeat", "kFetch", "kFetchReply"};
+
+struct Control {
+	Flag flag;
+    int partition_id;
+    int collection_id;
+    Node node;
+    bool is_recovery = false;
+    int timestamp;
+
+	friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Control& ctrl);
+    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Control& ctrl);
+};
 
 struct Meta {
   int sender;
   int recver;
-  int partition_id;
-  int collection_id;
-  Flag flag;  // { kExit, kBarrier, kHeartbeat};
-  Node node; // for worker node
-  bool is_recovery = false;
-  Node recovery_node;
-  int timestamp;
+  bool is_ctrl;
 
   std::string DebugString() const {
     std::stringstream ss;
     ss << "Meta: { ";
     ss << "sender: " << sender;
     ss << ", recver: " << recver;
-    ss << ", collection_id: " << collection_id;
-    ss << ", partition_id: " << partition_id;
-    ss << ", flag: " << FlagName[static_cast<int>(flag)];
-    ss << ", timestamp: " << timestamp;
+    ss << ", is_ctrl: " << is_ctrl;
     ss << "}";
     return ss.str();
   }
