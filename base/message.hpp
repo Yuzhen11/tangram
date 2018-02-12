@@ -9,32 +9,29 @@
 
 namespace xyz {
 class SArrayBinStream;
-enum class Flag : char {kExit, kBarrier, kRegister, kAdd, kGet, kHeartbeat, kFetch, kFetchReply};
-static const char* FlagName[] = {"kExit", "kBarrier", "kRegister", "kAdd", "kGet", "kHeartbeat", "kFetch", "kFetchReply"};
 
-struct Control {
-	Flag flag;
-    int partition_id;
-    int collection_id;
-    Node node;
-    bool is_recovery = false;
-    int timestamp;
-
-	friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Control& ctrl);
-    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Control& ctrl);
+enum class Flag : char {
+  kMailboxControl,
+  kActorExit,
+  kOthers
+};
+static const char* FlagName[] = {
+  "kMailboxControl",
+  "kActorExit",
+  "kOthers"
 };
 
 struct Meta {
   int sender;
   int recver;
-  bool is_ctrl;
+  Flag flag;
 
   std::string DebugString() const {
     std::stringstream ss;
     ss << "Meta: { ";
     ss << "sender: " << sender;
     ss << ", recver: " << recver;
-    ss << ", is_ctrl: " << is_ctrl;
+    ss << ", flag: " << FlagName[static_cast<int>(flag)];
     ss << "}";
     return ss.str();
   }

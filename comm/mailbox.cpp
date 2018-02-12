@@ -2,6 +2,33 @@
 
 namespace xyz {
 
+enum class MailboxFlag : char {
+    kExit, kBarrier, kRegister, kHeartbeat};
+static const char* MailboxFlagName[] = {
+    "kExit", "kBarrier", "kRegister", "kHeartbeat"};
+
+struct Control {
+	MailboxFlag flag;
+    Node node;
+    bool is_recovery = false;
+
+	friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Control& ctrl);
+    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Control& ctrl);
+};
+SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Control& ctrl) {
+    stream << static_cast<char>(ctrl.flag) << ctrl.node << ctrl.is_recovery;
+    return stream;
+}
+
+SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Control& ctrl) {
+    char ch;
+    stream >> ch;
+    ctrl.flag = static_cast<MailboxFlag>(ch);
+    stream >> ctrl.node >> ctrl.is_recovery;
+    return stream;
+}
+
+
 inline void FreeData(void* data, void* hint) {
   if (hint == NULL) {
     delete[] static_cast<char*>(data);
@@ -181,12 +208,12 @@ int Mailbox::Recv(Message* msg) {
 
 void Mailbox::Barrier() {
   Message barrier_msg;
-  barrier_msg.meta.is_ctrl = true;
+  barrier_msg.meta.flag = Flag::kMailboxControl;
   barrier_msg.meta.sender = my_node_.id;
   barrier_msg.meta.recver = scheduler_node_.id;
 
   Control ctrl;
-  ctrl.flag = Flag::kBarrier;
+  ctrl.flag = MailboxFlag::kBarrier;
   SArrayBinStream bin;
   bin << ctrl;
   barrier_msg.AddData(bin.ToSArray());
@@ -237,12 +264,12 @@ void Mailbox::Start() {
   if (!is_scheduler_) {
     // let the scheduler know myself
     Message msg;
-    msg.meta.is_ctrl = true;
+    msg.meta.flag = Flag::kMailboxControl;
     msg.meta.sender = my_node_.id;
     msg.meta.recver = scheduler_node_.id;
 
     Control ctrl;
-    ctrl.flag = Flag::kRegister;
+    ctrl.flag = MailboxFlag::kRegister;
     ctrl.node = my_node_;
 
     SArrayBinStream bin;
@@ -268,9 +295,9 @@ void Mailbox::CloseSockets() {
   // Kill all the registered threads
   Message exit_msg;
   exit_msg.meta.recver = my_node_.id;
-  exit_msg.meta.is_ctrl = true;
+  exit_msg.meta.flag = Flag::kMailboxControl;
   Control ctrl;
-  ctrl.flag = Flag::kExit;
+  ctrl.flag = MailboxFlag::kExit;
   SArrayBinStream bin;
   bin << ctrl;
   exit_msg.AddData(bin.ToSArray());
@@ -297,10 +324,10 @@ void Mailbox::Stop() {
 
   // stop threads
   Message exit;
-  exit.meta.is_ctrl = true;
+  exit.meta.flag = Flag::kMailboxControl;
   exit.meta.recver = my_node_.id;
   Control ctrl;
-  ctrl.flag = Flag::kExit;
+  ctrl.flag = MailboxFlag::kExit;
   SArrayBinStream bin;
   bin << ctrl;
   exit.AddData(bin.ToSArray());
@@ -325,9 +352,9 @@ void Mailbox::HandleBarrierMsg() {
         Message barrier_msg;
         barrier_msg.meta.sender = my_node_.id;
         barrier_msg.meta.recver = node.id;
-        barrier_msg.meta.is_ctrl = true;
+        barrier_msg.meta.flag = Flag::kMailboxControl;
         Control ctrl;
-        ctrl.flag = Flag::kBarrier;
+        ctrl.flag = MailboxFlag::kBarrier;
         SArrayBinStream bin;
         bin << ctrl;
         barrier_msg.AddData(bin.ToSArray());
@@ -434,7 +461,7 @@ void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recov
     // put nodes into msg
     SArrayBinStream ctrl_bin;
     Control ctrl;
-    ctrl.flag = Flag::kRegister;
+    ctrl.flag = MailboxFlag::kRegister;
     ctrl_bin << ctrl;
     SArrayBinStream nodes_bin;
     nodes_bin << nodes;
@@ -446,6 +473,7 @@ void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recov
     for (int r : GetNodeIDs()) {
       if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
         back_msg.meta.recver = r;
+        back_msg.meta.flag = Flag::kMailboxControl;
         Send(back_msg);
       }
     }
@@ -477,11 +505,11 @@ void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recov
       }
       SArrayBinStream ctrl_bin;
       Control ctrl;
-      ctrl.flag = Flag::kRegister;
+      ctrl.flag = MailboxFlag::kRegister;
       ctrl_bin << ctrl;
       Message back_msg;
       back_msg.meta.recver = r;
-      back_msg.meta.is_ctrl = true;
+      back_msg.meta.flag = Flag::kMailboxControl;
       back_msg.AddData(ctrl_bin.ToSArray());
       back_msg.AddData(nodes_bin.ToSArray());
       Send(back_msg);
@@ -514,23 +542,23 @@ void Mailbox::Receiving() {
     // duplicated message, TODO
     // if (resender_ && resender_->AddIncomming(msg)) continue;
     VLOG(1) << "Received msg: " << msg.DebugString();
-    if (msg.meta.is_ctrl) {
+    if (msg.meta.flag == Flag::kMailboxControl) {
       Control ctrl;
       SArrayBinStream bin;
       bin.FromMsg(msg);
       bin >> ctrl;
-      if (ctrl.flag == Flag::kExit) {
+      if (ctrl.flag == MailboxFlag::kExit) {
         ready_ = false;
         VLOG(1) << my_node_.DebugString() << " is stopped";
         break;
       } 
-      else if (ctrl.flag == Flag::kBarrier) {
+      else if (ctrl.flag == MailboxFlag::kBarrier) {
         HandleBarrierMsg();
       }
-      else if (ctrl.flag == Flag::kRegister) {
+      else if (ctrl.flag == MailboxFlag::kRegister) {
         HandleRegisterMsg(&msg, nodes, recovery_node);
       }
-      else if (ctrl.flag == Flag::kHeartbeat) {
+      else if (ctrl.flag == MailboxFlag::kHeartbeat) {
         HandleHeartbeat(msg.meta.sender);
       }
     }
@@ -550,9 +578,9 @@ void Mailbox::Heartbeat() {
     Message msg;
     msg.meta.sender = my_node_.id;
     msg.meta.recver = scheduler_node_.id;
-    msg.meta.is_ctrl = true;
+    msg.meta.flag = Flag::kMailboxControl;
     Control ctrl;
-    ctrl.flag = Flag::kHeartbeat;
+    ctrl.flag = MailboxFlag::kHeartbeat;
     SArrayBinStream bin;
     bin << ctrl;
     msg.AddData(bin.ToSArray());

@@ -18,6 +18,7 @@
 
 namespace xyz {
 
+
 class Mailbox {
  public:
   Mailbox(bool is_scheduler, Node scheduler_node, int num_workers);

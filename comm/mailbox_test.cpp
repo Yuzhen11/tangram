@@ -28,7 +28,7 @@ TEST_F(TestMailbox, SendAndRecv) {
   Message msg;
   msg.meta.sender = Node::kEmpty;
   msg.meta.recver = 0;
-  msg.meta.is_ctrl = false;
+  msg.meta.flag = Flag::kOthers;
   third_party::SArray<int> keys{1};
   third_party::SArray<float> vals{0.4};
   msg.AddData(keys);
@@ -41,7 +41,7 @@ TEST_F(TestMailbox, SendAndRecv) {
   VLOG(1) << "Finished reciving";
   EXPECT_EQ(recv_msg.meta.sender, msg.meta.sender);
   EXPECT_EQ(recv_msg.meta.recver, msg.meta.recver);
-  EXPECT_EQ(recv_msg.meta.is_ctrl, msg.meta.is_ctrl);
+  EXPECT_EQ(recv_msg.meta.flag, msg.meta.flag);
   EXPECT_EQ(recv_msg.data.size(), 2);
   third_party::SArray<int> recv_keys;
   recv_keys = recv_msg.data[0];

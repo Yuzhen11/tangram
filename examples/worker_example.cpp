@@ -11,7 +11,7 @@ namespace xyz {
     Message msg;
     msg.meta.sender = 999;
     msg.meta.recver = 0;
-    msg.meta.is_ctrl = false;
+    msg.meta.flag = Flag::kOthers;
     third_party::SArray<int> keys{1};
     third_party::SArray<float> vals{0.4};
     msg.AddData(keys);

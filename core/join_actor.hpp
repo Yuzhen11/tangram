@@ -24,12 +24,12 @@ public:
   virtual void Process(Message msg) override {
     SArrayBinStream bin_to_ctrl;
     SArrayBinStream bin_to_join;
-    Control ctrl;
     bin_to_ctrl.FromSArray(msg.data[0]);
     bin_to_join.FromSArray(msg.data[1]);
-    bin_to_ctrl >> ctrl;
-    auto &func = function_store_->GetJoin(ctrl.partition_id); //add plan_id to msg.meta? replace partition_id with plan_id
-    auto part = partition_manager_->Get(ctrl.collection_id, ctrl.partition_id);
+    int collection_id, partition_id;
+    bin_to_ctrl >> collection_id >> partition_id;
+    auto &func = function_store_->GetJoin(partition_id); //add plan_id to msg.meta? replace partition_id with plan_id
+    auto part = partition_manager_->Get(collection_id, partition_id);
     executor_->Add([this, part, bin_to_join, func](){
       func(part->partition, bin_to_join);
     });

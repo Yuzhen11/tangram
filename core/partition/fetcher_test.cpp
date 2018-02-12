@@ -78,9 +78,13 @@ TEST_F(TestFetcher, FetchLocal) {
   const int version = 0;
   partition_manager->Insert(collection_id, partition_id, std::move(part));
   Fetcher fetcher(qid, partition_manager, partition_cache, sender);
-  SArrayBinStream bin;
+  SArrayBinStream bin, ctrl_bin;
   bin << collection_id << partition_id << version;
-  Message msg = bin.ToMsg();
+  Fetcher::Ctrl ctrl = Fetcher::Ctrl::kFetch;
+  ctrl_bin << ctrl;
+  Message msg;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
   fetcher.FetchLocal(msg);
 
   auto reply_msg = sender->Get();
@@ -105,9 +109,13 @@ TEST_F(TestFetcher, FetchReply) {
   const int collection_id = 3;
   const int partition_id = 2;
   const int version = 0;
-  SArrayBinStream bin;
+  SArrayBinStream bin, ctrl_bin;
   bin << collection_id << partition_id << version;
-  Message msg = bin.ToMsg();
+  Fetcher::Ctrl ctrl = Fetcher::Ctrl::kFetch;
+  ctrl_bin << ctrl;
+  Message msg;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
   fetcher.FetchReply(msg);
 }
 

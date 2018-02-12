@@ -13,8 +13,9 @@ void Fetcher::FetchRemote(int collection_id, int partition_id, int version) {
 void Fetcher::FetchLocal(Message msg) {
   Message reply_msg;
   // TODO: fill the meta.
+  CHECK_EQ(msg.data.size(), 2);
   SArrayBinStream bin;
-  bin.FromMsg(msg);
+  bin.FromSArray(msg.data[1]);
   int collection_id;
   int partition_id;
   int version;
@@ -35,7 +36,7 @@ void Fetcher::FetchReply(Message msg) {
   int collection_id;
   int partition_id;
   int version;
-  for (int i = 0; i < msg.data.size(); ++ i) {
+  for (int i = 1; i < msg.data.size(); ++ i) {  // start from 1
     SArrayBinStream bin;
     bin.FromSArray(msg.data[i]);
     bin >> collection_id >> partition_id >> version;
@@ -43,23 +44,19 @@ void Fetcher::FetchReply(Message msg) {
   }
 }
 
-void Fetcher::Main() {
-  while (true) {
-    Message msg;
-    work_queue_.WaitAndPop(&msg);
-    Control ctrl;
-    SArrayBinStream bin;
-    bin.FromMsg(msg);
-    bin >> ctrl;
-    if (ctrl.flag == Flag::kExit) {
-      break;
-    } else if (ctrl.flag == Flag::kFetch) {
-      FetchLocal(msg);
-    } else if (ctrl.flag == Flag::kFetchReply){
-      FetchReply(msg);
-    } else {
-      CHECK(false) << "Unknown flag in msg: " << FlagName[static_cast<int>(ctrl.flag)];
-    }
+void Fetcher::Process(Message msg) {
+  CHECK_GE(msg.data.size(), 2);
+  SArrayBinStream ctrl_bin, bin;
+  ctrl_bin.FromSArray(msg.data[0]);
+  bin.FromSArray(msg.data[1]);
+  Ctrl ctrl;
+  ctrl_bin >> ctrl;
+  if (ctrl == Ctrl::kFetch) {
+    FetchLocal(msg);
+  } else if (ctrl == Ctrl::kFetchReply){
+    FetchReply(msg);
+  } else {
+    CHECK(false);
   }
 }
 
