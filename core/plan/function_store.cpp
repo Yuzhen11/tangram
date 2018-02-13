@@ -23,8 +23,9 @@ const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
 
 FunctionStore::PartToOutputManager FunctionStore::GetPartToOutputManager(int id, PartToOutput map) {
   return [map, id](std::shared_ptr<AbstractPartition> partition, 
-                std::shared_ptr<MapOutputManager> map_output_storage) {
-    auto map_output = map(partition);
+                   std::shared_ptr<MapOutputManager> map_output_storage,
+                   std::shared_ptr<AbstractMapProgressTracker> tracker) {
+    auto map_output = map(partition, tracker);
     map_output_storage->Add(id, map_output);
   };
 }
@@ -39,9 +40,11 @@ FunctionStore::MapOutputToIntermediate FunctionStore::GetOutputsToIntermediate(i
   };
 }
 FunctionStore::PartToIntermediate FunctionStore::GetPartToIntermediate(PartToOutput map) {
-  return [map](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractIntermediateStore> intermediate_store) {
+  return [map](std::shared_ptr<AbstractPartition> partition, 
+               std::shared_ptr<AbstractIntermediateStore> intermediate_store,
+               std::shared_ptr<AbstractMapProgressTracker> tracker) {
     // 1. map
-    auto map_output = map(partition); 
+    auto map_output = map(partition, tracker); 
     // 2. serialize
     auto bins = map_output->Serialize();
     // 3. add to intermediate_store
@@ -75,9 +78,10 @@ void FunctionStore::AddJoinFunc(int id, JoinFuncT func) {
 void FunctionStore::AddMapWith(int id, MapWith func) {
   partwith_to_intermediate_.insert({id, [func](std::shared_ptr<AbstractPartition> partition,
                                            std::shared_ptr<AbstractPartitionCache> partition_cache,
-                                           std::shared_ptr<AbstractIntermediateStore> intermediate_store) {
+                                           std::shared_ptr<AbstractIntermediateStore> intermediate_store,
+                                           std::shared_ptr<AbstractMapProgressTracker> tracker) {
     // 1. map
-    auto map_output = func(partition, partition_cache); 
+    auto map_output = func(partition, partition_cache, tracker); 
     // 2. serialize
     auto bins = map_output->Serialize();
     // 3. add to intermediate_store

@@ -3,6 +3,7 @@
 #include <set>
 
 #include "core/partition/task_timer.hpp"
+#include "core/partition/abstract_map_progress_tracker.hpp"
 
 namespace xyz {
 
@@ -72,11 +73,37 @@ struct JoinTracker {
 // MapTaskTracker is to record the progress of a map task
 // num_objs represents the workload in this map
 // id represents the order of executing the map
-struct MapTaskTracker : public TaskTracker {
+struct MapTaskTracker : public TaskTracker, public AbstractMapProgressTracker {
   MapTaskTracker() = default;
+  // Do not need to protect the constructor since one thread will init it.
+  // Protect all the other functions.
   MapTaskTracker(int _id, int _num_objs)
       :TaskTracker(), num_objs(_num_objs), id(_id) {}
 
+  // The map will report progress through this interface
+  virtual void Report(int _num_finished) override {
+    std::lock_guard<std::mutex> lk(mu);
+    num_finished = _num_finished;
+  }
+
+  std::pair<int,int> GetProgress() {
+    std::lock_guard<std::mutex> lk(mu);
+    CHECK(status == TaskStatus::Pending);
+    return {num_finished, num_objs};
+  }
+
+  void Run() { 
+    std::lock_guard<std::mutex> lk(mu);
+    TaskTracker::Run();
+  }
+
+  void Finish() {
+    std::lock_guard<std::mutex> lk(mu);
+    TaskTracker::Finish();
+  }
+
+  std::mutex mu;
+  int num_finished;
   int num_objs;
   int id;
 };
@@ -84,20 +111,20 @@ struct MapTaskTracker : public TaskTracker {
 // A node will have some map partition
 struct MapTracker {
   void Add(int part_id, int num_objs) {
-    tracker.insert({part_id, MapTaskTracker(map_count, num_objs)});
+    tracker.insert({part_id, std::make_shared<MapTaskTracker>(map_count, num_objs)});
     map_count += 1;
   }
   void Run(int part_id) {
     CHECK(tracker.find(part_id) != tracker.end());
-    tracker[part_id].Run();
+    tracker[part_id]->Run();
   }
   void Finish(int part_id) {
     CHECK(tracker.find(part_id) != tracker.end());
-    tracker[part_id].Finish();
+    tracker[part_id]->Finish();
   }
 
   int map_count = 0;  // to record the creating order of the map tasks.
-  std::map<int, MapTaskTracker> tracker;
+  std::map<int, std::shared_ptr<MapTaskTracker>> tracker;
 };
 
 }  // namespace xyz

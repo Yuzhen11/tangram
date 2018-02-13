@@ -6,7 +6,8 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
   plan_ = plan;
 }
 
-void PartitionTracker::RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>)> func) {
+void PartitionTracker::RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>,
+                                                    std::shared_ptr<AbstractMapProgressTracker>)> func) {
   std::lock_guard<std::mutex> lk(mu_);
   // setup
   auto parts = partitions_->Get(plan_.map_collection_id);
@@ -18,18 +19,26 @@ void PartitionTracker::RunAllMap(std::function<void(std::shared_ptr<AbstractPart
   // run
   for (auto part : parts) {
     int part_id = part->part_id;
+    {
+      boost::shared_lock<boost::shared_mutex> lk(part->mu);
+      map_tracker_.Add(part_id, part->partition->GetSize());
+    }
     executor_->Add([this, part_id, part, func](){ 
+      StartMap(part_id);
       {
         boost::shared_lock<boost::shared_mutex> lk(part->mu);
+        auto tracker = map_tracker_.tracker[part_id];
         // read-only
-        func(part->partition); 
+        func(part->partition, tracker); 
       }
       FinishMap(part_id, part);
     });
   }
 }
 
-void PartitionTracker::StartMap(int part_id, std::shared_ptr<VersionedPartition> part) {
+void PartitionTracker::StartMap(int part_id) {
+  std::lock_guard<std::mutex> lk(mu_);
+  map_tracker_.Run(part_id);
 }
 
 void PartitionTracker::FinishMap(int part_id, std::shared_ptr<VersionedPartition> part) {

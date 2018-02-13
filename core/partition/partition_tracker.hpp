@@ -22,7 +22,8 @@ class PartitionTracker {
   void SetPlan(PlanSpec plan);
 
   // Called by map
-  void RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>)> func);
+  void RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>, 
+                                    std::shared_ptr<AbstractMapProgressTracker>)> func);
 
   // Called by join
   struct JoinMeta {
@@ -33,7 +34,7 @@ class PartitionTracker {
   void RunJoin(JoinMeta join_meta);
   void WaitAllJoin();
  private:
-  void StartMap(int part_id, std::shared_ptr<VersionedPartition> part);
+  void StartMap(int part_id);
   void FinishMap(int part_id, std::shared_ptr<VersionedPartition> part);
   void StartJoin(int part_id, int upstream_part_id);
   void FinishJoin(int part_id, int upstream_part_id);

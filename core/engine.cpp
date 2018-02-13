@@ -14,6 +14,7 @@ Engine::Engine(int thread_pool_size)
 Engine::~Engine() {
 }
 
+/*
 void Engine::RunLocalPartitions(PlanSpec plan) {
   auto& func = function_store_->GetMap(plan.plan_id);
   auto parts = partition_manager_->Get(plan.map_collection_id);
@@ -26,6 +27,7 @@ void Engine::RunLocalPartitions(PlanSpec plan) {
     });
   }
 }
+*/
 
 void Engine::Main() {
   // TODO: If thread pool queue is empty, fetch task from scheduler.

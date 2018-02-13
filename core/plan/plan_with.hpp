@@ -24,8 +24,9 @@ class PlanWith : public Plan<T1, T2, MsgT> {
     auto map_part_with = GetMapPartWithFunc();
     function_store->AddMapWith(this->plan_id, [this, map_part_with](
                 std::shared_ptr<AbstractPartition> partition,
-                std::shared_ptr<AbstractPartitionCache> partition_cache) {
-      auto map_output = map_part_with(partition, partition_cache);
+                std::shared_ptr<AbstractPartitionCache> partition_cache,
+                std::shared_ptr<AbstractMapProgressTracker> tracker) {
+      auto map_output = map_part_with(partition, partition_cache, tracker);
       if (this->combine) {
         static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(this->combine);
         map_output->Combine();
@@ -37,7 +38,8 @@ class PlanWith : public Plan<T1, T2, MsgT> {
   MapPartWithFuncT GetMapPartWithFunc() {
     CHECK_NOTNULL(mapwith);
     return [this](std::shared_ptr<AbstractPartition> partition, 
-              std::shared_ptr<AbstractPartitionCache> cache) {
+              std::shared_ptr<AbstractPartitionCache> cache,
+              std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;
       TypedCache<T3> typed_cache(cache, with_collection_.mapper, with_collection_.id, version);
@@ -46,8 +48,13 @@ class PlanWith : public Plan<T1, T2, MsgT> {
       auto output = std::make_shared<PartitionedMapOutput<typename T2::KeyT, MsgT>>(this->join_collection.mapper);
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
+      int i = 0;
       for (auto& elem : *p) {
         output->Add(mapwith(elem, typed_cache));
+        i += 1;
+        if (i % 10 == 0) {
+          tracker->Report(i);
+        }
       }
       return output;
     };

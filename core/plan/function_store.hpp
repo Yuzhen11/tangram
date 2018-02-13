@@ -22,18 +22,21 @@ class FunctionStore : public AbstractFunctionStore {
   // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
   using PartToOutputManager = std::function<void(std::shared_ptr<AbstractPartition>, 
-                                                        std::shared_ptr<MapOutputManager>)>;
+                                                 std::shared_ptr<MapOutputManager>,
+                                                 std::shared_ptr<AbstractMapProgressTracker>)>;
   // MapOutput -> IntermediateStore
   using MapOutputToIntermediate = std::function<void(const std::vector<std::shared_ptr<AbstractMapOutput>>&, 
                                                                std::shared_ptr<AbstractIntermediateStore>,
                                                                int part_id)>;
   // Partition -> IntermediateStore
   using PartToIntermediate = std::function<void(std::shared_ptr<AbstractPartition>, 
-                                                std::shared_ptr<AbstractIntermediateStore>)>;
+                                                std::shared_ptr<AbstractIntermediateStore>,
+                                                std::shared_ptr<AbstractMapProgressTracker>)>;
 
   using PartWithToIntermediate = std::function<void(std::shared_ptr<AbstractPartition>,
                                                     std::shared_ptr<AbstractPartitionCache>,
-                                                    std::shared_ptr<AbstractIntermediateStore>)>;
+                                                    std::shared_ptr<AbstractIntermediateStore>,
+                                                    std::shared_ptr<AbstractMapProgressTracker>)>;
 
   // Used by engine.
   const PartToOutputManager& GetMapPart1(int id);

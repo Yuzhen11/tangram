@@ -37,8 +37,10 @@ class Plan {
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     auto map_part = GetMapPartFunc();
-    function_store->AddPartToIntermediate(plan_id, [this, map_part](std::shared_ptr<AbstractPartition> partition) {
-      auto map_output = map_part(partition);
+    function_store->AddPartToIntermediate(plan_id, [this, map_part](
+                std::shared_ptr<AbstractPartition> partition,
+                std::shared_ptr<AbstractMapProgressTracker> tracker) {
+      auto map_output = map_part(partition, tracker);
       if (combine) {
         static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(combine);
         map_output->Combine();
@@ -52,8 +54,10 @@ class Plan {
   void RegisterMergeCombine(std::shared_ptr<AbstractFunctionStore> function_store) {
     auto map_part = GetMapPartFunc();
     // part -> mapoutput_manager
-    function_store->AddPartToOutputManager(plan_id, [this, map_part](std::shared_ptr<AbstractPartition> partition) {
-      auto map_output = map_part(partition);
+    function_store->AddPartToOutputManager(plan_id, [this, map_part](
+                std::shared_ptr<AbstractPartition> partition,
+                std::shared_ptr<AbstractMapProgressTracker> tracker) {
+      auto map_output = map_part(partition, tracker);
       if (combine) {
         static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(combine);
       }
@@ -70,14 +74,19 @@ class Plan {
 
   MapPartFuncT GetMapPartFunc() {
     CHECK(map != nullptr);
-    return [this](std::shared_ptr<AbstractPartition> partition) {
+    return [this](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto* p = static_cast<TypedPartition<T1>*>(partition.get());
       CHECK_NOTNULL(join_collection.mapper);
       auto output = std::make_shared<PartitionedMapOutput<typename T2::KeyT, MsgT>>(join_collection.mapper);
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
+      int i = 0;
       for (auto& elem : *p) {
         output->Add(map(elem));
+        i += 1;
+        if (i % 10 == 0) {
+          tracker->Report(i);
+        }
       }
       return output;
     };

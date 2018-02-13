@@ -7,17 +7,21 @@
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/partition/abstract_partition.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
+#include "core/partition/abstract_map_progress_tracker.hpp"
 
 namespace xyz { 
 
 class AbstractFunctionStore {
  public:
-  using PartToOutput = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;
+  using PartToOutput = std::function<std::shared_ptr<AbstractMapOutput>(
+          std::shared_ptr<AbstractPartition>, 
+          std::shared_ptr<AbstractMapProgressTracker>)>;
   using OutputsToBin = std::function<SArrayBinStream(const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id)>;
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
   using MapWith = 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractPartitionCache>)>;
+                                                       std::shared_ptr<AbstractPartitionCache>,
+                                                       std::shared_ptr<AbstractMapProgressTracker>)>;
   ~AbstractFunctionStore(){}
   virtual void AddPartToIntermediate(int id, PartToOutput func) = 0;
   virtual void AddPartToOutputManager(int id, PartToOutput func) = 0;

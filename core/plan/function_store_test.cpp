@@ -23,6 +23,11 @@ struct ObjT {
 
 class TestFunctionStore: public testing::Test {};
 
+struct FakeMapProgressTracker : public AbstractMapProgressTracker {
+  virtual void Report(int) {
+  }
+};
+
 TEST_F(TestFunctionStore, GetPartToOutputManager) {
   const int plan_id = 0;
   const int num_part = 1;
@@ -30,8 +35,10 @@ TEST_F(TestFunctionStore, GetPartToOutputManager) {
   partition->Add(ObjT{10});
   partition->Add(ObjT{20});
   auto map_output_storage = std::make_shared<MapOutputManager>();
+  auto tracker = std::make_shared<FakeMapProgressTracker>();
 
-  auto map = [](std::shared_ptr<AbstractPartition> partition) {
+  auto map = [](std::shared_ptr<AbstractPartition> partition, 
+                std::shared_ptr<AbstractMapProgressTracker> tracker) {
     auto* p = static_cast<TypedPartition<ObjT>*>(partition.get());
     auto output = std::make_shared<MapOutput<ObjT::KeyT, int>>();
     for (auto& elem : *p) {
@@ -41,7 +48,7 @@ TEST_F(TestFunctionStore, GetPartToOutputManager) {
   };
   auto func = FunctionStore::GetPartToOutputManager(plan_id, map);
   ASSERT_EQ(map_output_storage->Get(0).size(), 0);
-  func(partition, map_output_storage);
+  func(partition, map_output_storage, tracker);
   ASSERT_EQ(map_output_storage->Get(0).size(), 1);
   auto map_output = map_output_storage->Get(0)[0];
   auto vec = static_cast<MapOutput<int,int>*>(map_output.get())->Get();
@@ -59,8 +66,10 @@ TEST_F(TestFunctionStore, GetPartToIntermediate) {
   partition->Add(ObjT{10});
   partition->Add(ObjT{20});
   auto intermediate_store = std::make_shared<SimpleIntermediateStore>();
+  auto tracker = std::make_shared<FakeMapProgressTracker>();
 
-  auto map = [](std::shared_ptr<AbstractPartition> partition) {
+  auto map = [](std::shared_ptr<AbstractPartition> partition,
+                std::shared_ptr<AbstractMapProgressTracker> tracker) {
     auto* p = static_cast<TypedPartition<ObjT>*>(partition.get());
     auto output = std::make_shared<MapOutput<ObjT::KeyT, int>>();
     for (auto& elem : *p) {
@@ -69,7 +78,7 @@ TEST_F(TestFunctionStore, GetPartToIntermediate) {
     return output;
   };
   auto func = FunctionStore::GetPartToIntermediate(map);
-  func(partition, intermediate_store);
+  func(partition, intermediate_store, tracker);
   auto msgs = intermediate_store->Get();
   ASSERT_EQ(msgs.size(), 1);
   auto msg = msgs[0];
