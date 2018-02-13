@@ -88,7 +88,6 @@ struct MapTaskTracker : public TaskTracker, public AbstractMapProgressTracker {
 
   std::pair<int,int> GetProgress() {
     std::lock_guard<std::mutex> lk(mu);
-    CHECK(status == TaskStatus::Pending);
     return {num_finished, num_objs};
   }
 
@@ -109,6 +108,7 @@ struct MapTaskTracker : public TaskTracker, public AbstractMapProgressTracker {
 };
 
 // A node will have some map partition
+// TODO do we need to protect this structure?
 struct MapTracker {
   void Add(int part_id, int num_objs) {
     tracker.insert({part_id, std::make_shared<MapTaskTracker>(map_count, num_objs)});

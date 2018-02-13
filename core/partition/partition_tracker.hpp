@@ -17,7 +17,9 @@ namespace xyz {
  */
 class PartitionTracker {
  public:
-  PartitionTracker() = default;
+  PartitionTracker(std::shared_ptr<PartitionManager> partition_manager,
+                   std::shared_ptr<Executor> executor)
+      : partitions_(partition_manager), executor_(executor) {}
 
   void SetPlan(PlanSpec plan);
 
@@ -33,6 +35,13 @@ class PartitionTracker {
   };
   void RunJoin(JoinMeta join_meta);
   void WaitAllJoin();
+
+  MapTracker* GetMapTracker() {
+    return &map_tracker_;
+  }
+  JoinTracker* GetJoinTracker() {
+    return &join_tracker_;
+  }
  private:
   void StartMap(int part_id);
   void FinishMap(int part_id, std::shared_ptr<VersionedPartition> part);
