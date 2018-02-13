@@ -27,6 +27,12 @@ class TaskTimer {
   }
 
  private:
+  int GetTimeFrom(std::chrono::time_point<std::chrono::steady_clock> t) {
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::steady_clock::now() - t).count();
+  }
+
+ private:
   std::chrono::time_point<std::chrono::steady_clock> add_timepoint;
   std::chrono::time_point<std::chrono::steady_clock> run_timepoint;
   std::chrono::time_point<std::chrono::steady_clock> end_timepoint;

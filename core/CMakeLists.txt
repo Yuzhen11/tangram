@@ -5,6 +5,7 @@ file(GLOB core-src-files
     progress_tracker.cpp
     partition/partition_manager.cpp
     partition/fetcher.cpp
+    partition/partition_tracker.cpp
     executor/thread_pool.cpp
     executor/executor.cpp
     plan/function_store.cpp

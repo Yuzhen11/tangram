@@ -24,8 +24,10 @@ class PartitionCache : public AbstractPartitionCache {
        fetcher_(fetcher) {
   }
 
+  // Lock the VersionedPartition before use
   virtual std::shared_ptr<VersionedPartition> GetPartition(int collection_id, int partition_id, int version) override {
     std::shared_ptr<VersionedPartition> part;
+    // TODO: should add read lock when reading the content of the partition
     if (partition_manager_->Has(collection_id, partition_id, version)) {
       // 1. From PartitionManager
       part = partition_manager_->Get(collection_id, partition_id);

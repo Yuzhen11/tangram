@@ -16,13 +16,13 @@ Engine::~Engine() {
 
 void Engine::RunLocalPartitions(PlanSpec plan) {
   auto& func = function_store_->GetMap(plan.plan_id);
-  auto& parts = partition_manager_->Get(plan.map_collection_id);
+  auto parts = partition_manager_->Get(plan.map_collection_id);
   for (auto part : parts) {
-    tracker_->AddMap(part.first, part.second->partition->GetSize());
+    tracker_->AddMap(part->part_id, part->partition->GetSize());
     executor_->Add([this, part, func](){ 
-      tracker_->StartMap(part.first);
-      func(part.second->partition, intermediate_store_); 
-      tracker_->FinishMap(part.first);
+      tracker_->StartMap(part->part_id);
+      func(part->partition, intermediate_store_); 
+      tracker_->FinishMap(part->part_id);
     });
   }
 }

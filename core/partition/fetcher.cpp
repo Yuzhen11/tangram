@@ -26,7 +26,10 @@ void Fetcher::FetchLocal(Message msg) {
     auto part = partition_manager_->Get(collection_id, partition_id, version);
     SArrayBinStream new_bin;  // collection_id, partition_id, version, <partition>
     new_bin << collection_id << partition_id << part->version;
-    part->partition->ToBin(new_bin);
+    {
+      boost::shared_lock<boost::shared_mutex> lk(part->mu);
+      part->partition->ToBin(new_bin);
+    }
     reply_msg.AddData(new_bin.ToSArray());
   }
   sender_->Send(std::move(reply_msg));

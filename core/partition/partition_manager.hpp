@@ -6,15 +6,12 @@
 
 #include "glog/logging.h"
 
+#include <mutex>
 #include <memory>
 #include <map>
 
 namespace xyz {
 
-// Not thread-safe
-/*
- * The PartitionItem is designed to be reference-counted in a non threadsafe manner.
- */
 class PartitionManager {
  public:
   PartitionManager() = default;
@@ -25,7 +22,8 @@ class PartitionManager {
   bool Has(int collection_id, int partition_id, int version);
   std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id, int version);
 
-  const std::map<int, std::shared_ptr<VersionedPartition>>& Get(int collection_id);
+  std::vector<std::shared_ptr<VersionedPartition>> Get(int collection_id);
+  int GetNumLocalParts(int collection_id);
 
   void Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&&);
 
@@ -34,6 +32,8 @@ class PartitionManager {
   // <collection_id, <partition_id, partition>>
   // Let PartitionManager own the partition.
   std::map<int, std::map<int, std::shared_ptr<VersionedPartition>>> partitions_;
+  // Make it thread-safe
+  std::mutex mu_;
 };
 
 }  // namespace
