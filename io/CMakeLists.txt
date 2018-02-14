@@ -1,4 +1,4 @@
-include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNALdd_INCLUDE})
+include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 file(GLOB io-src-files
 	assigner.cpp

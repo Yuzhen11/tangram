@@ -57,7 +57,13 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
   os.system(cmd)
 
 
-def kill_nodes(prog_name, hostfile_path):
+def kill_nodes(scheduler_name, prog_name, hostfile_path):
+  # kill scheduler
+  # TODO: now only consider scheduler to be in the same node as the script.
+  scheduler_name = scheduler_name.split("/")[-1]  # To prevent users give a path to prog
+  cmd = "killall -q " + scheduler_name
+  os.system(cmd)
+
   assert os.path.isfile(hostfile_path)
   prog_name = prog_name.split("/")[-1]  # To prevent users give a path to prog
   print "Start killing <%s> according to <%s>" % (prog_name, hostfile_path)
