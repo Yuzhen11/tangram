@@ -102,7 +102,7 @@ struct MapTaskTracker : public TaskTracker, public AbstractMapProgressTracker {
   }
 
   std::mutex mu;
-  int num_finished;
+  int num_finished = 0;
   int num_objs;
   int id;
 };

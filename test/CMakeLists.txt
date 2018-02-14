@@ -4,6 +4,7 @@ add_library(xyz STATIC
   $<TARGET_OBJECTS:base-objs>
   $<TARGET_OBJECTS:core-objs>
   $<TARGET_OBJECTS:comm-objs>
+  $<TARGET_OBJECTS:io-objs>
   )
 
 # Unit Test

@@ -2,6 +2,7 @@
 #include "glog/logging.h"
 
 #include "core/partition/fetcher.hpp"
+#include "comm/simple_sender.hpp"
 
 namespace xyz {
 namespace {
@@ -19,19 +20,6 @@ class FakePartition : public AbstractPartition {
   virtual void ToBin(SArrayBinStream& bin) override { bin << a; }
   virtual size_t GetSize() const override { return 0; }
   int a;
-};
-
-class SimpleSender : public AbstractSender {
- public:
-  virtual void Send(Message msg) override {
-    msgs.Push(std::move(msg));
-  }
-  Message Get() {
-    Message msg;
-    msgs.WaitAndPop(&msg);
-    return msg;
-  }
-  ThreadsafeQueue<Message> msgs;
 };
 
 class TestFetcher : public testing::Test {};
