@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <string>
+#include <sstream>
 
 namespace xyz {
 
@@ -9,6 +10,14 @@ struct BlockInfo {
   std::string filename;
   size_t offset;
   std::string hostname;
+
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "filename: " << filename;
+    ss << ", offset: " << offset;
+    ss << ", hostname : " << hostname;
+    return ss.str();
+  }
 };
 
 class AbstractBrowser {

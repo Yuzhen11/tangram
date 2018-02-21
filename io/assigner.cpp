@@ -67,7 +67,7 @@ bool Assigner::Assign(std::pair<std::string, int> slave) {
       cond_.notify_one();
     return false;
   }
-  std::pair<std::string, int> block;
+  std::pair<std::string, size_t> block;
   // find block according to locality if any
   if (locality_map_.find(slave.first) != locality_map_.end()
           && !locality_map_[slave.first].empty()) {
