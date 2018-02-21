@@ -15,18 +15,6 @@ class SeqPartition : public TypedPartition<ObjT> {
     storage_.push_back(std::move(obj));
   }
 
-  virtual void Sort() override {
-    std::sort(storage_.begin(), storage_.end(), [](const ObjT& a, const ObjT& b) { return a.Key() < b.Key(); });
-  }
-
-  virtual ObjT Get(typename ObjT::KeyT) override {
-    CHECK(false) << "not implemented";
-  }
-
-  virtual ObjT* FindOrCreate(typename ObjT::KeyT key) override {
-    CHECK(false) << "not implemented";
-  }
-
   virtual size_t GetSize() const override { return storage_.size(); }
 
   virtual void FromBin(SArrayBinStream& bin) override {
@@ -66,6 +54,10 @@ class SeqPartition : public TypedPartition<ObjT> {
       iw.iter.reset(new typename SeqPartition<ObjT>::Iterator(&storage_[0], storage_.size()));
     }
     return iw;
+  }
+
+  std::vector<ObjT> GetStorage() {
+    return storage_;
   }
  protected:
   std::vector<ObjT> storage_;

@@ -15,7 +15,7 @@ namespace xyz {
  * ObjT should have the function: Key().
  */
 template <typename ObjT>
-class IndexedSeqPartition : public SeqPartition<ObjT> {
+class IndexedSeqPartition : public SeqPartition<ObjT>, public Indexable<ObjT> {
  public:
   virtual void TypedAdd(ObjT obj) override {
     unsorted_[obj.Key()] = this->storage_.size();

@@ -94,8 +94,8 @@ class Plan {
 
   JoinPartFuncT GetJoinPartFunc() {
     return [this] (std::shared_ptr<AbstractPartition> partition, SArrayBinStream bin) {
-      // TODO: CHECK_NOTNULL
-      auto* p = static_cast<TypedPartition<T2>*> (partition.get());
+      auto* p = dynamic_cast<Indexable<T2>*>(partition.get());
+      CHECK_NOTNULL(p);
       typename T2::KeyT key;
       MsgT msg;
       while (bin) {

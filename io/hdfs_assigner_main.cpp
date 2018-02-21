@@ -1,5 +1,6 @@
 #include "io/assigner.hpp"
 #include "io/hdfs_browser.hpp"
+#include "io/meta.hpp"
 
 #include "comm/simple_sender.hpp"
 
@@ -26,15 +27,15 @@ int main(int argc, char** argv) {
     SArrayBinStream recv_bin;
     CHECK_EQ(recv_msg.data.size(), 2);
     recv_bin.FromSArray(recv_msg.data[1]);
-    std::pair<std::string, size_t> block;
+    AssignedBlock block;
     recv_bin >> block;
-    LOG(INFO) << "block: " << block.first << " " << block.second;
+    LOG(INFO) << "block: " << block.DebugString();
 
     // send finish
     SArrayBinStream ctrl_bin, bin;
     ctrl_bin << int(0);
-    std::pair<std::string, int> n1{"node5", 0};
-    bin << n1;
+    FinishedBlock b{0, 0, 0, "node5"};
+    bin << b;
     Message msg;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());

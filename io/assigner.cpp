@@ -1,4 +1,5 @@
 #include "io/assigner.hpp"
+#include "io/meta.hpp"
 
 namespace xyz {
 
@@ -12,8 +13,9 @@ void Assigner::Process(Message msg) {
   int type;
   ctrl_bin >> type;
   if (type == 0) {  // TODO
-    std::pair<std::string, int> slave;
-    bin >> slave;
+    FinishedBlock block;
+    bin >> block;
+    std::pair<std::string, int> slave{block.hostname, block.qid};
     Assign(slave);
   }
 }
@@ -80,15 +82,19 @@ bool Assigner::Assign(std::pair<std::string, int> slave) {
   SArrayBinStream ctrl_bin, bin;
   int type = 0;  // TODO
   ctrl_bin << type;
-  bin << block.first << block.second;  // TODO more info
+  AssignedBlock assigned_block;
+  assigned_block.url = block.first;
+  assigned_block.offset = block.second;
+  assigned_block.id = 0;  // TODO
+  assigned_block.collection_id = 0;  // TODO
+  bin << assigned_block;
   Message msg;
   msg.meta.sender = 0;
   msg.meta.recver = slave.second;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
   sender_->Send(std::move(msg));
-  VLOG(1) << "Assigining block <" << block.first << "," << block.second
-      << "> to node: <" << slave.first << "," << slave.second << ">";
+  VLOG(1) << "Assigining block: " << assigned_block.DebugString();
 
   // remove blocks info
   auto b = blocks_.find(block);

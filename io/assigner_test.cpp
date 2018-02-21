@@ -6,6 +6,7 @@
 
 #include "io/assigner.hpp"
 #include "io/abstract_browser.hpp"
+#include "io/meta.hpp"
 #include "comm/simple_sender.hpp"
 
 namespace xyz {
@@ -64,8 +65,8 @@ TEST_F(TestAssigner, Load) {
     future.wait();
     SArrayBinStream ctrl_bin, bin;
     ctrl_bin << int(0);
-    std::pair<std::string, int> n1{"node0", 0};
-    bin << n1;
+    FinishedBlock b{0, 0, 0, "node0"};
+    bin << b;
     Message msg;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
@@ -76,8 +77,8 @@ TEST_F(TestAssigner, Load) {
     Message msg2;
     msg2.AddData(ctrl_bin.ToSArray());
     SArrayBinStream bin2;
-    std::pair<std::string, int> n2{"node1", 1};
-    bin2 << n2;
+    FinishedBlock b2{-1, 1, 1, "node1"};
+    bin2 << b2;
     msg2.AddData(bin2.ToSArray());
     q->Push(msg2);
   });

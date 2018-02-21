@@ -3,6 +3,7 @@
 #include "core/cache/abstract_cache.hpp"
 #include "core/index/key_to_part_mappers.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
+#include "core/partition/indexed_seq_partition.hpp"
 
 namespace xyz {
 
@@ -21,7 +22,7 @@ class TypedCache : public AbstractCache {
     int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*>(mapper.get())->Get(key);
 
     auto part = partition_cache_->GetPartition(collection_id_, partition_id, version_);
-    auto obj = static_cast<TypedPartition<ObjT>*>(part->partition.get())->Get(key);
+    auto obj = static_cast<IndexedSeqPartition<ObjT>*>(part->partition.get())->Get(key);
     return obj;
   }
 

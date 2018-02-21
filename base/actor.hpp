@@ -14,6 +14,7 @@ class Actor {
   virtual ~Actor() = default;
 
   ThreadsafeQueue<Message>* GetWorkQueue() { return &work_queue_; }
+  int Qid() const { return queue_id_; }
 
   virtual void Process(Message msg) = 0;
 
