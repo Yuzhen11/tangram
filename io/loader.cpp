@@ -18,6 +18,7 @@ void HdfsLoader::Process(Message msg) {
 }
 
 void HdfsLoader::Load(AssignedBlock block) {
+  num_added_ += 1;
   executor_->Add([this, block]() {
     // 1. read
     auto strs = reader_->Read(namenode_, port_, block.url, block.offset);
@@ -40,6 +41,10 @@ void HdfsLoader::Load(AssignedBlock block) {
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));
     VLOG(1) << "Finish block: " << b.DebugString();
+
+    std::unique_lock<std::mutex> lk(mu_);
+    num_finished_ += 1;
+    cond_.notify_one();
   });
 }
 

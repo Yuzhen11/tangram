@@ -1,5 +1,8 @@
 #pragma once
 
+#include <mutex>
+#include <condition_variable>
+
 #include "comm/abstract_sender.hpp"
 #include "base/actor.hpp"
 #include "base/message.hpp"
@@ -28,6 +31,8 @@ class HdfsLoader: public Actor {
   }
 
   virtual ~HdfsLoader() {
+    std::unique_lock<std::mutex> lk(mu_);
+    cond_.wait(lk, [this]() { return num_finished_ == num_added_; });
     Stop();
   }
 
@@ -44,6 +49,11 @@ class HdfsLoader: public Actor {
   int port_;
 
   Node node_;
+
+  int num_added_ = 0;
+  int num_finished_ = 0;
+  std::mutex mu_;
+  std::condition_variable cond_;
 };
 
 }  // namespace xyz
