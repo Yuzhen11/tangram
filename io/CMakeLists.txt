@@ -6,7 +6,7 @@ file(GLOB io-src-files
 	)
 
 if(LIBHDFS3_FOUND)
-    file(GLOB io-src-hdfs-files hdfs_loader.cpp hdfs_browser.cpp hdfs_reader.cpp)
+    file(GLOB io-src-hdfs-files hdfs_browser.cpp hdfs_reader.cpp)
     list(APPEND io-src-files ${io-src-hdfs-files})
 endif(LIBHDFS3_FOUND)
 
