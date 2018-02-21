@@ -23,13 +23,13 @@ void Run() {
 
     /* 1. Parse config_file */
     //Node scheduler_node = ParseFile(FLAGS_config_file); // Scheduler's id is 0
-    Node scheduler_node{0, "localhost", std::stoi(FLAGS_scheduler_port), false};
+    Node scheduler_node{0, FLAGS_scheduler, std::stoi(FLAGS_scheduler_port), false};
     //CHECK(CheckValidNodeId(scheduler_node));
     //CHECK(CheckUniquePort(FLAGS_scheduler_port));
     LOG(INFO) << "scheduler_node: " << scheduler_node.DebugString();
 
     /* 2. The user program */
-    Mailbox worker_mailbox(true, scheduler_node, FLAGS_num_worker);
+    Mailbox worker_mailbox(false, scheduler_node, FLAGS_num_worker);
     worker_mailbox.Start();
     worker_mailbox.Stop();
 }

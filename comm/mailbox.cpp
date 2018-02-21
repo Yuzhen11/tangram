@@ -68,8 +68,10 @@ void Mailbox::Connect(const Node& node) {
   }
   void* sender = zmq_socket(context_, ZMQ_DEALER);
   CHECK(sender != nullptr) << zmq_strerror(errno);
-  std::string my_id = "ps" + std::to_string(my_node_.id);
-  zmq_setsockopt(sender, ZMQ_IDENTITY, my_id.data(), my_id.size());
+  if (my_node_.id != Node::kEmpty) {
+    std::string my_id = "node" + std::to_string(my_node_.id);
+    zmq_setsockopt(sender, ZMQ_IDENTITY, my_id.data(), my_id.size());
+  }
   std::string addr = "tcp://" + node.hostname + ":" + std::to_string(node.port);
   if (zmq_connect(sender, addr.c_str()) != 0) {
     LOG(FATAL) << "connect to " + addr + " failed: " << zmq_strerror(errno);

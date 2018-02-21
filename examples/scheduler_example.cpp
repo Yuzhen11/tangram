@@ -23,7 +23,7 @@ void Run() {
 
     /* 1. Parse config_file */
     //Node scheduler_node = ParseFile(FLAGS_config_file); // Scheduler's id is 0
-    Node scheduler_node{0, "localhost", std::stoi(FLAGS_scheduler_port), false};
+    Node scheduler_node{0, FLAGS_scheduler, std::stoi(FLAGS_scheduler_port), false};
     //CHECK(CheckValidNodeId(scheduler_node));
     //CHECK(CheckUniquePort(FLAGS_scheduler_port));
     LOG(INFO) << "scheduler_node: " << scheduler_node.DebugString();
