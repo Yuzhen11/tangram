@@ -19,6 +19,10 @@ void Scheduler::Process(Message msg) {
       InitWorkersReply(bin);
       break;
     }
+    case ScheduleFlag::kFinishBlock: {
+      FinishBlock(bin);
+      break;
+    }
     default: CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }
 }
@@ -77,6 +81,12 @@ void Scheduler::SendToAllWorkers(SArrayBinStream ctrl_bin, SArrayBinStream bin) 
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));
   }
+}
+
+void Scheduler::FinishBlock(SArrayBinStream bin) {
+  FinishedBlock block;
+  bin >> block;
+  assigner_->FinishBlock(block);
 }
 
 }  // namespace xyz

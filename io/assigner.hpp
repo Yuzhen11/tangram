@@ -6,34 +6,38 @@
 #include <sstream>
 #include <memory>
 #include <condition_variable>
-#include <mutex>
 
 #include "glog/logging.h"
 
 #include "comm/abstract_sender.hpp"
 #include "io/abstract_browser.hpp"
 #include "base/message.hpp"
-#include "base/actor.hpp"
+#include "io/meta.hpp"
 
 namespace xyz {
 
-class Assigner : public Actor {
+class Assigner {
  public:
-  Assigner(int qid, std::shared_ptr<AbstractSender> sender, 
+  Assigner(std::shared_ptr<AbstractSender> sender, 
           std::shared_ptr<AbstractBrowser> browser)
-      :Actor(qid), sender_(sender), browser_(browser) {
-    Start();
+      :sender_(sender), browser_(browser) {
   }
-  ~Assigner() {
-    Stop();
-  }
-  virtual void Process(Message msg);
-  void InitBlocks(std::string url);
+  ~Assigner() = default;
+
+  // public api:
   int Load(std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots);
-  void Wait();
-  bool Assign(std::pair<std::string, int> slave);
+  // return true if all blocks finish
+  bool FinishBlock(FinishedBlock block);
+  bool Done();
+  std::map<int, std::tuple<std::string, size_t, int>> GetFinishedBlocks() const {
+    return finished_blocks_;
+  }
+
+  void InitBlocks(std::string url);
+  void Assign(std::pair<std::string, int> slave);
   std::string DebugStringLocalityMap();
   std::string DebugStringBlocks();
+  std::string DebugStringFinishedBlocks();
   int GetNumBlocks();
  private:
   std::shared_ptr<AbstractBrowser> browser_;
@@ -44,11 +48,18 @@ class Assigner : public Actor {
   std::map<std::string, std::set<std::pair<std::string, size_t>>> locality_map_;
   // blocks locality information
   std::map<std::pair<std::string, size_t>, std::vector<std::string>> blocks_;
-  int num_finished_ = 0;
-  int expected_num_finished_ = 0;
 
-  std::mutex mu_;
-  std::condition_variable cond_;
+  // assigned blocks
+  std::map<int, std::pair<std::string, size_t>> assigned_blocks_;
+  
+  // finished blocks
+  std::map<int, std::tuple<std::string, size_t, int>> finished_blocks_;
+
+  int block_id_ = 0;
+
+  int num_finished_ = 0;
+  int num_assigned_ = 0;
+  int expected_num_finished_ = 0;
 };
 
 }  // namespace xyz

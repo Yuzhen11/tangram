@@ -8,6 +8,8 @@
 
 #include "core/scheduler/collection_view.hpp"
 
+#include "io/assigner.hpp"
+
 #include "glog/logging.h"
 
 namespace xyz {
@@ -51,6 +53,8 @@ class Scheduler : public Actor {
   void StartScheduling();
   
   void SendToAllWorkers(SArrayBinStream ctrl_bin, SArrayBinStream bin);
+
+  void FinishBlock(SArrayBinStream bin);
  private:
   std::shared_ptr<AbstractSender> sender_;
 
@@ -60,6 +64,8 @@ class Scheduler : public Actor {
 
   PlanSpec plan_spec_;  // The plan that it is going to be run.
   std::unordered_map<int, CollectionView> collection_map_;
+
+  std::shared_ptr<Assigner> assigner_;
 };
 
 }  // namespace xyz

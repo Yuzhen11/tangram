@@ -1,4 +1,5 @@
 #include "comm/abstract_sender.hpp"
+#include "base/threadsafe_queue.hpp"
 
 namespace xyz {
 

@@ -16,10 +16,9 @@ int main(int argc, char** argv) {
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<HDFSBrowser>(namenode, port);
 
-  Assigner assigner(0, sender, browser);
+  Assigner assigner(sender, browser);
   int num_blocks = assigner.Load(url, {{"proj5", 0}}, 1);
   LOG(INFO) << "blocks number: " << num_blocks;
-  auto* q = assigner.GetWorkQueue();
 
   for (int i = 0; i < num_blocks; ++ i) {
     // recv
@@ -32,16 +31,11 @@ int main(int argc, char** argv) {
     LOG(INFO) << "block: " << block.DebugString();
 
     // send finish
-    SArrayBinStream ctrl_bin, bin;
-    ctrl_bin << int(0);
-    FinishedBlock b{0, 0, 0, "node5"};
-    bin << b;
-    Message msg;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    q->Push(msg);
+    FinishedBlock b{block.id, 0, 0, "node5"};
+    CHECK_EQ(assigner.Done(), false);
+    assigner.FinishBlock(b);
   }
-
-  assigner.Wait();
+  CHECK_EQ(assigner.Done(), true);
+  LOG(INFO) << assigner.DebugStringFinishedBlocks();
 }
 

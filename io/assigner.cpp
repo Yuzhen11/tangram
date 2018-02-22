@@ -1,24 +1,28 @@
 #include "io/assigner.hpp"
-#include "io/meta.hpp"
 
 namespace xyz {
 
-void Assigner::Process(Message msg) {
-  CHECK_EQ(init_, true);
-  SArrayBinStream ctrl_bin;
-  SArrayBinStream bin;
-  CHECK_EQ(msg.data.size(), 2);
-  ctrl_bin.FromSArray(msg.data[0]);
-  bin.FromSArray(msg.data[1]);
-  int type;
-  ctrl_bin >> type;
-  if (type == 0) {  // TODO
-    FinishedBlock block;
-    bin >> block;
+bool Assigner::FinishBlock(FinishedBlock block) {
+  CHECK(assigned_blocks_.find(block.block_id) != assigned_blocks_.end());
+  auto url = assigned_blocks_[block.block_id].first;
+  auto offset = assigned_blocks_[block.block_id].second;
+  assigned_blocks_.erase(block.block_id);
+  finished_blocks_.insert({block.block_id, {url, offset, block.node_id}});
+  num_finished_ += 1;
+
+  if (num_finished_ == expected_num_finished_) {
+    return true;
+  } else {
     std::pair<std::string, int> slave{block.hostname, block.qid};
     Assign(slave);
+    return false;
   }
 }
+
+bool Assigner::Done() {
+  return num_finished_ == expected_num_finished_;
+}
+
 void Assigner::InitBlocks(std::string url) {
   CHECK_NOTNULL(browser_);
   auto blocks = browser_->Browse(url);
@@ -39,36 +43,26 @@ int Assigner::GetNumBlocks() {
 int Assigner::Load(std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots) {
   InitBlocks(url);
   num_finished_ = 0;
-  expected_num_finished_ = slaves.size() * num_slots;
-  int num_blocks = blocks_.size();
+  num_assigned_ = 0;
+  expected_num_finished_ = blocks_.size();
   // Need to ensure that there is no message coming before Load().
 
   LOG(INFO) << "Assigning " << blocks_.size() << " paritition to "
       << slaves.size() << " slaves";
+  // TODO: use more scheduling sophisticatic algorithm
   for (auto slave: slaves) {
     for (int i = 0; i < num_slots; ++ i) {
       Assign(slave);
     }
   }
-  return num_blocks;
+  return expected_num_finished_;
 }
 
-void Assigner::Wait() {
-  std::unique_lock<std::mutex> lk(mu_);
-  cond_.wait(lk, [this]() {
-    return blocks_.empty() && num_finished_ == expected_num_finished_;
-  });
-}
-
-bool Assigner::Assign(std::pair<std::string, int> slave) {
-  std::unique_lock<std::mutex> lc(mu_);
+void Assigner::Assign(std::pair<std::string, int> slave) {
   if (blocks_.empty()) {
-    num_finished_ += 1;
-    VLOG(1) << "finish " << num_finished_ << " " << slave.first << " " << slave.second;
-    if (num_finished_ == expected_num_finished_)
-      cond_.notify_one();
-    return false;
+    return;
   }
+
   std::pair<std::string, size_t> block;
   // find block according to locality if any
   if (locality_map_.find(slave.first) != locality_map_.end()
@@ -85,7 +79,7 @@ bool Assigner::Assign(std::pair<std::string, int> slave) {
   AssignedBlock assigned_block;
   assigned_block.url = block.first;
   assigned_block.offset = block.second;
-  assigned_block.id = 0;  // TODO
+  assigned_block.id = block_id_ ++;
   assigned_block.collection_id = 0;  // TODO
   bin << assigned_block;
   Message msg;
@@ -105,8 +99,8 @@ bool Assigner::Assign(std::pair<std::string, int> slave) {
     locality_map_[loc].erase(block);
   }
   blocks_.erase(block);
-
-  return true;
+  num_assigned_ += 1;
+  assigned_blocks_.insert({assigned_block.id, block});
 }
 
 std::string Assigner::DebugStringLocalityMap() {
@@ -129,6 +123,18 @@ std::string Assigner::DebugStringBlocks() {
     for (auto& h : kv.second) {
       ss << h << ", ";
     }
+    ss << "\n";
+  }
+  return ss.str();
+}
+
+std::string Assigner::DebugStringFinishedBlocks() {
+  std::stringstream ss;
+  ss << "finished block:\n";
+  for (auto& kv : finished_blocks_) {
+    ss << "block id: " << kv.first;
+    ss << " <" << std::get<0>(kv.second) << ", " << std::get<1>(kv.second) 
+        << "> on " << std::get<2>(kv.second);
     ss << "\n";
   }
   return ss.str();

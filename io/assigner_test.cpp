@@ -1,9 +1,6 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include <thread>
-#include <future>
-
 #include "io/assigner.hpp"
 #include "io/abstract_browser.hpp"
 #include "io/meta.hpp"
@@ -32,58 +29,32 @@ struct FakeBrowser : public AbstractBrowser {
 };
 
 TEST_F(TestAssigner, Create) {
-  const int qid = 0;
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<FakeBrowser>();
-  Assigner assigner(qid, sender, browser);
+  Assigner assigner(sender, browser);
 }
 
 TEST_F(TestAssigner, InitBlocks) {
-  const int qid = 0;
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<FakeBrowser>();
-  Assigner assigner(qid, sender, browser);
+  Assigner assigner(sender, browser);
   assigner.InitBlocks("dummy");
   VLOG(1) << "locality_map_: \n" << assigner.DebugStringLocalityMap();
   VLOG(1) << "blocks_: \n" << assigner.DebugStringBlocks();
 }
 
 TEST_F(TestAssigner, Load) {
-  const int qid = 0;
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<FakeBrowser>();
-  Assigner assigner(qid, sender, browser);
-  auto* q = assigner.GetWorkQueue();
-  std::promise<void> promise;
-  auto future = promise.get_future();
-  std::thread th1([&]() {
-    assigner.Load("dummy", {{"node0", 0}, {"node1", 1}}, 1);
-    promise.set_value();
-    assigner.Wait();
-  });
-  std::thread th2([&]() {
-    future.wait();
-    SArrayBinStream ctrl_bin, bin;
-    ctrl_bin << int(0);
-    FinishedBlock b{0, 0, 0, "node0"};
-    bin << b;
-    Message msg;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    q->Push(msg);
-
-    // The last two messages are for finishing reading the blocks.
-    q->Push(msg);
-    Message msg2;
-    msg2.AddData(ctrl_bin.ToSArray());
-    SArrayBinStream bin2;
-    FinishedBlock b2{-1, 1, 1, "node1"};
-    bin2 << b2;
-    msg2.AddData(bin2.ToSArray());
-    q->Push(msg2);
-  });
-  th1.join();
-  th2.join();
+  Assigner assigner(sender, browser);
+  assigner.Load("dummy", {{"node0", 0}, {"node1", 1}}, 1);
+  EXPECT_EQ(assigner.Done(), false);
+  FinishedBlock b0{0, 0, 0, "node0"};
+  EXPECT_EQ(assigner.FinishBlock(b0), false);
+  FinishedBlock b1{1, 1, 0, "node1"};
+  EXPECT_EQ(assigner.FinishBlock(b1), false);
+  FinishedBlock b2{2, 0, 0, "node0"};
+  EXPECT_EQ(assigner.FinishBlock(b2), true);
 }
 
 }  // namespace
