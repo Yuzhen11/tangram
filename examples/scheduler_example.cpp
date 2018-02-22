@@ -31,6 +31,8 @@ void Run() {
     /* 1. Scheduler program */
     Mailbox scheduler_mailbox(true, scheduler_node, FLAGS_num_worker);
     scheduler_mailbox.Start();
+    // scheduler_mailbox.Stop();
+    std::this_thread::sleep_for(std::chrono::seconds(10));
     scheduler_mailbox.Stop();
 }
 

@@ -55,7 +55,8 @@ class Mailbox {
   std::atomic<bool> ready_{false};
   Node scheduler_node_;
   Node my_node_;
-  // all worker nodes, owned by scheduler
+
+  // all worker nodes
   std::vector<Node> nodes_;
   int num_workers_;
 
@@ -71,11 +72,11 @@ const std::vector<int> GetNodeIDs() const;
 
   // Handle different msgs
   void HandleBarrierMsg();
-  void HandleRegisterMsg(Message* msg, std::vector<Node>& nodes, Node& recovery_node);
-  void HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recovery_node);
+  void HandleRegisterMsg(Message* msg, Node& recovery_node);
+  void HandleRegisterMsgAtScheduler(Node& recovery_node);
   void HandleHeartbeat(int node_id);
 
-  void UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std::vector<Node>& nodes, Node& recovery_node);
+  void UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, Node& recovery_node);
 
   // receiver
   std::thread receiver_thread_;

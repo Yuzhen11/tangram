@@ -17,7 +17,7 @@ struct Node {
 
   std::string DebugString() const {
     std::stringstream ss;
-    ss << " id=" << id << " hostname=" << hostname << " port=" << port << " is_recovery=" << is_recovery << " }";
+    ss << " { id=" << id << " hostname=" << hostname << " port=" << port << " is_recovery=" << is_recovery << " }";
     return ss.str();
   }
 

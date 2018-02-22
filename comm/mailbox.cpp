@@ -277,7 +277,7 @@ void Mailbox::Start() {
     SArrayBinStream bin;
     bin << ctrl;
     msg.AddData(bin.ToSArray());
-    VLOG(1) << "Worker: my_node_.id = " << std::to_string(my_node_.id);
+    // VLOG(1) << "Worker: my_node_.id = " << std::to_string(my_node_.id);
     Send(msg);
   }
   // wait until ready
@@ -343,12 +343,16 @@ void Mailbox::Stop() {
   // if (resender_) delete resender_;
   // close sockets
   CloseSockets();
+  LOG(INFO) << my_node_.DebugString() << " is stopped";
 }
 
 void Mailbox::HandleBarrierMsg() {
   if (is_scheduler_) {
     barrier_count_++;
+    VLOG(2) << "Barrier at scheduler, count: " << barrier_count_;
     if (barrier_count_ == nodes_.size()) {
+      LOG(INFO) << "Collect all barrier message at scheduler";
+      barrier_count_ = 0;
       // notify all nodes that barrier finished
       for (auto& node : nodes_) {
         Message barrier_msg;
@@ -366,34 +370,35 @@ void Mailbox::HandleBarrierMsg() {
   }
   // worker side, barrier finished
   else {
+    VLOG(2) << "Barrier at worker";
     barrier_finish_ = true;
   }
 }
 
-void Mailbox::HandleRegisterMsg(Message* msg, std::vector<Node>& nodes, Node& recovery_node) {
+void Mailbox::HandleRegisterMsg(Message* msg, Node& recovery_node) {
   // reference:
   auto dead_nodes = GetDeadNodes(heartbeat_timeout_);
   std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
-  UpdateID(msg, &dead_set, nodes, recovery_node);
+  UpdateID(msg, &dead_set, recovery_node);
 
   if (is_scheduler_) {
-    HandleRegisterMsgAtScheduler(nodes, recovery_node);
+    HandleRegisterMsgAtScheduler(recovery_node);
   } else {
     // worker connected to all other workers (get the info from scheduler)
-    VLOG(1) << "[Worker]In HandleRegisterMsg: nodes.size() = " << std::to_string(nodes.size());
-    for (const auto& node : nodes) {
+    VLOG(1) << "[Worker]In HandleRegisterMsg: nodes.size() = " << std::to_string(nodes_.size());
+    for (const auto& node : nodes_) {
       std::string addr_str = node.hostname + ":" + std::to_string(node.port);
       if (connected_nodes_.find(addr_str) == connected_nodes_.end()) {
         Connect(node);
         connected_nodes_[addr_str] = node.id;
       }
     }
-    VLOG(1) << my_node_.DebugString() << " is connected to others";
+    LOG(INFO) << my_node_.DebugString() << " is connected to others";
     ready_ = true;
   }
 }
 
-void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std::vector<Node>& nodes, Node& recovery_node) {
+void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, Node& recovery_node) {
   // assign an id
   if (msg->meta.sender == Node::kEmpty) {
     CHECK(is_scheduler_);
@@ -402,13 +407,13 @@ void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std
     Control ctrl;
     bin >> ctrl;
 
-    if (nodes.size() < num_workers_) {
-      nodes.push_back(ctrl.node);
+    if (nodes_.size() < num_workers_) {
+      nodes_.push_back(ctrl.node);
     } else {
       // some node dies and restarts
       CHECK(ready_.load());
-      for (size_t i = 0; i < nodes.size() - 1; ++i) {
-        const auto& node = nodes[i];
+      for (size_t i = 0; i < nodes_.size() - 1; ++i) {
+        const auto& node = nodes_[i];
         if (deadnodes_set->find(node.id) != deadnodes_set->end()) {
           auto& temp_node = ctrl.node;
           // assign previous node id
@@ -416,7 +421,7 @@ void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std
           temp_node.is_recovery = true;
           VLOG(1) << "replace dead node " << node.DebugString()
                      << " by node " << temp_node.DebugString();
-          nodes[i] = temp_node;
+          nodes_[i] = temp_node;
           recovery_node = temp_node;
           break;
         }
@@ -427,10 +432,10 @@ void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std
   else if (!is_scheduler_) {
     SArrayBinStream bin;
     bin.FromSArray(msg->data[1]);
-    bin >> nodes;
-    VLOG(1) << "[Worker]In UpdateID(): nodes.size() = " << std::to_string(nodes.size());
-    for (size_t i = 0; i < nodes.size(); ++i) {
-      const auto& node = nodes[i];
+    bin >> nodes_;
+    VLOG(1) << "[Worker]In UpdateID(): nodes.size() = " << std::to_string(nodes_.size());
+    for (size_t i = 0; i < nodes_.size(); ++i) {
+      const auto& node = nodes_[i];
       if (my_node_.hostname == node.hostname && my_node_.port == node.port) {
         my_node_ = node;
       }
@@ -438,14 +443,15 @@ void Mailbox::UpdateID(Message* msg, std::unordered_set<int>* deadnodes_set, std
   }
 }
 
-void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recovery_node) {
+void Mailbox::HandleRegisterMsgAtScheduler(Node& recovery_node) {
   time_t t = time(NULL);
   VLOG(1) << "HandleRegisterMsgAtScheduler";
-  if (nodes.size() == num_workers_) {
-    VLOG(1) << "nodes.size() == num_workers_";
+  if (nodes_.size() == num_workers_) {
+    VLOG(1) << "nodes_.size() == num_workers_";
+    LOG(INFO) << num_workers_ << " nodes registered at scheduler.";
     // assign node id (dummy ranking, id from 1 to num_workers_)
     int id = 0;
-    for (auto& node : nodes) {
+    for (auto& node : nodes_) {
       id++;
       std::string node_host_ip = node.hostname + ":" + std::to_string(node.port);
       if (connected_nodes_.find(node_host_ip) == connected_nodes_.end()) {
@@ -466,7 +472,7 @@ void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recov
     ctrl.flag = MailboxFlag::kRegister;
     ctrl_bin << ctrl;
     SArrayBinStream nodes_bin;
-    nodes_bin << nodes;
+    nodes_bin << nodes_;
     Message back_msg;
     back_msg.AddData(ctrl_bin.ToSArray());
     back_msg.AddData(nodes_bin.ToSArray());
@@ -499,7 +505,7 @@ void Mailbox::HandleRegisterMsgAtScheduler(std::vector<Node>& nodes, Node& recov
       // but send all nodes to the recovery_node
       SArrayBinStream nodes_bin;
       if (r == recovery_node.id) {
-        nodes_bin << nodes;
+        nodes_bin << nodes_;
       }
       else {
         std::vector<Node> temp = {recovery_node};
@@ -534,7 +540,7 @@ void Mailbox::UpdateHeartbeat(int node_id, time_t t) {
 }
 
 void Mailbox::Receiving() {
-  std::vector<Node> nodes; // store worker nodes
+  // std::vector<Node> nodes; // store worker nodes
   Node recovery_node;  // store recovery nodes
 
   while (true) {
@@ -558,7 +564,7 @@ void Mailbox::Receiving() {
         HandleBarrierMsg();
       }
       else if (ctrl.flag == MailboxFlag::kRegister) {
-        HandleRegisterMsg(&msg, nodes, recovery_node);
+        HandleRegisterMsg(&msg, recovery_node);
       }
       else if (ctrl.flag == MailboxFlag::kHeartbeat) {
         HandleHeartbeat(msg.meta.sender);

@@ -31,6 +31,7 @@ void Run() {
     /* 2. The user program */
     Mailbox worker_mailbox(false, scheduler_node, FLAGS_num_worker);
     worker_mailbox.Start();
+    worker_mailbox.Barrier();
     worker_mailbox.Stop();
 }
 
