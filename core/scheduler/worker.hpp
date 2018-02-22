@@ -7,6 +7,7 @@
 #include "comm/abstract_sender.hpp"
 #include "core/plan/function_store.hpp"
 #include "core/partition/partition_tracker.hpp"
+#include "core/index/simple_part_to_node_mapper.hpp"
 
 #include "glog/logging.h"
 
@@ -44,6 +45,10 @@ class Worker : public Actor {
   std::shared_ptr<AbstractSender> sender_;
   std::shared_ptr<PartitionTracker> partition_tracker_;
   std::shared_ptr<FunctionStore> function_store_;
+
+  // store the mapping from partition to node.
+  std::unordered_map<int, std::shared_ptr<AbstractPartToNodeMapper>> part_to_node_map_;
+
 };
 
 }  // namespace xyz

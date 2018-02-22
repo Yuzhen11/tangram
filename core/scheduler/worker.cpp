@@ -21,6 +21,15 @@ void Worker::Process(Message msg) {
 }
 
 void Worker::InitWorkers(SArrayBinStream bin) {
+  // init part_to_node_map_
+  part_to_node_map_.clear();
+  while (bin.Size()) {
+    int collection_id;
+    std::shared_ptr<SimplePartToNodeMapper> map;
+    bin >> collection_id;
+    map->FromBin(bin);
+    part_to_node_map_.insert({collection_id, std::move(map)});
+  }
 }
 
 void Worker::RegisterPlan(PlanSpec plan) {
