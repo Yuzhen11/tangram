@@ -16,6 +16,10 @@ void Worker::Process(Message msg) {
       InitWorkers(bin);
       break;
     }
+    case ScheduleFlag::kLoadBlock: {
+      LoadBlock(bin);
+      break;
+    }
     default: CHECK(false);
   }
 }
@@ -38,6 +42,12 @@ void Worker::RegisterPlan(PlanSpec plan) {
   SArrayBinStream bin;
   bin << plan;
   SendMsgToScheduler(ctrl_bin, bin);
+}
+
+void Worker::LoadBlock(SArrayBinStream bin) {
+  AssignedBlock block;
+  bin >> block;
+  loader_->Load(block);
 }
 
 void Worker::SendMsgToScheduler(SArrayBinStream ctrl_bin, SArrayBinStream bin) {

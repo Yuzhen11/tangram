@@ -2,20 +2,9 @@
 
 #include "core/partition/seq_partition.hpp"
 
-namespace xyz {
+#include "core/scheduler/control.hpp"
 
-void HdfsLoader::Process(Message msg) {
-  SArrayBinStream ctrl_bin, bin;
-  CHECK_EQ(msg.data.size(), 2);
-  ctrl_bin.FromSArray(msg.data[0]);
-  bin.FromSArray(msg.data[1]);
-  int a;
-  ctrl_bin >> a;
-  CHECK_EQ(a, 0);  // TODO
-  AssignedBlock block;
-  bin >> block;
-  Load(block);
-}
+namespace xyz {
 
 void HdfsLoader::Load(AssignedBlock block) {
   num_added_ += 1;
@@ -30,12 +19,12 @@ void HdfsLoader::Load(AssignedBlock block) {
 
     // 2. reply
     SArrayBinStream ctrl_bin, bin;
-    int type = 0;  // TODO
-    ctrl_bin << type;
-    FinishedBlock b{block.id, node_.id, Qid(), node_.hostname};
+    ScheduleFlag flag = ScheduleFlag::kFinishBlock;
+    ctrl_bin << flag;
+    FinishedBlock b{block.id, node_.id, qid_, node_.hostname};
     bin << b;
     Message msg;
-    msg.meta.sender = Qid();
+    msg.meta.sender = qid_;
     msg.meta.recver = 0;  // TODO The qid of the assigner
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());

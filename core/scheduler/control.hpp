@@ -6,7 +6,8 @@ enum class ScheduleFlag : char {
   kInitWorkersReply,
   kRunMap,
   kRunSpeculativeMap,
-  kFinishBlock
+  kFinishBlock,
+  kLoadBlock
 };
 static const char* ScheduleFlagName[] = {
   "kRegisterPlan",
@@ -14,7 +15,8 @@ static const char* ScheduleFlagName[] = {
   "kInitWorkersReply",
   "kRunMap",
   "kRunSpeculativeMap",
-  "kFinishBlock"
+  "kFinishBlock",
+  "kLoadBlock"
 };
 
 }  // namespace xyz

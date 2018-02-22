@@ -51,22 +51,12 @@ TEST_F(TestLoader, Load) {
   node.hostname = "proj10";
   HdfsLoader loader(qid, sender, reader, executor, partition_manager, namenode, port, node);
 
-  auto* q = loader.GetWorkQueue();
-  SArrayBinStream ctrl_bin, bin;
-  int type = 0;  // TODO
-  ctrl_bin << type;
   const int block_id = 23;
   const int collection_id = 12; 
   const size_t offset = 2342342;
   const std::string url = "kdd";
   AssignedBlock block{url, offset, block_id, collection_id};
-  bin << block;
-  Message msg;
-  msg.meta.sender = 0;
-  msg.meta.recver = 0;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(bin.ToSArray());
-  q->Push(msg);
+  loader.Load(block);
 
   auto recv_msg = sender->Get();
   SArrayBinStream recv_bin;

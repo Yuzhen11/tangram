@@ -1,5 +1,7 @@
 #include "io/assigner.hpp"
 
+#include "core/scheduler/control.hpp"
+
 namespace xyz {
 
 bool Assigner::FinishBlock(FinishedBlock block) {
@@ -74,8 +76,8 @@ void Assigner::Assign(std::pair<std::string, int> slave) {
 
   // send
   SArrayBinStream ctrl_bin, bin;
-  int type = 0;  // TODO
-  ctrl_bin << type;
+  ScheduleFlag flag = ScheduleFlag::kLoadBlock;
+  ctrl_bin << flag;
   AssignedBlock assigned_block;
   assigned_block.url = block.first;
   assigned_block.offset = block.second;

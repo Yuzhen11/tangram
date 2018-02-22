@@ -9,6 +9,8 @@
 #include "core/partition/partition_tracker.hpp"
 #include "core/index/simple_part_to_node_mapper.hpp"
 
+#include "io/loader.hpp"
+
 #include "glog/logging.h"
 
 namespace xyz {
@@ -39,6 +41,8 @@ class Worker : public Actor {
 
   // Send speculative command
   void RunSpeculativeMap();
+
+  void LoadBlock(SArrayBinStream bin);
   
   void SendMsgToScheduler(SArrayBinStream ctrl_bin, SArrayBinStream bin);
  private:
@@ -46,11 +50,12 @@ class Worker : public Actor {
   std::shared_ptr<PartitionTracker> partition_tracker_;
   std::shared_ptr<FunctionStore> function_store_;
 
+  std::shared_ptr<HdfsLoader> loader_;
+
   // store the mapping from partition to node.
   std::unordered_map<int, std::shared_ptr<AbstractPartToNodeMapper>> part_to_node_map_;
 
 };
 
 }  // namespace xyz
-
 
