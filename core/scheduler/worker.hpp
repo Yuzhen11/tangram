@@ -5,6 +5,8 @@
 #include "core/scheduler/control.hpp"
 #include "core/plan/plan_spec.hpp"
 #include "comm/abstract_sender.hpp"
+#include "core/plan/function_store.hpp"
+#include "core/partition/partition_tracker.hpp"
 
 #include "glog/logging.h"
 
@@ -18,6 +20,9 @@ class Worker : public Actor {
   virtual ~Worker() override {
     Stop();
   }
+
+  // Wait until the end signal.
+  void Wait();
 
   virtual void Process(Message msg) override;
 
@@ -37,6 +42,8 @@ class Worker : public Actor {
   void SendMsgToScheduler(SArrayBinStream ctrl_bin, SArrayBinStream bin);
  private:
   std::shared_ptr<AbstractSender> sender_;
+  std::shared_ptr<PartitionTracker> partition_tracker_;
+  std::shared_ptr<FunctionStore> function_store_;
 };
 
 }  // namespace xyz

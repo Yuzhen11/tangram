@@ -14,24 +14,35 @@ Engine::Engine(int thread_pool_size)
 Engine::~Engine() {
 }
 
-/*
-void Engine::RunLocalPartitions(PlanSpec plan) {
-  auto& func = function_store_->GetMap(plan.plan_id);
-  auto parts = partition_manager_->Get(plan.map_collection_id);
-  for (auto part : parts) {
-    tracker_->AddMap(part->part_id, part->partition->GetSize());
-    executor_->Add([this, part, func](){ 
-      tracker_->StartMap(part->part_id);
-      func(part->partition, intermediate_store_); 
-      tracker_->FinishMap(part->part_id);
-    });
-  }
-}
-*/
+void Engine::Start(Engine::Config config) {
+  executor_ = std::make_shared<Executor>(config.num_threads);
+  partition_manager_ = std::make_shared<PartitionManager>();
+  function_store_ = std::make_shared<FunctionStore>();
+  intermediate_store_ = std::make_shared<SimpleIntermediateStore>();
+  partition_tracker_ = std::make_shared<PartitionTracker>(partition_manager_, executor_);
 
-void Engine::Main() {
-  // TODO: If thread pool queue is empty, fetch task from scheduler.
+  // start mailbox
+  Node scheduler_node{0, config.scheduler_port, false};
+  mailbox_ = std::make_shared<Mailbox>(false, scheduler_node, config.num_workers);
+  mailbox_->Start();
+  Node my_node = mailbox_->my_node();
+  sender_ = std::make_shared<Sender>();  // TODO
+
+  // create all actors
+  worker_ = std::make_shared<Worker>(qid, sender_, 
+          partition_tracker_, function_store_);// TODO
+  join_actor_ = std::make_shared<JoinActor>(qid, 
+          partition_manager_, executor_, function_store_);
 }
+
+void Engine::Run() {
+  worker_->RegisterPlan(...);
+  worker_->Wait();
+}
+
+void Engine::Stop() {
+}
+
 
 }  // namespace
 
