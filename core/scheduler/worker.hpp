@@ -8,16 +8,23 @@
 #include "core/plan/function_store.hpp"
 #include "core/partition/partition_tracker.hpp"
 #include "core/index/simple_part_to_node_mapper.hpp"
+#include "core/engine_elem.hpp"
 
 #include "io/loader.hpp"
+#include "io/hdfs_reader.hpp"
 
 #include "glog/logging.h"
 
 namespace xyz {
 
 class Worker : public Actor {
-  Worker(int qid, std::shared_ptr<AbstractSender> sender): 
-      Actor(qid), sender_(sender) {
+ public:
+  Worker(int qid, EngineElem engine_elem): 
+      Actor(qid), engine_elem_(engine_elem) {
+    auto reader = std::make_shared<HdfsReader>();
+    loader_ = std::make_shared<HdfsLoader>(qid, engine_elem_.sender, reader, engine_elem_.executor,
+            engine_elem_.partition_manager, engine_elem_.namenode, engine_elem_.port,
+            engine_elem_.node);
     Start();
   }
   virtual ~Worker() override {
@@ -46,10 +53,7 @@ class Worker : public Actor {
   
   void SendMsgToScheduler(SArrayBinStream ctrl_bin, SArrayBinStream bin);
  private:
-  std::shared_ptr<AbstractSender> sender_;
-  std::shared_ptr<PartitionTracker> partition_tracker_;
-  std::shared_ptr<FunctionStore> function_store_;
-
+  EngineElem engine_elem_;
   std::shared_ptr<HdfsLoader> loader_;
 
   // store the mapping from partition to node.

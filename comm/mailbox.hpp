@@ -14,12 +14,12 @@
 // #include "comm/resender.hpp"
 #include "base/third_party/network_utils.h"
 #include "base/sarray_binstream.hpp"
+#include "comm/abstract_mailbox.hpp"
 #include "glog/logging.h"
 
 namespace xyz {
 
-
-class Mailbox {
+class Mailbox : public AbstractMailbox {
  public:
   Mailbox(bool is_scheduler, Node scheduler_node, int num_workers);
   ~Mailbox();
@@ -28,7 +28,7 @@ class Mailbox {
   void DeregisterQueue(uint32_t queue_id);
 
   // return # of bytes sended
-  int Send(const Message& msg);
+  virtual int Send(const Message& msg) override;
   int Recv(Message* msg);
   void Barrier();
 

@@ -32,7 +32,6 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
       cmd += clear_cmd
       # Command to run program
       cmd += env_params + " " + prog_path
-      cmd += " --my_id="+node_id
       cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
   
       cmd += "\""  # Remote Command ends
@@ -48,7 +47,6 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
   cmd += clear_cmd
   # Command to run program
   cmd += env_params + " " + scheduler_path
-  cmd += " --my_id="+"0"
   cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
   
   cmd += "\""  # Remote Command ends
@@ -93,7 +91,6 @@ def parse_file(schedulerfile, progfile, hostfile):
 def launch_util(schedulerfile, progfile, hostfile, env_params, params, argv):
   scheduler_path, prog_path, hostfile_path = parse_file(schedulerfile, progfile, hostfile)  
   if len(argv) == 1:
-    params["config_file"] = hostfile_path
     launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params)
   elif len(argv) == 2 and argv[1] == "kill":
     kill_nodes(scheduler_path, prog_path, hostfile_path)

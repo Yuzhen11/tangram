@@ -295,6 +295,8 @@ void Mailbox::Start() {
 
 void Mailbox::CloseSockets() {
   // Kill all the registered threads
+  // TODO: now we let the actor call Stop() to halt.
+  /*
   Message exit_msg;
   exit_msg.meta.recver = my_node_.id;
   exit_msg.meta.flag = Flag::kMailboxControl;
@@ -307,6 +309,7 @@ void Mailbox::CloseSockets() {
   for (auto& queue : queue_map_) {
     queue.second->Push(exit_msg);
   }
+  */
   // close sockets
   int linger = 0;
   int rc = zmq_setsockopt(receiver_, ZMQ_LINGER, &linger, sizeof(linger));

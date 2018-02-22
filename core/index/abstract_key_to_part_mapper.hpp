@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdlib>
+
 namespace xyz {
 
 class AbstractKeyToPartMapper {

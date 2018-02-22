@@ -20,3 +20,10 @@ target_link_libraries(MailboxExample xyz)
 target_link_libraries(MailboxExample ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET MailboxExample PROPERTY CXX_STANDARD 11)
 add_dependencies(MailboxExample ${external_project_dependencies})
+
+# SimpleExample
+add_executable(SimpleExample simple_example.cpp)
+target_link_libraries(SimpleExample xyz)
+target_link_libraries(SimpleExample ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET SimpleExample PROPERTY CXX_STANDARD 11)
+add_dependencies(SimpleExample ${external_project_dependencies})

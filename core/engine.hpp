@@ -12,6 +12,10 @@
 #include "core/plan/plan_spec.hpp"
 
 #include "core/scheduler/worker.hpp"
+#include "core/engine_elem.hpp"
+#include "core/join_actor.hpp"
+#include "comm/mailbox.hpp"
+#include "comm/sender.hpp"
 
 namespace xyz {
 
@@ -22,6 +26,8 @@ class Engine {
     std::string scheduler;
     int scheduler_port;
     int num_threads;
+    std::string namenode;
+    int port;
     std::string DebugString() const {
       std::stringstream ss;
       ss << " { ";
@@ -29,36 +35,33 @@ class Engine {
       ss << ", scheduler: " << scheduler;
       ss << ", scheduler_port: " << scheduler_port;
       ss << ", num_threads: " << num_threads;
+      ss << ", namenode: " << namenode;
+      ss << ", port: " << port;
       ss << " } ";
       return ss.str();
     }
   };
 
-  Engine();
-  ~Engine();
+  Engine() = default;
+  ~Engine() = default;
 
-  void Start();
+  void Start(Engine::Config config);
   void Run();
   void Stop();
 
   template <typename Plan>
   void Add(Plan plan) {
-    plan.Register(function_store_);
+    plan.Register(engine_elem_.function_store);
     PlanSpec plan_spec = plan.GetPlanSpec();
   }
 
  private:
-  std::shared_ptr<Executor> executor_;
-  std::shared_ptr<PartitionManager> partition_manager_;
-  std::shared_ptr<FunctionStore> function_store_;
-  std::shared_ptr<AbstractIntermediateStore> intermediate_store_;
-  std::shared_ptr<PartitionTracker> partition_tracker_;
+  EngineElem engine_elem_;
 
   std::shared_ptr<Mailbox> mailbox_;
-  std::shared_ptr<AbstractSender> sender_;
   std::shared_ptr<Worker> worker_;
   std::shared_ptr<JoinActor> join_actor_;
 };
 
-}  // namespace
+}  // namespace xyz
 

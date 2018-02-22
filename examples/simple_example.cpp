@@ -1,6 +1,13 @@
 #include "core/plan/plan.hpp"
 #include "core/engine.hpp"
 
+#include "gflags/gflags.h"
+#include "glog/logging.h"
+
+DEFINE_int32(num_worker, -1, "The number of workers");
+DEFINE_string(scheduler, "proj10", "The host of scheduler");
+DEFINE_int32(scheduler_port, 9000, "The port of scheduler");
+
 namespace xyz {
 
 struct ObjT {
@@ -27,16 +34,29 @@ void Run() {
   };
 
   // 2. create engine and register the plan
+  Engine::Config config;
+  config.num_workers = FLAGS_num_worker;
+  config.scheduler = FLAGS_scheduler;
+  config.scheduler_port = FLAGS_scheduler_port;
+  config.num_threads = 1;
+  config.namenode = "proj10";
+  config.port = 9000;
+
   Engine engine;
-  engine.Start();
-  engine.Add(plan);
-  engine.Run();
+  engine.Start(config);
+  // engine.Add(plan);
+  // engine.Run();
   engine.Stop();
+}
 
 }  // namespace xyz
 
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+  CHECK_NE(FLAGS_num_worker, -1);
+  CHECK(!FLAGS_scheduler.empty());
+
   xyz::Run();
 }
