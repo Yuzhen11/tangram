@@ -2,6 +2,7 @@
 
 #include "base/actor.hpp"
 #include "base/sarray_binstream.hpp"
+#include "base/node.hpp"
 #include "core/scheduler/control.hpp"
 #include "core/program_context.hpp"
 #include "comm/abstract_sender.hpp"
@@ -16,13 +17,17 @@
 namespace xyz {
 
 class Scheduler : public Actor {
-  Scheduler(int qid, std::shared_ptr<AbstractSender> sender): 
-      Actor(qid), sender_(sender) {
+ public:
+  Scheduler(int qid, std::shared_ptr<AbstractSender> sender, std::vector<Node> nodes): 
+      Actor(qid), sender_(sender), nodes_(nodes) {
     Start();
   }
   virtual ~Scheduler() override {
     Stop();
   }
+
+  // Tell all workers to start
+  void StartCluster();
 
   /*
    * <- : receive
@@ -53,7 +58,7 @@ class Scheduler : public Actor {
 
   void StartScheduling();
   
-  void SendToAllWorkers(SArrayBinStream ctrl_bin, SArrayBinStream bin);
+  void SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin);
 
   void FinishBlock(SArrayBinStream bin);
  private:
@@ -68,6 +73,7 @@ class Scheduler : public Actor {
   std::unordered_map<int, CollectionView> collection_map_;
 
   std::shared_ptr<Assigner> assigner_;
+  std::vector<Node> nodes_;
 };
 
 }  // namespace xyz

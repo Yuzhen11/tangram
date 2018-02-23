@@ -2,10 +2,14 @@
 
 namespace xyz {
 
+void Scheduler::StartCluster() {
+  SArrayBinStream bin;
+  SendToAllWorkers(ScheduleFlag::kStart, bin);
+}
+
 void Scheduler::Process(Message msg) {
   CHECK_EQ(msg.data.size(), 2);  // cmd, content
-  SArrayBinStream ctrl_bin;
-  SArrayBinStream bin;
+  SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
   bin.FromSArray(msg.data[1]);
   ScheduleFlag flag;
@@ -33,7 +37,7 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
 
     for (auto c : program_.collections) {
-      c.mapper.BuildRandomMap(c.num_partition, num_workers_);  // Build the PartToNodeMap
+      c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
       collection_map_.insert({c.collection_id, c});
     }
     InitWorkers();
@@ -45,8 +49,7 @@ void Scheduler::InitWorkers() {
   SArrayBinStream bin;
   bin << collection_map_;
   SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kInitWorkers;
-  SendToAllWorkers(ctrl_bin, bin);
+  SendToAllWorkers(ScheduleFlag::kInitWorkers, bin);
 }
 
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
@@ -62,26 +65,29 @@ void Scheduler::StartScheduling() {
 }
 
 void Scheduler::RunMap() {
-  SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kRunMap;
   SArrayBinStream bin;
-  SendToAllWorkers(ctrl_bin, bin);
-}
-
-void Scheduler::SendToAllWorkers(SArrayBinStream ctrl_bin, SArrayBinStream bin) {
-  for (auto w : workers_) {
-    Message msg;
-    // TODO fill the meta
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    sender_->Send(std::move(msg));
-  }
+  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
   bin >> block;
   assigner_->FinishBlock(block);
+}
+
+
+void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << flag;
+  for (auto node : nodes_) {
+    Message msg;
+    msg.meta.sender = 0;
+    msg.meta.recver = node.id * 10;
+    msg.meta.flag = Flag::kOthers;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    sender_->Send(std::move(msg));
+  }
 }
 
 }  // namespace xyz

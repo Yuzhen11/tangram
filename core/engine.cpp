@@ -15,10 +15,9 @@ void Engine::Start(Engine::Config config) {
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
 
-  // start mailbox
+  // create mailbox
   Node scheduler_node{0, config.scheduler, config.scheduler_port, false};
   mailbox_ = std::make_shared<Mailbox>(false, scheduler_node, config.num_workers);
-  mailbox_->Start();
   engine_elem_.node = mailbox_->my_node();
   engine_elem_.sender = std::make_shared<Sender>(-1, mailbox_.get());
 
@@ -34,6 +33,9 @@ void Engine::Start(Engine::Config config) {
 
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
   mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
+
+  // start mailbox after starting the worker
+  mailbox_->Start();
   mailbox_->Barrier();
 }
 

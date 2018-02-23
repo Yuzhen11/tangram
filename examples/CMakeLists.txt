@@ -27,3 +27,10 @@ target_link_libraries(SimpleExample xyz)
 target_link_libraries(SimpleExample ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SimpleExample PROPERTY CXX_STANDARD 11)
 add_dependencies(SimpleExample ${external_project_dependencies})
+
+# SchedulerMain
+add_executable(SchedulerMain scheduler_main.cpp)
+target_link_libraries(SchedulerMain xyz)
+target_link_libraries(SchedulerMain ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET SchedulerMain PROPERTY CXX_STANDARD 11)
+add_dependencies(SchedulerMain ${external_project_dependencies})

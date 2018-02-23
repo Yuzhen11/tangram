@@ -1,6 +1,7 @@
 namespace xyz {
 
 enum class ScheduleFlag : char {
+  kStart,
   kRegisterProgram,
   kInitWorkers,
   kInitWorkersReply,
@@ -11,6 +12,7 @@ enum class ScheduleFlag : char {
   kExit
 };
 static const char* ScheduleFlagName[] = {
+  "kStart",
   "kRegisterProgram",
   "kInitWorker",
   "kInitWorkersReply",

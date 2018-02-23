@@ -452,6 +452,7 @@ void Mailbox::HandleRegisterMsgAtScheduler(Node& recovery_node) {
   if (nodes_.size() == num_workers_) {
     VLOG(1) << "nodes_.size() == num_workers_";
     LOG(INFO) << num_workers_ << " nodes registered at scheduler.";
+    register_all_promise_.set_value();
     // assign node id (dummy ranking, id from 1 to num_workers_)
     int id = 0;
     for (auto& node : nodes_) {

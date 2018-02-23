@@ -17,12 +17,12 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
     return v_.size();
   }
   /*
-   * Build map from consecutive nodes from 0 to num_nodes - 1.
+   * Build map from consecutive nodes from 1 to num_nodes.
    */
   void BuildRandomMap(int num_parts, int num_nodes) {
     std::vector<int> nodes;
-    nodes.reserve(num_nodes);
-    std::iota(nodes.begin(), nodes.end(), 0);
+    nodes.resize(num_nodes);
+    std::iota(nodes.begin(), nodes.end(), 1);
     BuildRandomMapFromNodeList(num_parts, nodes);
   }
   void BuildRandomMapFromNodeList(int num_parts, std::vector<int> nodes) {

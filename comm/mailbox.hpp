@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <vector>
 #include <zmq.h>
+#include <future>
 
 #include "base/threadsafe_queue.hpp"
 #include "base/node.hpp"
@@ -45,6 +46,10 @@ class Mailbox : public AbstractMailbox {
   const Node& my_node() const {
     CHECK(ready_) << "call Start() first";
     return my_node_;
+  }
+  std::vector<Node> WaitAndGetNodes() {
+    register_all_promise_.get_future().get();
+    return nodes_;
   }
  private:
   void Bind(const Node& node, int max_retry);
@@ -109,6 +114,8 @@ const std::vector<int> GetNodeIDs() const;
   // msg resender
   // Resender *resender_ = nullptr;
   std::atomic<int> timestamp_{0};
+
+  std::promise<void> register_all_promise_;
 };
 
 }  // namespace xyz
