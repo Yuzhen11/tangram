@@ -25,7 +25,10 @@ void Engine::Start(Engine::Config config) {
   // create all actors
   const int worker_id = engine_elem_.node.id * 10;
   const int join_actor_id = engine_elem_.node.id * 10 + 1;
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_);
+
+  // set hdfs reader 
+  auto reader = std::make_shared<HdfsReader>();
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, reader);
   join_actor_ = std::make_shared<JoinActor>(join_actor_id, 
           engine_elem_.partition_manager, engine_elem_.executor, engine_elem_.function_store);
 

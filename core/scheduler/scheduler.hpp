@@ -3,10 +3,11 @@
 #include "base/actor.hpp"
 #include "base/sarray_binstream.hpp"
 #include "core/scheduler/control.hpp"
-#include "core/plan/plan_spec.hpp"
+#include "core/program_context.hpp"
 #include "comm/abstract_sender.hpp"
 
 #include "core/scheduler/collection_view.hpp"
+#include "core/program_context.hpp"
 
 #include "io/assigner.hpp"
 
@@ -28,15 +29,15 @@ class Scheduler : public Actor {
    * -> : send
    *
    * The initialization step includes:
-   * 1. RegisterPlan <-
+   * 1. RegisterProgram <-
    * 2. InitWorkers ->
    * 3. InitWorkersReply <-
    * 4. StartScheduling
    */
   virtual void Process(Message msg) override;
 
-  // One worker register the plan to scheduler
-  void RegisterPlan(SArrayBinStream bin);
+  // One worker register the program to scheduler
+  void RegisterProgram(SArrayBinStream bin);
 
   // Initialize all workers by sending the PartToNodeMap
   // and wait for replies.
@@ -62,7 +63,8 @@ class Scheduler : public Actor {
   int init_reply_count_ = 0;
   int num_workers_ = 0;   // TODO
 
-  PlanSpec plan_spec_;  // The plan that it is going to be run.
+  bool init_program_ = false;
+  ProgramContext program_;
   std::unordered_map<int, CollectionView> collection_map_;
 
   std::shared_ptr<Assigner> assigner_;

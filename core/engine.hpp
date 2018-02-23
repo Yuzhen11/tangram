@@ -17,6 +17,8 @@
 #include "comm/mailbox.hpp"
 #include "comm/sender.hpp"
 
+#include "io/hdfs_reader.hpp"
+
 namespace xyz {
 
 class Engine {

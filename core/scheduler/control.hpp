@@ -1,22 +1,24 @@
 namespace xyz {
 
 enum class ScheduleFlag : char {
-  kRegisterPlan,
+  kRegisterProgram,
   kInitWorkers,
   kInitWorkersReply,
   kRunMap,
   kRunSpeculativeMap,
   kFinishBlock,
-  kLoadBlock
+  kLoadBlock,
+  kExit
 };
 static const char* ScheduleFlagName[] = {
-  "kRegisterPlan",
+  "kRegisterProgram",
   "kInitWorker",
   "kInitWorkersReply",
   "kRunMap",
   "kRunSpeculativeMap",
   "kFinishBlock",
-  "kLoadBlock"
+  "kLoadBlock",
+  "kExit"
 };
 
 }  // namespace xyz

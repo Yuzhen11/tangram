@@ -6,7 +6,7 @@
 
 namespace xyz {
 
-void HdfsLoader::Load(AssignedBlock block) {
+void Loader::Load(AssignedBlock block) {
   num_added_ += 1;
   executor_->Add([this, block]() {
     // 1. read

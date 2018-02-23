@@ -35,7 +35,7 @@ TEST_F(TestLoader, Create) {
   Node node;
   node.id = 2;
   node.hostname = "proj10";
-  HdfsLoader loader(qid, sender, reader, executor, partition_manager, namenode, port, node);
+  Loader loader(qid, sender, reader, executor, partition_manager, namenode, port, node);
 }
 
 TEST_F(TestLoader, Load) {
@@ -49,7 +49,7 @@ TEST_F(TestLoader, Load) {
   Node node;
   node.id = 2;
   node.hostname = "proj10";
-  HdfsLoader loader(qid, sender, reader, executor, partition_manager, namenode, port, node);
+  Loader loader(qid, sender, reader, executor, partition_manager, namenode, port, node);
 
   const int block_id = 23;
   const int collection_id = 12; 

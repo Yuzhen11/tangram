@@ -11,8 +11,8 @@ void Scheduler::Process(Message msg) {
   ScheduleFlag flag;
   ctrl_bin >> flag;
   switch (flag) {
-    case ScheduleFlag::kRegisterPlan: {
-      RegisterPlan(bin);
+    case ScheduleFlag::kRegisterProgram: {
+      RegisterProgram(bin);
       break;
     }
     case ScheduleFlag::kInitWorkersReply: {
@@ -27,28 +27,23 @@ void Scheduler::Process(Message msg) {
   }
 }
 
-void Scheduler::RegisterPlan(SArrayBinStream bin) {
-  // JobSpec
-  bin >> plan_spec_;
-  // CollectionView
-  int num_collection;
-  bin >> num_collection;
-  for (int i = 0; i < num_collection; ++ i) {
-    CollectionView c;
-    bin >> c;
-    c.mapper.BuildRandomMap(c.num_partition, num_workers_);  // Build the PartToNodeMap
-    collection_map_.insert({c.collection_id, c});
+void Scheduler::RegisterProgram(SArrayBinStream bin) {
+  if (!init_program_) {
+    bin >> program_;
+    LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
+
+    for (auto c : program_.collections) {
+      c.mapper.BuildRandomMap(c.num_partition, num_workers_);  // Build the PartToNodeMap
+      collection_map_.insert({c.collection_id, c});
+    }
+    InitWorkers();
   }
-  InitWorkers();
 }
 
 void Scheduler::InitWorkers() {
   // Send the collection_map_ to all workers.
   SArrayBinStream bin;
-  bin << int(collection_map_.size());
-  for (auto& kv : collection_map_) {
-    bin << kv.second;
-  }
+  bin << collection_map_;
   SArrayBinStream ctrl_bin;
   ctrl_bin << ScheduleFlag::kInitWorkers;
   SendToAllWorkers(ctrl_bin, bin);

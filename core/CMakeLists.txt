@@ -9,6 +9,7 @@ file(GLOB core-src-files
     plan/function_store.cpp
     map_output/map_output_storage.cpp
     scheduler/scheduler.cpp
+    scheduler/worker.cpp
   )
 
 # TODO now we let engine and worker depends on HDFS 
@@ -16,7 +17,7 @@ file(GLOB core-src-files
 if(LIBHDFS3_FOUND)
     file(GLOB core-src-hdfs-files 
         engine.cpp
-        scheduler/worker.cpp)
+        )
     list(APPEND core-src-files ${core-src-hdfs-files})
 endif(LIBHDFS3_FOUND)
 

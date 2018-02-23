@@ -13,6 +13,9 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
  public:
   SimplePartToNodeMapper() = default;
 
+  int GetNumParts() const {
+    return v_.size();
+  }
   /*
    * Build map from consecutive nodes from 0 to num_nodes - 1.
    */

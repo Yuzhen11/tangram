@@ -15,9 +15,9 @@
 
 namespace xyz {
 
-class HdfsLoader {
+class Loader {
  public:
-  HdfsLoader(int qid, std::shared_ptr<AbstractSender> sender, 
+  Loader(int qid, std::shared_ptr<AbstractSender> sender, 
           std::shared_ptr<AbstractReader> reader,
           std::shared_ptr<Executor> executor,
           std::shared_ptr<PartitionManager> partition_manager,
@@ -28,7 +28,7 @@ class HdfsLoader {
         node_(node) {
   }
 
-  ~HdfsLoader() {
+  ~Loader() {
     std::unique_lock<std::mutex> lk(mu_);
     cond_.wait(lk, [this]() { return num_finished_ == num_added_; });
   }

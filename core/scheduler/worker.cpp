@@ -3,6 +3,18 @@
 
 namespace xyz {
 
+void Worker::RegisterProgram(ProgramContext program) {
+  SArrayBinStream bin;
+  bin << program;
+  SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
+}
+
+void Worker::Wait() {
+  std::future<void> f = exit_promise_.get_future();
+  f.get();
+}
+
+
 void Worker::Process(Message msg) {
   CHECK_EQ(msg.data.size(), 2);  // cmd, content
   SArrayBinStream ctrl_bin;
@@ -20,28 +32,22 @@ void Worker::Process(Message msg) {
       LoadBlock(bin);
       break;
     }
+    case ScheduleFlag::kExit: {
+      Exit();
+      break;
+    }
     default: CHECK(false);
   }
 }
 
 void Worker::InitWorkers(SArrayBinStream bin) {
-  // init part_to_node_map_
-  part_to_node_map_.clear();
-  while (bin.Size()) {
-    int collection_id;
-    std::shared_ptr<SimplePartToNodeMapper> map;
-    bin >> collection_id;
-    map->FromBin(bin);
-    part_to_node_map_.insert({collection_id, std::move(map)});
-  }
+  bin >> collection_map_;
+  InitWorkersReply();
 }
 
-void Worker::RegisterPlan(PlanSpec plan) {
-  SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kRegisterPlan;
+void Worker::InitWorkersReply() {
   SArrayBinStream bin;
-  bin << plan;
-  SendMsgToScheduler(ctrl_bin, bin);
+  SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, bin);
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {
@@ -50,11 +56,18 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   loader_->Load(block);
 }
 
-void Worker::SendMsgToScheduler(SArrayBinStream ctrl_bin, SArrayBinStream bin) {
+void Worker::Exit() {
+  exit_promise_.set_value();
+}
+
+void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {
   Message msg;
   // TODO: Fill the meta
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << flag;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
+  engine_elem_.sender->Send(std::move(msg));
 }
 
 }  // namespace xyz
