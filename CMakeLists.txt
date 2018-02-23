@@ -53,5 +53,13 @@ add_subdirectory(base)
 add_subdirectory(core)
 add_subdirectory(comm)
 add_subdirectory(io)
+
+add_library(xyz STATIC
+  $<TARGET_OBJECTS:base-objs>
+  $<TARGET_OBJECTS:core-objs>
+  $<TARGET_OBJECTS:comm-objs>
+  $<TARGET_OBJECTS:io-objs>
+  )
+
 add_subdirectory(test)
 add_subdirectory(examples)

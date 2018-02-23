@@ -1,12 +1,5 @@
 include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
-add_library(xyz STATIC
-  $<TARGET_OBJECTS:base-objs>
-  $<TARGET_OBJECTS:core-objs>
-  $<TARGET_OBJECTS:comm-objs>
-  $<TARGET_OBJECTS:io-objs>
-  )
-
 # Unit Test
 file(GLOB_RECURSE UNITTEST_FILES ${PROJECT_SOURCE_DIR}/*_test.cpp) 
 include_directories(${GTEST_INCLUDE})
