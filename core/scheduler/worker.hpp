@@ -42,12 +42,11 @@ class Worker : public Actor {
 
   virtual void Process(Message msg) override;
 
-  // Initialize all workers by sending the PartToNodeMap
-  // and wait for replies.
+  // Process the kInitWorkers msg from scheduler
   void InitWorkers(SArrayBinStream bin);
   void InitWorkersReply();
 
-  // Run map on all workers
+  // Run map on this worker
   void RunMap();
 
   // Send speculative command

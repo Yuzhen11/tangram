@@ -19,7 +19,6 @@ struct FakeReader : public AbstractReader {
   }
 };
 
-
 EngineElem GetEngineElem() {
   const int num_threads = 1;
   const std::string namenode = "fake_namenode";
@@ -37,6 +36,24 @@ EngineElem GetEngineElem() {
   engine_elem.node = node;
   engine_elem.sender = std::make_shared<SimpleSender>();
   return engine_elem;
+}
+
+std::unordered_map<int, CollectionView> GetCollectionMap() {
+  CollectionView c1{1, 10}; // collection_id, num_partition
+  CollectionView c2{2, 10};
+  std::unordered_map<int, CollectionView> map;
+  map.insert({c1.collection_id, c1});
+  map.insert({c2.collection_id, c2});
+  return map;
+}
+
+AssignedBlock GetAssignedBlock() {
+  AssignedBlock block;
+  block.url = "file";
+  block.offset = 0;
+  block.id = 0;
+  block.collection_id = 0;
+  return block;
 }
 
 TEST_F(TestWorker, Create) {
@@ -86,6 +103,108 @@ TEST_F(TestWorker, RegisterProgram) {
   EXPECT_EQ(p.collections[1].collection_id, jid);
   EXPECT_EQ(p.collections[1].num_partition, num_parts);
   EXPECT_EQ(p.plans[0].map_collection_id, mid);
+}
+
+TEST_F(TestWorker, RunMap) {
+  // TODO
+}
+
+TEST_F(TestWorker, InitWorkers) {
+  // worker
+  const int qid = 0;
+  EngineElem engine_elem = GetEngineElem();
+  auto reader = std::make_shared<FakeReader>();
+  Worker worker(qid, engine_elem, reader);
+  auto* q = worker.GetWorkQueue();
+
+  {
+  SArrayBinStream bin;
+  std::unordered_map<int, CollectionView> collection_map_ = GetCollectionMap();
+  bin << collection_map_;
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << ScheduleFlag::kInitWorkers;
+
+  Message msg;
+  msg.meta.recver = 0;
+  msg.meta.flag = Flag::kOthers;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  q->Push(msg);
+  }
+
+  auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
+
+  {
+  auto msg = sender->Get();
+  // TODO: Check msg.meta
+  ASSERT_EQ(msg.data.size(), 2);
+  SArrayBinStream ctrl_bin;
+  ctrl_bin.FromSArray(msg.data[0]);
+  ScheduleFlag flag;
+  ctrl_bin >> flag;
+  EXPECT_EQ(flag, ScheduleFlag::kInitWorkersReply);
+  }
+  ASSERT_EQ(sender->msgs.Size(), 0);
+}
+
+TEST_F(TestWorker, LoadBlock) {
+  // worker
+  const int qid = 0;
+  EngineElem engine_elem = GetEngineElem();
+  auto reader = std::make_shared<FakeReader>();
+  Worker worker(qid, engine_elem, reader);
+  auto* q = worker.GetWorkQueue();
+
+  {
+  SArrayBinStream ctrl_bin, bin;
+  ScheduleFlag flag = ScheduleFlag::kLoadBlock;
+  ctrl_bin << flag;
+  AssignedBlock assigned_block = GetAssignedBlock();
+  bin << assigned_block;
+  Message msg;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  q->Push(msg);
+  }
+
+  auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
+
+  {
+  auto msg = sender->Get();
+  EXPECT_EQ(msg.meta.sender, qid);
+  EXPECT_EQ(msg.meta.recver, 0);
+  ASSERT_EQ(msg.data.size(), 2);
+  SArrayBinStream ctrl_bin;
+  ctrl_bin.FromSArray(msg.data[0]);
+  ScheduleFlag flag;
+  ctrl_bin >> flag;
+  EXPECT_EQ(flag, ScheduleFlag::kFinishBlock);
+  }
+  ASSERT_EQ(sender->msgs.Size(), 0);
+}
+
+TEST_F(TestWorker, Wait) {
+  // worker
+  const int qid = 0;
+  EngineElem engine_elem = GetEngineElem();
+  auto reader = std::make_shared<FakeReader>();
+  Worker worker(qid, engine_elem, reader);
+  auto* q = worker.GetWorkQueue();
+
+  std::thread th([=]() {
+    SArrayBinStream ctrl_bin, bin;
+    ScheduleFlag flag = ScheduleFlag::kExit;
+    ctrl_bin << flag;
+    Message msg;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    q->Push(msg);
+  });
+
+  worker.Wait();
+  VLOG(1) << "Wait end.";
+  th.join();
 }
 
 }  // namespace

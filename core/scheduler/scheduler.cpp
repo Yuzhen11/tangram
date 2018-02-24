@@ -41,6 +41,7 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
       collection_map_.insert({c.collection_id, c});
     }
     InitWorkers();
+    init_program_ = true;
   }
 }
 

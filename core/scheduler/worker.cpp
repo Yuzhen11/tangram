@@ -28,6 +28,10 @@ void Worker::Process(Message msg) {
       InitWorkers(bin);
       break;
     }
+    case ScheduleFlag::kRunMap: {
+      RunMap();
+      break;
+    }
     case ScheduleFlag::kLoadBlock: {
       LoadBlock(bin);
       break;
@@ -43,6 +47,10 @@ void Worker::Process(Message msg) {
 void Worker::InitWorkers(SArrayBinStream bin) {
   bin >> collection_map_;
   InitWorkersReply();
+}
+
+void Worker::RunMap() {
+  // TODO
 }
 
 void Worker::InitWorkersReply() {

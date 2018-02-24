@@ -30,7 +30,7 @@ TEST_F(TestScheduler, StartCluster) {
   Scheduler scheduler(qid, sender, nodes);
   scheduler.StartCluster();
 
-  ASSERT_EQ(sender->msgs.Size(), 2);
+  ASSERT_EQ(sender->msgs.Size(), 2); // 2 kStart msgs to 2 nodes
   {
   auto msg = sender->Get();
   EXPECT_EQ(msg.meta.recver, 10);
