@@ -1,6 +1,9 @@
 #pragma once
 
 #include <future>
+#include <chrono>
+#include <thread>
+#include <atomic>
 
 #include "base/actor.hpp"
 #include "base/sarray_binstream.hpp"
@@ -39,6 +42,9 @@ class Worker : public Actor {
     program_ = program;
     is_program_set_ = true;
   }
+  void Ready() {
+    ready_ = true;
+  }
 
   // Wait until the end signal.
   void Wait();
@@ -74,6 +80,8 @@ class Worker : public Actor {
 
   ProgramContext program_;
   bool is_program_set_ = false;
+
+  std::atomic<bool> ready_{false};
 };
 
 }  // namespace xyz

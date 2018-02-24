@@ -47,18 +47,23 @@ class Engine {
   Engine() = default;
   ~Engine() = default;
 
-  void Start(Engine::Config config);
+  void RegisterProgram(ProgramContext program) {
+    program_ = program;
+  }
+  void Init(Engine::Config config);
+  void Start();
   void Run();
   void Stop();
 
   template <typename Plan>
-  void Add(Plan plan) {
+  void AddFunc(Plan plan) {
     plan.Register(engine_elem_.function_store);
-    PlanSpec plan_spec = plan.GetPlanSpec();
   }
 
  private:
+  ProgramContext program_;
   EngineElem engine_elem_;
+  Config config_;
 
   std::shared_ptr<Mailbox> mailbox_;
   std::shared_ptr<Worker> worker_;

@@ -27,7 +27,8 @@ class Plan {
   using JoinFuncT = std::function<void(T2*, const MsgT&)>;
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
-  using MapPartFuncT = std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>)>;
+  using MapPartFuncT = std::function<std::shared_ptr<AbstractMapOutput>(
+          std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapProgressTracker>)>;
   using JoinPartFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
 
   Plan(int _plan_id, Collection<T1> _map_collection, Collection<T2> _join_collection)
@@ -42,7 +43,7 @@ class Plan {
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part(partition, tracker);
       if (combine) {
-        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(combine);
+        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine);
         map_output->Combine();
       }
       return map_output;
@@ -59,7 +60,7 @@ class Plan {
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part(partition, tracker);
       if (combine) {
-        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(combine);
+        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine);
       }
       return map_output;
     });
@@ -98,9 +99,9 @@ class Plan {
       CHECK_NOTNULL(p);
       typename T2::KeyT key;
       MsgT msg;
-      while (bin) {
+      while (bin.Size()) {
         bin >> key >> msg;
-        auto* obj = p.FindOrCreate(key);
+        auto* obj = p->FindOrCreate(key);
         join(obj, msg);
       }
     };

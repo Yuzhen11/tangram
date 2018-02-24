@@ -84,6 +84,7 @@ TEST_F(TestWorker, StartCluster) {
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
   worker.SetProgram(program);
+  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -129,6 +130,7 @@ TEST_F(TestWorker, InitWorkers) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
+  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -168,6 +170,7 @@ TEST_F(TestWorker, LoadBlock) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
+  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -205,6 +208,7 @@ TEST_F(TestWorker, Wait) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
+  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   std::thread th([=]() {

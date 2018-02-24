@@ -5,7 +5,7 @@
 
 namespace xyz {
 
-void Engine::Start(Engine::Config config) {
+void Engine::Init(Engine::Config config) {
   engine_elem_.executor = std::make_shared<Executor>(config.num_threads);
   engine_elem_.partition_manager = std::make_shared<PartitionManager>();
   engine_elem_.function_store = std::make_shared<FunctionStore>();
@@ -14,38 +14,42 @@ void Engine::Start(Engine::Config config) {
           engine_elem_.partition_manager, engine_elem_.executor);
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
+  config_ = config;
+}
 
+void Engine::Start() {
   // create mailbox
-  Node scheduler_node{0, config.scheduler, config.scheduler_port, false};
-  mailbox_ = std::make_shared<Mailbox>(false, scheduler_node, config.num_workers);
+  Node scheduler_node{0, config_.scheduler, config_.scheduler_port, false};
+  mailbox_ = std::make_shared<Mailbox>(false, scheduler_node, config_.num_workers);
+
+  // TODO: create join actor before mailbox
+  const int join_actor_id = engine_elem_.node.id * 10 + 1;
+  join_actor_ = std::make_shared<JoinActor>(join_actor_id, 
+          engine_elem_.partition_manager, engine_elem_.executor, engine_elem_.function_store);
+  mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
+
+  mailbox_->Start();  // start the mailbox so we can get the node
   engine_elem_.node = mailbox_->my_node();
   engine_elem_.sender = std::make_shared<Sender>(-1, mailbox_.get());
 
-  // create all actors
+  // create worker actors
   const int worker_id = engine_elem_.node.id * 10;
-  const int join_actor_id = engine_elem_.node.id * 10 + 1;
-
   // set hdfs reader 
   auto reader = std::make_shared<HdfsReader>();
   worker_ = std::make_shared<Worker>(worker_id, engine_elem_, reader);
-  join_actor_ = std::make_shared<JoinActor>(join_actor_id, 
-          engine_elem_.partition_manager, engine_elem_.executor, engine_elem_.function_store);
-
+  worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
-  mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
+  // make worker ready after register the queue.
+  worker_->Ready();
 
-  // start mailbox after starting the worker
-  mailbox_->Start();
   mailbox_->Barrier();
-}
-
-void Engine::Run() {
-  // worker_->RegisterPlan(...);
   // worker_->Wait();
 }
 
 void Engine::Stop() {
   mailbox_->Stop();
+  worker_.reset();
+  join_actor_.reset();
 }
 
 

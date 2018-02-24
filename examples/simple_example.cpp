@@ -1,3 +1,4 @@
+#include "core/program_context.hpp"
 #include "core/plan/plan.hpp"
 #include "core/engine.hpp"
 
@@ -32,6 +33,10 @@ void Run() {
   plan.join = [](ObjT* obj, int m) {
     obj->b += m;
   };
+  ProgramContext program;
+  program.plans.push_back(plan.GetPlanSpec());
+  program.collections.push_back(c1.GetCollectionView());
+  program.collections.push_back(c2.GetCollectionView());
 
   // 2. create engine and register the plan
   Engine::Config config;
@@ -43,9 +48,17 @@ void Run() {
   config.port = 9000;
 
   Engine engine;
-  engine.Start(config);
-  // engine.Add(plan);
-  // engine.Run();
+  // initialize the components and actors,
+  // especially the function_store, to be registed by the plan
+  engine.Init(config);
+  // register program containing plan and collection info
+  engine.RegisterProgram(program);
+  // add related functions
+  engine.AddFunc(plan);
+
+  // start the mailbox and start to receive messages
+  engine.Start();
+  // stop the mailbox and actors
   engine.Stop();
 }
 

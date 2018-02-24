@@ -11,7 +11,8 @@ class PlanWith : public Plan<T1, T2, MsgT> {
   using MapWithFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&, TypedCache<T3>*)>;
   using MapPartWithFuncT = 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractPartitionCache>)>;
+                                                       std::shared_ptr<AbstractPartitionCache>,
+                                                       std::shared_ptr<AbstractMapProgressTracker>)>;
 
   PlanWith(int plan_id, Collection<T1> map_collection, 
        Collection<T2> join_collection,
@@ -28,7 +29,7 @@ class PlanWith : public Plan<T1, T2, MsgT> {
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part_with(partition, partition_cache, tracker);
       if (this->combine) {
-        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output->get())->SetCombineFunc(this->combine);
+        static_cast<TypedMapOutput<typename T2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
         map_output->Combine();
       }
       return map_output;
