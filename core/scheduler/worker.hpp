@@ -34,17 +34,23 @@ class Worker : public Actor {
   }
 
   // public api: 
-  // One worker register the program to scheduler
-  void RegisterProgram(ProgramContext program);
+  // SetProgram should be called before kStart is recevied.
+  void SetProgram(ProgramContext program) {
+    program_ = program;
+    is_program_set_ = true;
+  }
 
   // Wait until the end signal.
   void Wait();
 
   virtual void Process(Message msg) override;
 
+  // The scheduler requests program from workers.
+  void StartCluster();
+
   // Process the kInitWorkers msg from scheduler
+  // and send back reply
   void InitWorkers(SArrayBinStream bin);
-  void InitWorkersReply();
 
   // Run map on this worker
   void RunMap();
@@ -65,6 +71,9 @@ class Worker : public Actor {
   std::unordered_map<int, CollectionView> collection_map_;
 
   std::promise<void> exit_promise_;
+
+  ProgramContext program_;
+  bool is_program_set_ = false;
 };
 
 }  // namespace xyz

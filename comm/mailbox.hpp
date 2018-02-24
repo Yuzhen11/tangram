@@ -47,8 +47,7 @@ class Mailbox : public AbstractMailbox {
     CHECK(ready_) << "call Start() first";
     return my_node_;
   }
-  std::vector<Node> WaitAndGetNodes() {
-    register_all_promise_.get_future().get();
+  std::vector<Node> GetNodes() {
     return nodes_;
   }
  private:
@@ -114,8 +113,6 @@ const std::vector<int> GetNodeIDs() const;
   // msg resender
   // Resender *resender_ = nullptr;
   std::atomic<int> timestamp_{0};
-
-  std::promise<void> register_all_promise_;
 };
 
 }  // namespace xyz

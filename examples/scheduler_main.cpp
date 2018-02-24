@@ -16,9 +16,13 @@ void RunScheduler() {
 
   auto scheduler_mailbox = std::make_shared<Mailbox>(true, scheduler_node, FLAGS_num_worker);
   scheduler_mailbox->Start();
-  auto nodes = scheduler_mailbox->WaitAndGetNodes();
+  auto nodes = scheduler_mailbox->GetNodes();
+  CHECK_GT(nodes.size(), 0);
   auto sender = std::make_shared<Sender>(-1, scheduler_mailbox.get());
-  Scheduler scheduler(0, sender, nodes);
+  // the scheduler is started after the mailbox
+  const int id = 0;
+  Scheduler scheduler(id, sender, nodes);
+  scheduler_mailbox->RegisterQueue(id, scheduler.GetWorkQueue());
   scheduler.StartScheduling();
 
   std::this_thread::sleep_for(std::chrono::seconds(10));

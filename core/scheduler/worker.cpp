@@ -3,12 +3,6 @@
 
 namespace xyz {
 
-void Worker::RegisterProgram(ProgramContext program) {
-  SArrayBinStream bin;
-  bin << program;
-  SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
-}
-
 void Worker::Wait() {
   std::future<void> f = exit_promise_.get_future();
   f.get();
@@ -24,6 +18,10 @@ void Worker::Process(Message msg) {
   ScheduleFlag flag;
   ctrl_bin >> flag;
   switch (flag) {
+    case ScheduleFlag::kStart: {
+      StartCluster();
+      break;
+    }
     case ScheduleFlag::kInitWorkers: {
       InitWorkers(bin);
       break;
@@ -44,18 +42,21 @@ void Worker::Process(Message msg) {
   }
 }
 
+void Worker::StartCluster() {
+  SArrayBinStream bin;
+  bin << program_;
+  SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
+}
+
+
 void Worker::InitWorkers(SArrayBinStream bin) {
   bin >> collection_map_;
-  InitWorkersReply();
+  SArrayBinStream dummy_bin;
+  SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
 }
 
 void Worker::RunMap() {
   // TODO
-}
-
-void Worker::InitWorkersReply() {
-  SArrayBinStream bin;
-  SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, bin);
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {

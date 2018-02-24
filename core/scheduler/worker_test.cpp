@@ -63,7 +63,7 @@ TEST_F(TestWorker, Create) {
   Worker worker(qid, engine_elem, reader);
 }
 
-TEST_F(TestWorker, RegisterProgram) {
+TEST_F(TestWorker, StartCluster) {
   // program
   ProgramContext program;
   const int pid = 0;
@@ -83,8 +83,22 @@ TEST_F(TestWorker, RegisterProgram) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
+  worker.SetProgram(program);
+  auto* q = worker.GetWorkQueue();
 
-  worker.RegisterProgram(program);
+  // send request
+  {
+    SArrayBinStream ctrl_bin, bin;
+    ctrl_bin << ScheduleFlag::kStart;
+
+    Message msg;
+    msg.meta.recver = 0;
+    msg.meta.flag = Flag::kOthers;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    q->Push(msg);
+  }
+
   Message msg = static_cast<SimpleSender*>(engine_elem.sender.get())->Get();
   ASSERT_EQ(msg.data.size(), 2);
   ProgramContext p;
@@ -117,32 +131,33 @@ TEST_F(TestWorker, InitWorkers) {
   Worker worker(qid, engine_elem, reader);
   auto* q = worker.GetWorkQueue();
 
+  // send request
   {
-  SArrayBinStream bin;
-  std::unordered_map<int, CollectionView> collection_map_ = GetCollectionMap();
-  bin << collection_map_;
-  SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kInitWorkers;
+    SArrayBinStream bin;
+    std::unordered_map<int, CollectionView> collection_map_ = GetCollectionMap();
+    bin << collection_map_;
+    SArrayBinStream ctrl_bin;
+    ctrl_bin << ScheduleFlag::kInitWorkers;
 
-  Message msg;
-  msg.meta.recver = 0;
-  msg.meta.flag = Flag::kOthers;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(bin.ToSArray());
-  q->Push(msg);
+    Message msg;
+    msg.meta.recver = 0;
+    msg.meta.flag = Flag::kOthers;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    q->Push(msg);
   }
 
   auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
 
   {
-  auto msg = sender->Get();
-  // TODO: Check msg.meta
-  ASSERT_EQ(msg.data.size(), 2);
-  SArrayBinStream ctrl_bin;
-  ctrl_bin.FromSArray(msg.data[0]);
-  ScheduleFlag flag;
-  ctrl_bin >> flag;
-  EXPECT_EQ(flag, ScheduleFlag::kInitWorkersReply);
+    auto msg = sender->Get();
+    // TODO: Check msg.meta
+    ASSERT_EQ(msg.data.size(), 2);
+    SArrayBinStream ctrl_bin;
+    ctrl_bin.FromSArray(msg.data[0]);
+    ScheduleFlag flag;
+    ctrl_bin >> flag;
+    EXPECT_EQ(flag, ScheduleFlag::kInitWorkersReply);
   }
   ASSERT_EQ(sender->msgs.Size(), 0);
 }
@@ -155,30 +170,31 @@ TEST_F(TestWorker, LoadBlock) {
   Worker worker(qid, engine_elem, reader);
   auto* q = worker.GetWorkQueue();
 
+  // send request
   {
-  SArrayBinStream ctrl_bin, bin;
-  ScheduleFlag flag = ScheduleFlag::kLoadBlock;
-  ctrl_bin << flag;
-  AssignedBlock assigned_block = GetAssignedBlock();
-  bin << assigned_block;
-  Message msg;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(bin.ToSArray());
-  q->Push(msg);
+    SArrayBinStream ctrl_bin, bin;
+    ScheduleFlag flag = ScheduleFlag::kLoadBlock;
+    ctrl_bin << flag;
+    AssignedBlock assigned_block = GetAssignedBlock();
+    bin << assigned_block;
+    Message msg;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    q->Push(msg);
   }
 
   auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
 
   {
-  auto msg = sender->Get();
-  EXPECT_EQ(msg.meta.sender, qid);
-  EXPECT_EQ(msg.meta.recver, 0);
-  ASSERT_EQ(msg.data.size(), 2);
-  SArrayBinStream ctrl_bin;
-  ctrl_bin.FromSArray(msg.data[0]);
-  ScheduleFlag flag;
-  ctrl_bin >> flag;
-  EXPECT_EQ(flag, ScheduleFlag::kFinishBlock);
+    auto msg = sender->Get();
+    EXPECT_EQ(msg.meta.sender, qid);
+    EXPECT_EQ(msg.meta.recver, 0);
+    ASSERT_EQ(msg.data.size(), 2);
+    SArrayBinStream ctrl_bin;
+    ctrl_bin.FromSArray(msg.data[0]);
+    ScheduleFlag flag;
+    ctrl_bin >> flag;
+    EXPECT_EQ(flag, ScheduleFlag::kFinishBlock);
   }
   ASSERT_EQ(sender->msgs.Size(), 0);
 }
