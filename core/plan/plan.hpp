@@ -23,6 +23,7 @@ template<typename T1, typename T2, typename MsgT>
 class Plan {
  public:
   using MapFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&)>;
+  using MapVecFuncT = std::function<std::vector<std::pair<typename T2::KeyT, MsgT>>(const T1&)>;
   // For most of the cases, T2::ValT == MsgT
   using JoinFuncT = std::function<void(T2*, const MsgT&)>;
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
@@ -74,7 +75,7 @@ class Plan {
   }
 
   MapPartFuncT GetMapPartFunc() {
-    CHECK(map != nullptr);
+    CHECK((map != nullptr) ^ (map_vec != nullptr));
     return [this](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto* p = static_cast<TypedPartition<T1>*>(partition.get());
       CHECK_NOTNULL(join_collection.mapper);
@@ -83,7 +84,11 @@ class Plan {
       CHECK_NOTNULL(output);
       int i = 0;
       for (auto& elem : *p) {
-        output->Add(map(elem));
+        if (map != nullptr) {
+          output->Add(map(elem));
+        } else {
+          output->Add(map_vec(elem));
+        }
         i += 1;
         if (i % 10 == 0) {
           tracker->Report(i);
@@ -113,6 +118,7 @@ class Plan {
   PlanSpec plan_spec;
 
   MapFuncT map;
+  MapVecFuncT map_vec;
   JoinFuncT join;
   CombineFuncT combine;
 };

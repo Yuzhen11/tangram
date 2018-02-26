@@ -9,6 +9,7 @@ template<typename T1, typename T2, typename MsgT, typename T3>
 class PlanWith : public Plan<T1, T2, MsgT> {
  public:
   using MapWithFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&, TypedCache<T3>*)>;
+  using MapVecWithFuncT = std::function<std::vector<std::pair<typename T2::KeyT, MsgT>>(const T1&, TypedCache<T3>*)>;
   using MapPartWithFuncT = 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractPartitionCache>,
@@ -37,7 +38,7 @@ class PlanWith : public Plan<T1, T2, MsgT> {
   }
 
   MapPartWithFuncT GetMapPartWithFunc() {
-    CHECK_NOTNULL(mapwith);
+    CHECK((mapwith != nullptr) ^ (mapvec_with != nullptr));
     return [this](std::shared_ptr<AbstractPartition> partition, 
               std::shared_ptr<AbstractPartitionCache> cache,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
@@ -51,7 +52,11 @@ class PlanWith : public Plan<T1, T2, MsgT> {
       CHECK_NOTNULL(output);
       int i = 0;
       for (auto& elem : *p) {
-        output->Add(mapwith(elem, typed_cache));
+        if (mapwith != nullptr) {
+          output->Add(mapwith(elem, typed_cache));
+        } else {
+          output->Add(mapvec_with(elem, typed_cache));
+        }
         i += 1;
         if (i % 10 == 0) {
           tracker->Report(i);
@@ -63,6 +68,7 @@ class PlanWith : public Plan<T1, T2, MsgT> {
 
   Collection<T3> with_collection_;
   MapWithFuncT mapwith;
+  MapVecWithFuncT mapvec_with;
 };
 
 }  // namespace xyz

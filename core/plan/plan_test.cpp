@@ -13,9 +13,15 @@ namespace {
  */
 class TestPlan: public testing::Test {};
 
+struct FakeMapProgressTracker : public AbstractMapProgressTracker {
+  virtual void Report(int) {
+  }
+};
+
 struct ObjT {
   using KeyT = int;
   using ValT = int;
+  ObjT() = default;
   ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
   int a;
@@ -34,6 +40,61 @@ TEST_F(TestPlan, Create) {
   plan.join = [](ObjT* obj, int m) {
     obj->b += m;
   };
+}
+
+TEST_F(TestPlan, GetMapPartFunc) {
+  int plan_id = 0;
+  int num_part = 1;
+  Collection<ObjT> c1{1};
+  Collection<ObjT> c2{2, 
+      std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
+  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+
+  plan.map = [](ObjT a) {
+    return std::pair<ObjT::KeyT, int>(a.Key(), 1);
+  };
+
+  auto f = plan.GetMapPartFunc();
+  auto partition = std::make_shared<SeqPartition<ObjT>>();
+  partition->Add(ObjT{10});
+  partition->Add(ObjT{20});
+  auto tracker = std::make_shared<FakeMapProgressTracker>();
+  auto map_output = f(partition, tracker);
+  auto vec = static_cast<PartitionedMapOutput<int,int>*>(map_output.get())->GetBuffer();
+  ASSERT_EQ(vec.size(), 1);
+  ASSERT_EQ(vec[0].size(), 2);
+  EXPECT_EQ(vec[0][0].first, 10);
+  EXPECT_EQ(vec[0][0].second, 1);
+  EXPECT_EQ(vec[0][1].first, 20);
+  EXPECT_EQ(vec[0][1].second, 1);
+}
+
+TEST_F(TestPlan, GetMapPartFuncVec) {
+  int plan_id = 0;
+  int num_part = 1;
+  Collection<ObjT> c1{1};
+  Collection<ObjT> c2{2, 
+      std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
+  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+
+  plan.map_vec = [](ObjT a) {
+    return std::vector<std::pair<ObjT::KeyT, int>>{
+        {a.Key(), 1}, 
+        {a.Key(), 2}};
+  };
+
+  auto f = plan.GetMapPartFunc();
+  auto partition = std::make_shared<SeqPartition<ObjT>>();
+  partition->Add(ObjT{10});
+  auto tracker = std::make_shared<FakeMapProgressTracker>();
+  auto map_output = f(partition, tracker);
+  auto vec = static_cast<PartitionedMapOutput<int,int>*>(map_output.get())->GetBuffer();
+  ASSERT_EQ(vec.size(), 1);
+  ASSERT_EQ(vec[0].size(), 2);
+  EXPECT_EQ(vec[0][0].first, 10);
+  EXPECT_EQ(vec[0][0].second, 1);
+  EXPECT_EQ(vec[0][1].first, 10);
+  EXPECT_EQ(vec[0][1].second, 2);
 }
 
 /*
