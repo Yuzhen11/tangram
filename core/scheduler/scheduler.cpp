@@ -32,7 +32,6 @@ void Scheduler::Process(Message msg) {
 }
 
 void Scheduler::RegisterProgram(SArrayBinStream bin) {
-  LOG(INFO) << "[Scheduler] RegisterProgram";
   if (!init_program_) {
     bin >> program_;
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
@@ -45,6 +44,7 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
   }
   register_program_count_ += 1;
   if (register_program_count_ == nodes_.size()) {
+    LOG(INFO) << "[Scheduler] Received all RegisterProgram, start InitWorkers";
     InitWorkers();
   }
 }
@@ -61,7 +61,7 @@ void Scheduler::InitWorkers() {
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
   init_reply_count_ += 1;
   if (init_reply_count_ == nodes_.size()) {
-    LOG(INFO) << "All workers registered, start scheduling.";
+    LOG(INFO) << "[Scheduler] All workers registered, start scheduling.";
     StartScheduling();
   }
 }
@@ -72,6 +72,7 @@ void Scheduler::StartScheduling() {
 }
 
 void Scheduler::Exit() {
+  LOG(INFO) << "[Scheduler] Exit";
   SArrayBinStream dummy_bin;
   SendToAllWorkers(ScheduleFlag::kExit, dummy_bin);
   exit_promise_.set_value();

@@ -14,17 +14,23 @@ namespace xyz {
 void RunScheduler() {
   Node scheduler_node{0, FLAGS_scheduler, FLAGS_scheduler_port, false};
 
+  // create mailbox and sender
   auto scheduler_mailbox = std::make_shared<SchedulerMailbox>(scheduler_node, FLAGS_num_worker);
-  scheduler_mailbox->Start();
-  auto nodes = scheduler_mailbox->GetNodes();
-  CHECK_GT(nodes.size(), 0);
   auto sender = std::make_shared<Sender>(-1, scheduler_mailbox.get());
-  // the scheduler is started after the mailbox
+
+  // create scheduler and register queue
   const int id = 0;
   Scheduler scheduler(id, sender);
   scheduler_mailbox->RegisterQueue(id, scheduler.GetWorkQueue());
 
+  // start mailbox
+  scheduler_mailbox->Start();
+
+  // make scheduler ready
+  auto nodes = scheduler_mailbox->GetNodes();
+  CHECK_GT(nodes.size(), 0);
   scheduler.Ready(nodes);
+
   scheduler.Wait();
   scheduler_mailbox->Stop();
 }

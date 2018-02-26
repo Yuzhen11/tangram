@@ -44,7 +44,6 @@ void Engine::Start() {
   // make worker ready after register the queue.
   worker_->RegisterProgram();
 
-  mailbox_->Barrier();
   worker_->Wait();
 }
 
