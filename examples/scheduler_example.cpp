@@ -2,7 +2,7 @@
 #include "glog/logging.h"
 
 //#include "base/node_util.hpp"
-#include "comm/mailbox.hpp"
+#include "comm/scheduler_mailbox.hpp"
 
 DEFINE_int32(num_worker, -1, "The number of workers");
 DEFINE_string(scheduler, "", "The host of scheduler");
@@ -21,7 +21,7 @@ void Run() {
     LOG(INFO) << "scheduler_node: " << scheduler_node.DebugString();
 
     /* 1. Scheduler program */
-    Mailbox scheduler_mailbox(true, scheduler_node, FLAGS_num_worker);
+    SchedulerMailbox scheduler_mailbox(scheduler_node, FLAGS_num_worker);
     scheduler_mailbox.Start();
     // scheduler_mailbox.Stop();
     std::this_thread::sleep_for(std::chrono::seconds(10));

@@ -5,9 +5,9 @@
 namespace xyz {
 
 class AbstractSender {
- public:
+public:
   virtual ~AbstractSender() {}
   virtual void Send(Message msg) = 0;
 };
 
-}  // namespace xyz
+} // namespace xyz

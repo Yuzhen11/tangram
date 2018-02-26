@@ -218,7 +218,7 @@ TEST_F(TestWorker, Wait) {
     Message msg;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    std::this_thread::sleep_for(std::chrono::milliseconds(5));
     q->Push(msg);
   });
 

@@ -2,7 +2,7 @@
 #include "glog/logging.h"
 
 #include "core/scheduler/scheduler.hpp"
-#include "comm/mailbox.hpp"
+#include "comm/scheduler_mailbox.hpp"
 #include "comm/sender.hpp"
 
 DEFINE_int32(num_worker, -1, "The number of workers");
@@ -14,7 +14,7 @@ namespace xyz {
 void RunScheduler() {
   Node scheduler_node{0, FLAGS_scheduler, FLAGS_scheduler_port, false};
 
-  auto scheduler_mailbox = std::make_shared<Mailbox>(true, scheduler_node, FLAGS_num_worker);
+  auto scheduler_mailbox = std::make_shared<SchedulerMailbox>(scheduler_node, FLAGS_num_worker);
   scheduler_mailbox->Start();
   auto nodes = scheduler_mailbox->GetNodes();
   CHECK_GT(nodes.size(), 0);

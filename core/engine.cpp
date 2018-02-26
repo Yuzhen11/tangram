@@ -20,7 +20,7 @@ void Engine::Init(Engine::Config config) {
 void Engine::Start() {
   // create mailbox
   Node scheduler_node{0, config_.scheduler, config_.scheduler_port, false};
-  mailbox_ = std::make_shared<Mailbox>(false, scheduler_node, config_.num_workers);
+  mailbox_ = std::make_shared<WorkerMailbox>(scheduler_node, config_.num_workers);
 
   // TODO: create join actor before mailbox
   const int join_actor_id = engine_elem_.node.id * 10 + 1;

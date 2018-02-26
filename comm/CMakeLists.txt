@@ -1,7 +1,9 @@
 include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 file(GLOB comm-src-files
-  mailbox.cpp
+  basic_mailbox.cpp
+  worker_mailbox.cpp
+  scheduler_mailbox.cpp
   sender.cpp)
 
 add_library(comm-objs OBJECT ${comm-src-files})

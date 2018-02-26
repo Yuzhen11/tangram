@@ -5,10 +5,9 @@
 namespace xyz {
 
 class AbstractMailbox {
- public:
+public:
   virtual ~AbstractMailbox() = default;
-  virtual int Send(const Message& msg) = 0;
+  virtual int Send(const Message &msg) = 0;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

@@ -14,7 +14,7 @@
 #include "core/scheduler/worker.hpp"
 #include "core/engine_elem.hpp"
 #include "core/join_actor.hpp"
-#include "comm/mailbox.hpp"
+#include "comm/worker_mailbox.hpp"
 #include "comm/sender.hpp"
 
 #include "io/hdfs_reader.hpp"
@@ -65,7 +65,7 @@ class Engine {
   EngineElem engine_elem_;
   Config config_;
 
-  std::shared_ptr<Mailbox> mailbox_;
+  std::shared_ptr<WorkerMailbox> mailbox_;
   std::shared_ptr<Worker> worker_;
   std::shared_ptr<JoinActor> join_actor_;
 };
