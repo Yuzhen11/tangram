@@ -63,7 +63,7 @@ TEST_F(TestWorker, Create) {
   Worker worker(qid, engine_elem, reader);
 }
 
-TEST_F(TestWorker, StartCluster) {
+TEST_F(TestWorker, RegisterProgram) {
   // program
   ProgramContext program;
   const int pid = 0;
@@ -84,21 +84,7 @@ TEST_F(TestWorker, StartCluster) {
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
   worker.SetProgram(program);
-  worker.Ready();
-  auto* q = worker.GetWorkQueue();
-
-  // send request
-  {
-    SArrayBinStream ctrl_bin, bin;
-    ctrl_bin << ScheduleFlag::kStart;
-
-    Message msg;
-    msg.meta.recver = 0;
-    msg.meta.flag = Flag::kOthers;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    q->Push(msg);
-  }
+  worker.RegisterProgram();
 
   Message msg = static_cast<SimpleSender*>(engine_elem.sender.get())->Get();
   ASSERT_EQ(msg.data.size(), 2);
@@ -130,7 +116,6 @@ TEST_F(TestWorker, InitWorkers) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
-  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -170,7 +155,6 @@ TEST_F(TestWorker, LoadBlock) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
-  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -208,7 +192,6 @@ TEST_F(TestWorker, Wait) {
   EngineElem engine_elem = GetEngineElem();
   auto reader = std::make_shared<FakeReader>();
   Worker worker(qid, engine_elem, reader);
-  worker.Ready();
   auto* q = worker.GetWorkQueue();
 
   std::thread th([=]() {

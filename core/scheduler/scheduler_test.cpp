@@ -20,45 +20,15 @@ TEST_F(TestScheduler, Create) {
   const int qid = 0;
   auto nodes = GetNodes();
   auto sender = std::make_shared<SimpleSender>();
-  Scheduler scheduler(qid, sender, nodes);
-}
-
-TEST_F(TestScheduler, StartCluster) {
-  const int qid = 0;
-  auto nodes = GetNodes();
-  auto sender = std::make_shared<SimpleSender>();
-  Scheduler scheduler(qid, sender, nodes);
-  scheduler.StartCluster();
-
-  ASSERT_EQ(sender->msgs.Size(), 2); // 2 kStart msgs to 2 nodes
-  {
-  auto msg = sender->Get();
-  EXPECT_EQ(msg.meta.recver, 10);
-  ASSERT_EQ(msg.data.size(), 2);
-  SArrayBinStream ctrl_bin;
-  ctrl_bin.FromSArray(msg.data[0]);
-  ScheduleFlag flag;
-  ctrl_bin >> flag;
-  EXPECT_EQ(flag, ScheduleFlag::kStart);
-  }
-
-  {
-  auto msg = sender->Get();
-  EXPECT_EQ(msg.meta.recver, 20);
-  ASSERT_EQ(msg.data.size(), 2);
-  SArrayBinStream ctrl_bin;
-  ctrl_bin.FromSArray(msg.data[0]);
-  ScheduleFlag flag;
-  ctrl_bin >> flag;
-  EXPECT_EQ(flag, ScheduleFlag::kStart);
-  }
+  Scheduler scheduler(qid, sender);
 }
 
 TEST_F(TestScheduler, RegisterProgram) {
   const int qid = 0;
   auto nodes = GetNodes();
   auto sender = std::make_shared<SimpleSender>();
-  Scheduler scheduler(qid, sender, nodes);
+  Scheduler scheduler(qid, sender);
+  scheduler.Ready(nodes);
   auto* q = scheduler.GetWorkQueue();
 
   // program

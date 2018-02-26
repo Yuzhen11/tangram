@@ -8,12 +8,16 @@ void Worker::Wait() {
   f.get();
 }
 
+void Worker::RegisterProgram() {
+  LOG(INFO) << "[Worker] RegisterProgram";
+  CHECK(is_program_set_);
+  ready_ = true;
+  SArrayBinStream bin;
+  bin << program_;
+  SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
+}
 
 void Worker::Process(Message msg) {
-  // wait until ready
-  while (!ready_.load()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
   CHECK_EQ(msg.data.size(), 2);  // cmd, content
   SArrayBinStream ctrl_bin;
   SArrayBinStream bin;
@@ -22,10 +26,6 @@ void Worker::Process(Message msg) {
   ScheduleFlag flag;
   ctrl_bin >> flag;
   switch (flag) {
-    case ScheduleFlag::kStart: {
-      StartCluster();
-      break;
-    }
     case ScheduleFlag::kInitWorkers: {
       InitWorkers(bin);
       break;
@@ -38,6 +38,10 @@ void Worker::Process(Message msg) {
       LoadBlock(bin);
       break;
     }
+    case ScheduleFlag::kDummy: {
+      RunDummy();
+      break;
+    }
     case ScheduleFlag::kExit: {
       Exit();
       break;
@@ -46,17 +50,14 @@ void Worker::Process(Message msg) {
   }
 }
 
-void Worker::StartCluster() {
-  SArrayBinStream bin;
-  bin << program_;
-  SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
-}
-
-
 void Worker::InitWorkers(SArrayBinStream bin) {
   bin >> collection_map_;
   SArrayBinStream dummy_bin;
   SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
+}
+
+void Worker::RunDummy() {
+  LOG(INFO) << "[Worker] RunDummy";
 }
 
 void Worker::RunMap() {
@@ -75,7 +76,9 @@ void Worker::Exit() {
 
 void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {
   Message msg;
-  // TODO: Fill the meta
+  msg.meta.sender = engine_elem_.node.id * 10;
+  msg.meta.recver = 0;
+  msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin;
   ctrl_bin << flag;
   msg.AddData(ctrl_bin.ToSArray());

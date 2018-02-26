@@ -1,5 +1,8 @@
 #pragma once
 
+#include <future>
+#include <atomic>
+
 #include "base/actor.hpp"
 #include "base/sarray_binstream.hpp"
 #include "base/node.hpp"
@@ -18,16 +21,21 @@ namespace xyz {
 
 class Scheduler : public Actor {
  public:
-  Scheduler(int qid, std::shared_ptr<AbstractSender> sender, std::vector<Node> nodes): 
-      Actor(qid), sender_(sender), nodes_(nodes) {
+  Scheduler(int qid, std::shared_ptr<AbstractSender> sender): 
+      Actor(qid), sender_(sender) {
     Start();
   }
   virtual ~Scheduler() override {
     Stop();
   }
 
-  // Tell all workers to start
-  void StartCluster();
+  // make the scheduler ready and start receiving RegisterProgram
+  void Ready(std::vector<Node> nodes) {
+    LOG(INFO) << "[Scheduler] Ready";
+    nodes_ = nodes;
+    ready_ = true;
+  }
+  void Wait();
 
   /*
    * <- : receive
@@ -50,8 +58,9 @@ class Scheduler : public Actor {
 
   void InitWorkersReply(SArrayBinStream bin);
 
-  // Run map on all workers
-  void RunMap();
+  void RunDummy();
+
+  void Exit();
 
   // Send speculative command
   void RunSpeculativeMap();
@@ -65,6 +74,7 @@ class Scheduler : public Actor {
   std::shared_ptr<AbstractSender> sender_;
 
   std::vector<int> workers_;
+  int register_program_count_ = 0;
   int init_reply_count_ = 0;
   int num_workers_ = 0;   // TODO
 
@@ -74,6 +84,10 @@ class Scheduler : public Actor {
 
   std::shared_ptr<Assigner> assigner_;
   std::vector<Node> nodes_;
+
+  std::promise<void> exit_promise_;
+
+  std::atomic<bool> ready_{false};
 };
 
 }  // namespace xyz

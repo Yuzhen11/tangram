@@ -60,7 +60,7 @@ void BasicMailbox::Stop() {
 int BasicMailbox::Send(const Message &msg) {
   std::lock_guard<std::mutex> lk(mu_);
   // find the socket
-  int recver_id = msg.meta.recver;
+  int recver_id = msg.meta.flag == Flag::kOthers ? msg.meta.recver / 10 : msg.meta.recver;  // TODO
   auto it = senders_.find(recver_id);
   if (it == senders_.end()) {
     LOG(WARNING) << "there is no socket to node " << recver_id;

@@ -5,7 +5,7 @@ from launch_utils import launch_util
 
 hostfile = "machinefiles/5nodes"
 progfile = "debug/WorkerExample"
-schedulerfile = "debug/SchedulerMain"
+schedulerfile = "debug/SchedulerExample"
 
 params = {
     #"hdfs_namenode" : "proj10",

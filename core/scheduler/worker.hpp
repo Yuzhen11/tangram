@@ -42,9 +42,8 @@ class Worker : public Actor {
     program_ = program;
     is_program_set_ = true;
   }
-  void Ready() {
-    ready_ = true;
-  }
+
+  void RegisterProgram();
 
   // Wait until the end signal.
   void Wait();
@@ -60,6 +59,8 @@ class Worker : public Actor {
 
   // Run map on this worker
   void RunMap();
+
+  void RunDummy();
 
   // Send speculative command
   void RunSpeculativeMap();
@@ -81,7 +82,7 @@ class Worker : public Actor {
   ProgramContext program_;
   bool is_program_set_ = false;
 
-  std::atomic<bool> ready_{false};
+  bool ready_ = false;
 };
 
 }  // namespace xyz

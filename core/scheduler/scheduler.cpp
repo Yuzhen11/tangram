@@ -2,12 +2,12 @@
 
 namespace xyz {
 
-void Scheduler::StartCluster() {
-  SArrayBinStream bin;
-  SendToAllWorkers(ScheduleFlag::kStart, bin);
-}
-
 void Scheduler::Process(Message msg) {
+  // wait until ready
+  while (!ready_.load()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+  }
+
   CHECK_EQ(msg.data.size(), 2);  // cmd, content
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
@@ -32,6 +32,7 @@ void Scheduler::Process(Message msg) {
 }
 
 void Scheduler::RegisterProgram(SArrayBinStream bin) {
+  LOG(INFO) << "[Scheduler] RegisterProgram";
   if (!init_program_) {
     bin >> program_;
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
@@ -40,12 +41,16 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
       c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
       collection_map_.insert({c.collection_id, c});
     }
-    InitWorkers();
     init_program_ = true;
+  }
+  register_program_count_ += 1;
+  if (register_program_count_ == nodes_.size()) {
+    InitWorkers();
   }
 }
 
 void Scheduler::InitWorkers() {
+  LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
   SArrayBinStream bin;
   bin << collection_map_;
@@ -55,19 +60,32 @@ void Scheduler::InitWorkers() {
 
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
   init_reply_count_ += 1;
-  if (init_reply_count_ == num_workers_) {
+  if (init_reply_count_ == nodes_.size()) {
     LOG(INFO) << "All workers registered, start scheduling.";
     StartScheduling();
   }
 }
 
 void Scheduler::StartScheduling() {
-  RunMap();
+  RunDummy();
+  Exit();
 }
 
-void Scheduler::RunMap() {
+void Scheduler::Exit() {
+  SArrayBinStream dummy_bin;
+  SendToAllWorkers(ScheduleFlag::kExit, dummy_bin);
+  exit_promise_.set_value();
+}
+
+void Scheduler::Wait() {
+  LOG(INFO) << "[Scheduler] waiting";
+  std::future<void> f = exit_promise_.get_future();
+  f.get();
+}
+
+void Scheduler::RunDummy() {
   SArrayBinStream bin;
-  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
+  SendToAllWorkers(ScheduleFlag::kDummy, bin);
 }
 
 void Scheduler::FinishBlock(SArrayBinStream bin) {
