@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/plan/plan.hpp"
+#include "core/plan/mapjoin.hpp"
 #include "core/partition/seq_partition.hpp"
 #include "core/map_output/partitioned_map_output.hpp"
 
@@ -11,7 +11,7 @@ namespace {
 /*
  * This test depends on SeqPartition and MapOutput.
  */
-class TestPlan: public testing::Test {};
+class TestMapJoin: public testing::Test {};
 
 struct FakeMapProgressTracker : public AbstractMapProgressTracker {
   virtual void Report(int) {
@@ -28,11 +28,11 @@ struct ObjT {
   int b;
 };
 
-TEST_F(TestPlan, Create) {
+TEST_F(TestMapJoin, Create) {
   int plan_id = 0;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2};
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
 
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
@@ -42,17 +42,18 @@ TEST_F(TestPlan, Create) {
   };
 }
 
-TEST_F(TestPlan, GetMapPartFunc) {
+TEST_F(TestMapJoin, GetMapPartFunc) {
   int plan_id = 0;
   int num_part = 1;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2, 
       std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
 
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
   };
+  plan.SetMapPart();
 
   auto f = plan.GetMapPartFunc();
   auto partition = std::make_shared<SeqPartition<ObjT>>();
@@ -69,19 +70,20 @@ TEST_F(TestPlan, GetMapPartFunc) {
   EXPECT_EQ(vec[0][1].second, 1);
 }
 
-TEST_F(TestPlan, GetMapPartFuncVec) {
+TEST_F(TestMapJoin, GetMapPartFuncVec) {
   int plan_id = 0;
   int num_part = 1;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2, 
       std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
 
   plan.map_vec = [](ObjT a) {
     return std::vector<std::pair<ObjT::KeyT, int>>{
         {a.Key(), 1}, 
         {a.Key(), 2}};
   };
+  plan.SetMapPart();
 
   auto f = plan.GetMapPartFunc();
   auto partition = std::make_shared<SeqPartition<ObjT>>();
@@ -96,30 +98,6 @@ TEST_F(TestPlan, GetMapPartFuncVec) {
   EXPECT_EQ(vec[0][1].first, 10);
   EXPECT_EQ(vec[0][1].second, 2);
 }
-
-/*
-TEST_F(TestPlan, GetPlanItem) {
-  int plan_id = 0;
-  int num_part = 4;
-  Collection<ObjT> c1{1, nullptr};
-  Collection<ObjT> c2{2, std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part)};
-  auto partition = std::make_shared<SeqPartition<ObjT>>();
-  partition->Add(ObjT{10});
-  partition->Add(ObjT{20});
-
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
-  plan.map = [](ObjT a) {
-    return std::pair<ObjT::KeyT, int>(a.Key(), 1);
-  };
-  plan.join = [](int a, int m) {
-    return a + m;
-  };
-  PlanItem plan_item = plan.GetPlanItem();
-  auto map_output = plan_item.map(partition);
-  auto output = static_cast<PartitionedMapOutput<int,int>*>(map_output.get())->GetBuffer();
-  ASSERT_EQ(output.size(), num_part);
-}
-*/
 
 }  // namespace
 }  // namespace xyz

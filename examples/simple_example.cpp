@@ -1,5 +1,5 @@
 #include "core/program_context.hpp"
-#include "core/plan/plan.hpp"
+#include "core/plan/mapjoin.hpp"
 #include "core/engine.hpp"
 
 #include "gflags/gflags.h"
@@ -25,7 +25,7 @@ void Run() {
   int plan_id = 0;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2};
-  Plan<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
 
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);

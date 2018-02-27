@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/plan/plan_with.hpp"
+#include "core/plan/mapwithjoin.hpp"
 
 namespace xyz {
 namespace {
@@ -14,14 +14,14 @@ struct ObjT {
   int a;
 };
 
-class TestPlanWith: public testing::Test {};
+class TestMapWithJoin: public testing::Test {};
 
-TEST_F(TestPlanWith, Create) {
+TEST_F(TestMapWithJoin, Create) {
   int plan_id = 0;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2};
   Collection<ObjT> c3{4};
-  PlanWith<ObjT, ObjT, int, ObjT> plan(plan_id, c1, c2, c3);
+  MapWithJoin<ObjT, ObjT, int, ObjT> plan(plan_id, c1, c2, c3);
   plan.mapwith = [](const ObjT& obj, TypedCache<ObjT>* cache) {
     ObjT cache_obj = cache->Get(2);
     int ret = obj.Key() + cache_obj.a;

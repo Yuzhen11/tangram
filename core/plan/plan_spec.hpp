@@ -18,9 +18,6 @@ struct PlanSpec {
   int with_partition_num;
 
   PlanSpec() = default;
-  PlanSpec(int pid, int mid, int jid, int wid)
-      : plan_id(pid), map_collection_id(mid), join_collection_id(jid), with_collection_id(wid)
-  {}
 
   std::string DebugString() const {
     std::stringstream ss;
