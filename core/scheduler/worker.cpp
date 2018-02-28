@@ -1,6 +1,7 @@
 #include "core/scheduler/worker.hpp"
 #include "core/plan/plan_spec.hpp"
 #include "core/shuffle_meta.hpp"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 
@@ -90,7 +91,7 @@ void Worker::Exit() {
 
 void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {
   Message msg;
-  msg.meta.sender = engine_elem_.node.id * 10;
+  msg.meta.sender = GetWorkerQid(engine_elem_.node.id);
   msg.meta.recver = 0;
   msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin;

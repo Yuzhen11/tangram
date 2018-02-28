@@ -2,6 +2,7 @@
 
 #include "core/scheduler/scheduler.hpp"
 #include "comm/simple_sender.hpp"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 
@@ -121,7 +122,7 @@ void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   for (auto node : nodes_) {
     Message msg;
     msg.meta.sender = 0;
-    msg.meta.recver = node.id * 10;
+    msg.meta.recver = GetWorkerQid(node.id);
     msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());

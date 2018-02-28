@@ -1,6 +1,7 @@
 #include "io/assigner.hpp"
 
 #include "core/scheduler/control.hpp"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 
@@ -87,7 +88,7 @@ void Assigner::Assign(std::pair<std::string, int> slave) {
   bin << assigned_block;
   Message msg;
   msg.meta.sender = 0;
-  msg.meta.recver = slave.second * 10;
+  msg.meta.recver = GetWorkerQid(slave.second);
   msg.meta.flag = Flag::kOthers;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());

@@ -3,6 +3,7 @@
 
 #include "scheduler.hpp"
 #include "comm/simple_sender.hpp"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 namespace {
@@ -49,7 +50,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   ctrl_bin << ScheduleFlag::kRegisterProgram;
   bin << program;
   Message msg;
-  msg.meta.sender = 10;
+  msg.meta.sender = GetWorkerQid(1);
   msg.meta.recver = 0;
   msg.meta.flag = Flag::kOthers;
   msg.AddData(ctrl_bin.ToSArray());
@@ -60,7 +61,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
 
   {
     auto msg = sender->Get();
-    EXPECT_EQ(msg.meta.recver, 10);
+    EXPECT_EQ(msg.meta.recver, GetWorkerQid(1));
     ASSERT_EQ(msg.data.size(), 2);
     SArrayBinStream ctrl_bin;
     ctrl_bin.FromSArray(msg.data[0]);
@@ -70,7 +71,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   }
   {
     auto msg = sender->Get();
-    EXPECT_EQ(msg.meta.recver, 20);
+    EXPECT_EQ(msg.meta.recver, GetWorkerQid(2));
     ASSERT_EQ(msg.data.size(), 2);
     SArrayBinStream ctrl_bin;
     ctrl_bin.FromSArray(msg.data[0]);
@@ -83,14 +84,14 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
     SArrayBinStream ctrl_bin, bin;
     ctrl_bin << ScheduleFlag::kInitWorkersReply;
     Message msg;
-    msg.meta.sender = 10;
+    msg.meta.sender = GetWorkerQid(1);
     msg.meta.recver = 0;
     msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     q->Push(msg);
 
-    msg.meta.sender = 20;
+    msg.meta.sender = GetWorkerQid(2);
     q->Push(msg);  // register another time
   }
 }

@@ -1,5 +1,6 @@
 #include "core/engine.hpp"
 #include "core/join_actor.hpp"
+#include "core/queue_node_map.hpp"
 
 #include <chrono>
 
@@ -28,13 +29,13 @@ void Engine::Start() {
   engine_elem_.node = mailbox_->my_node();
 
   // create join actor
-  const int join_actor_id = engine_elem_.node.id * 10 + 1;
+  const int join_actor_id = GetJoinActorQid(engine_elem_.node.id);
   join_actor_ = std::make_shared<JoinActor>(join_actor_id, 
           engine_elem_.partition_tracker, engine_elem_.executor, engine_elem_.function_store);
   mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
 
   // create worker actor
-  const int worker_id = engine_elem_.node.id * 10;
+  const int worker_id = GetWorkerQid(engine_elem_.node.id);
   // set hdfs reader 
   auto reader = std::make_shared<HdfsReader>();
   worker_ = std::make_shared<Worker>(worker_id, engine_elem_, reader);
