@@ -48,8 +48,16 @@ FunctionStore::PartToIntermediate FunctionStore::GetPartToIntermediate(PartToOut
     // 2. serialize
     auto bins = map_output->Serialize();
     // 3. add to intermediate_store
-    for (auto& bin: bins) {
-      Message msg = bin.ToMsg();
+    for (int i = 0; i < bins.size(); ++ i) {
+      // TODO
+      Message msg;
+      msg.meta.sender = 0;
+      msg.meta.recver = 0;
+      msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin;
+      ctrl_bin << i;
+      msg.AddData(ctrl_bin.ToSArray());
+      msg.AddData(bins[i].ToSArray());
       // TODO Add msg header.
       intermediate_store->Add(msg);
     }

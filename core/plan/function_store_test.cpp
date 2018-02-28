@@ -82,8 +82,9 @@ TEST_F(TestFunctionStore, GetPartToIntermediate) {
   auto msgs = intermediate_store->Get();
   ASSERT_EQ(msgs.size(), 1);
   auto msg = msgs[0];
+  ASSERT_EQ(msg.data.size(), 2);
   SArrayBinStream bin;
-  bin.FromMsg(msg);
+  bin.FromSArray(msg.data[1]);
   int k, v;
   bin >> k >> v;
   EXPECT_EQ(k, 10);

@@ -29,7 +29,7 @@ void Engine::Start() {
   // create join actor
   const int join_actor_id = engine_elem_.node.id * 10 + 1;
   join_actor_ = std::make_shared<JoinActor>(join_actor_id, 
-          engine_elem_.partition_manager, engine_elem_.executor, engine_elem_.function_store);
+          engine_elem_.partition_tracker, engine_elem_.executor, engine_elem_.function_store);
   mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
 
   // create worker actor

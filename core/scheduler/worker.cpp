@@ -26,13 +26,14 @@ void Worker::Process(Message msg) {
   bin.FromSArray(msg.data[1]);
   ScheduleFlag flag;
   ctrl_bin >> flag;
+
   switch (flag) {
     case ScheduleFlag::kInitWorkers: {
       InitWorkers(bin);
       break;
     }
     case ScheduleFlag::kRunMap: {
-      RunMap();
+      RunMap(bin);
       break;
     }
     case ScheduleFlag::kLoadBlock: {
@@ -61,8 +62,16 @@ void Worker::RunDummy() {
   LOG(INFO) << "[Worker] RunDummy";
 }
 
-void Worker::RunMap() {
-  // TODO
+void Worker::RunMap(SArrayBinStream bin) {
+  int plan_id;
+  bin >> plan_id;
+  auto func = engine_elem_.function_store->GetMap(plan_id);
+  PlanSpec plan = plan_map_[plan_id];
+  engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
+  engine_elem_.partition_tracker->RunAllMap([func, this](std::shared_ptr<AbstractPartition> p,
+                                            std::shared_ptr<AbstractMapProgressTracker> pt) {
+    func(p, engine_elem_.intermediate_store, pt);
+  });
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {

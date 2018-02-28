@@ -15,6 +15,14 @@ namespace xyz {
 /*
  * A thread-safe structure to protect the partitions.
  */
+  
+struct JoinMeta {
+  int collection_id;
+  int part_id;
+  int upstream_part_id;
+  std::function<void(std::shared_ptr<AbstractPartition>)> func;
+};
+
 class PartitionTracker {
  public:
   PartitionTracker(std::shared_ptr<PartitionManager> partition_manager,
@@ -22,17 +30,13 @@ class PartitionTracker {
       : partitions_(partition_manager), executor_(executor) {}
 
   void SetPlan(PlanSpec plan);
+  PlanSpec GetPlan() { return plan_; }
 
   // Called by map
   void RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>, 
                                     std::shared_ptr<AbstractMapProgressTracker>)> func);
 
   // Called by join
-  struct JoinMeta {
-    int part_id;
-    int upstream_part_id;
-    std::function<void(std::shared_ptr<AbstractPartition>)> func;
-  };
   void RunJoin(JoinMeta join_meta);
   void WaitAllJoin();
 

@@ -40,6 +40,9 @@ class Worker : public Actor {
   // SetProgram should be called before kStart is recevied.
   void SetProgram(ProgramContext program) {
     program_ = program;
+    for (auto plan : program.plans) {
+      plan_map_.insert({plan.plan_id, plan});
+    }
     is_program_set_ = true;
   }
 
@@ -58,7 +61,7 @@ class Worker : public Actor {
   void InitWorkers(SArrayBinStream bin);
 
   // Run map on this worker
-  void RunMap();
+  void RunMap(SArrayBinStream);
 
   void RunDummy();
 
@@ -76,6 +79,7 @@ class Worker : public Actor {
 
   // store the mapping from partition to node.
   std::unordered_map<int, CollectionView> collection_map_;
+  std::unordered_map<int, PlanSpec> plan_map_;
 
   std::promise<void> exit_promise_;
 
