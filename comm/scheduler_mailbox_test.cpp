@@ -54,6 +54,7 @@ TEST_F(TestSchedulerMailbox, SendAndRecv) {
   mailbox.CloseSockets();
 }
 
+/*
 TEST_F(TestSchedulerMailbox, StartStop) {
   Node node{0, "localhost", 32145, false};
   std::thread th1([=]() {
@@ -71,6 +72,7 @@ TEST_F(TestSchedulerMailbox, StartStop) {
   th1.join();
   th2.join();
 }
+*/
 
 } // namespace
 } // namespace xyz

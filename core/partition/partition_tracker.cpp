@@ -6,7 +6,8 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
   plan_ = plan;
 }
 
-void PartitionTracker::RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>,
+void PartitionTracker::RunAllMap(std::function<void(ShuffleMeta, 
+                                                    std::shared_ptr<AbstractPartition>,
                                                     std::shared_ptr<AbstractMapProgressTracker>)> func) {
   std::lock_guard<std::mutex> lk(mu_);
   // setup
@@ -27,9 +28,14 @@ void PartitionTracker::RunAllMap(std::function<void(std::shared_ptr<AbstractPart
       StartMap(part_id);
       {
         boost::shared_lock<boost::shared_mutex> lk(part->mu);
+        ShuffleMeta meta;
+        meta.plan_id = plan_.plan_id;
+        meta.collection_id = plan_.join_collection_id;
+        meta.upstream_part_id = part_id;
+        meta.part_id = -1;  // leave the part_id for downstream to functionstore.
         auto tracker = map_tracker_.tracker[part_id];
         // read-only
-        func(part->partition, tracker); 
+        func(meta, part->partition, tracker); 
       }
       FinishMap(part_id, part);
     });

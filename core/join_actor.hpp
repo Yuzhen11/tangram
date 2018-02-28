@@ -4,6 +4,7 @@
 #include "core/executor/executor.hpp"
 #include "core/plan/function_store.hpp"
 #include "core/partition/partition_tracker.hpp"
+#include "core/shuffle_meta.hpp"
 
 namespace xyz {
 
@@ -22,21 +23,20 @@ public:
   ~JoinActor() { Stop(); }
 
   virtual void Process(Message msg) override {
-    SArrayBinStream bin_to_ctrl;
+    SArrayBinStream ctrl_bin, bin;
     SArrayBinStream bin_to_join;
-    bin_to_ctrl.FromSArray(msg.data[0]);
-    bin_to_join.FromSArray(msg.data[1]);
-    int collection_id, partition_id, upstream_part_id, plan_id;
-    bin_to_ctrl >> collection_id >> partition_id >> upstream_part_id >> plan_id;
+    ctrl_bin.FromSArray(msg.data[0]);
+    bin.FromSArray(msg.data[1]);
+    ShuffleMeta meta;
+    ctrl_bin >> meta; 
 
-    auto& func = function_store_->GetJoin(plan_id);
+    auto& func = function_store_->GetJoin(meta.plan_id);
    
     JoinMeta join_meta;
-    join_meta.collection_id = collection_id;
-    join_meta.part_id = partition_id;
-    join_meta.upstream_part_id = upstream_part_id;
-    join_meta.func = [func, bin_to_join](std::shared_ptr<AbstractPartition> p) {
-      func(p, bin_to_join);
+    join_meta.part_id = meta.part_id;
+    join_meta.upstream_part_id = meta.upstream_part_id;
+    join_meta.func = [func, bin](std::shared_ptr<AbstractPartition> p) {
+      func(p, bin);
     };
     partition_tracker_->RunJoin(join_meta);
   };

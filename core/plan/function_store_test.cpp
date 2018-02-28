@@ -28,6 +28,12 @@ struct FakeMapProgressTracker : public AbstractMapProgressTracker {
   }
 };
 
+struct FakeCollectionMap : public AbstractCollectionMap {
+  virtual int Lookup(int collection_id, int part_id) override {
+    return part_id;
+  }
+};
+
 TEST_F(TestFunctionStore, GetPartToOutputManager) {
   const int plan_id = 0;
   const int num_part = 1;
@@ -46,7 +52,10 @@ TEST_F(TestFunctionStore, GetPartToOutputManager) {
     }
     return output;
   };
-  auto func = FunctionStore::GetPartToOutputManager(plan_id, map);
+  auto collection_map = std::make_shared<FakeCollectionMap>();
+  FunctionStore function_store(collection_map);
+  function_store.AddPartToOutputManager(plan_id, map);
+  auto func = function_store.GetMapPart1(plan_id);
   ASSERT_EQ(map_output_storage->Get(0).size(), 0);
   func(partition, map_output_storage, tracker);
   ASSERT_EQ(map_output_storage->Get(0).size(), 1);
@@ -77,8 +86,12 @@ TEST_F(TestFunctionStore, GetPartToIntermediate) {
     }
     return output;
   };
-  auto func = FunctionStore::GetPartToIntermediate(map);
-  func(partition, intermediate_store, tracker);
+  auto collection_map = std::make_shared<FakeCollectionMap>();
+  FunctionStore function_store(collection_map);
+  function_store.AddPartToIntermediate(plan_id, map);
+  auto func = function_store.GetMap(plan_id);
+  ShuffleMeta meta;
+  func(meta, partition, intermediate_store, tracker);
   auto msgs = intermediate_store->Get();
   ASSERT_EQ(msgs.size(), 1);
   auto msg = msgs[0];

@@ -20,6 +20,7 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
    * Build map from consecutive nodes from 1 to num_nodes.
    */
   void BuildRandomMap(int num_parts, int num_nodes) {
+    CHECK_GT(num_nodes, 0);
     std::vector<int> nodes;
     nodes.resize(num_nodes);
     std::iota(nodes.begin(), nodes.end(), 1);

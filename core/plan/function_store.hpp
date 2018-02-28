@@ -6,6 +6,8 @@
 #include "core/plan/abstract_function_store.hpp"
 
 #include "core/map_output/map_output_storage.hpp"
+#include "core/shuffle_meta.hpp"
+#include "core/abstract_collection_map.hpp"
 
 namespace xyz { 
 
@@ -14,6 +16,9 @@ namespace xyz {
  */
 class FunctionStore : public AbstractFunctionStore {
  public:
+  FunctionStore(std::shared_ptr<AbstractCollectionMap> collection_map) 
+      : collection_map_(collection_map) {}
+
   using PartToOutput = AbstractFunctionStore::PartToOutput;
   using OutputsToBin = AbstractFunctionStore::OutputsToBin;
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
@@ -29,7 +34,7 @@ class FunctionStore : public AbstractFunctionStore {
                                                                std::shared_ptr<AbstractIntermediateStore>,
                                                                int part_id)>;
   // Partition -> IntermediateStore
-  using PartToIntermediate = std::function<void(std::shared_ptr<AbstractPartition>, 
+  using PartToIntermediate = std::function<void(ShuffleMeta, std::shared_ptr<AbstractPartition>, 
                                                 std::shared_ptr<AbstractIntermediateStore>,
                                                 std::shared_ptr<AbstractMapProgressTracker>)>;
 
@@ -51,17 +56,14 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddJoinFunc(int id, JoinFuncT func) override;
   virtual void AddMapWith(int id, MapWith func) override;
 
-  // For test use.
-  static PartToOutputManager GetPartToOutputManager(int id, PartToOutput map);
-  static MapOutputToIntermediate GetOutputsToIntermediate(int id, OutputsToBin merge_combine);
-  static PartToIntermediate GetPartToIntermediate(PartToOutput map);
-
  private:
   std::map<int, PartToOutputManager> part_to_output_manager_;
   std::map<int, PartToIntermediate> part_to_intermediate_;
   std::map<int, MapOutputToIntermediate> mapoutput_to_intermediate_;
   std::map<int, JoinFuncT> join_functions;
   std::map<int, PartWithToIntermediate> partwith_to_intermediate_;
+
+  std::shared_ptr<AbstractCollectionMap> collection_map_;
 };
 
 }  // namespaca xyz

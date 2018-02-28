@@ -56,7 +56,7 @@ TEST_F(TestPartitionTracker, RunnAllMap) {
     futures2.push_back(p.get_future());
   }
 
-  pt.RunAllMap([&promises, &futures2, &p_counter](std::shared_ptr<AbstractPartition> p, 
+  pt.RunAllMap([&promises, &futures2, &p_counter](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p, 
                    std::shared_ptr<AbstractMapProgressTracker> t) {
     auto* part = static_cast<FakePartition<int>*>(p.get());
     int i = 0;

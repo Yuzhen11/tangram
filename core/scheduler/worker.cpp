@@ -1,5 +1,6 @@
 #include "core/scheduler/worker.hpp"
 #include "core/plan/plan_spec.hpp"
+#include "core/shuffle_meta.hpp"
 
 namespace xyz {
 
@@ -53,7 +54,9 @@ void Worker::Process(Message msg) {
 }
 
 void Worker::InitWorkers(SArrayBinStream bin) {
-  bin >> collection_map_;
+  std::unordered_map<int, CollectionView> collection_map;
+  bin >> collection_map;
+  engine_elem_.collection_map->Init(collection_map);
   SArrayBinStream dummy_bin;
   SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
 }
@@ -68,9 +71,9 @@ void Worker::RunMap(SArrayBinStream bin) {
   auto func = engine_elem_.function_store->GetMap(plan_id);
   PlanSpec plan = plan_map_[plan_id];
   engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
-  engine_elem_.partition_tracker->RunAllMap([func, this](std::shared_ptr<AbstractPartition> p,
+  engine_elem_.partition_tracker->RunAllMap([func, this](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
                                             std::shared_ptr<AbstractMapProgressTracker> pt) {
-    func(p, engine_elem_.intermediate_store, pt);
+    func(meta, p, engine_elem_.intermediate_store, pt);
   });
 }
 

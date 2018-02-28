@@ -9,6 +9,7 @@
 #include "core/intermediate/simple_intermediate_store.hpp"
 #include "core/plan/function_store.hpp"
 #include "comm/abstract_sender.hpp"
+#include "core/collection_map.hpp"
 
 namespace xyz {
 
@@ -20,6 +21,7 @@ struct EngineElem {
   std::shared_ptr<AbstractIntermediateStore> intermediate_store;
   std::shared_ptr<PartitionTracker> partition_tracker;
   std::shared_ptr<AbstractSender> sender;
+  std::shared_ptr<CollectionMap> collection_map;
 
   std::string namenode;
   int port;

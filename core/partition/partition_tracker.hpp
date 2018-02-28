@@ -9,20 +9,19 @@
 #include "core/partition/partition_manager.hpp"
 #include "core/partition/tracker.hpp"
 #include "core/executor/executor.hpp"
+#include "core/shuffle_meta.hpp"
 
 namespace xyz {
 
-/*
- * A thread-safe structure to protect the partitions.
- */
-  
 struct JoinMeta {
-  int collection_id;
   int part_id;
   int upstream_part_id;
   std::function<void(std::shared_ptr<AbstractPartition>)> func;
 };
 
+/*
+ * A thread-safe structure to protect the partitions.
+ */
 class PartitionTracker {
  public:
   PartitionTracker(std::shared_ptr<PartitionManager> partition_manager,
@@ -33,7 +32,7 @@ class PartitionTracker {
   PlanSpec GetPlan() { return plan_; }
 
   // Called by map
-  void RunAllMap(std::function<void(std::shared_ptr<AbstractPartition>, 
+  void RunAllMap(std::function<void(ShuffleMeta, std::shared_ptr<AbstractPartition>, 
                                     std::shared_ptr<AbstractMapProgressTracker>)> func);
 
   // Called by join

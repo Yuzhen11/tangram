@@ -21,6 +21,7 @@ TEST_F(TestWorkerMailbox, BindAndConnect) {
   mailbox.CloseSockets();
 }
 
+/*
 TEST_F(TestWorkerMailbox, StartStop) {
   Node node{0, "localhost", 32145, false};
   std::thread th1([=]() {
@@ -38,6 +39,7 @@ TEST_F(TestWorkerMailbox, StartStop) {
   th1.join();
   th2.join();
 }
+*/
 
 } // namespace
 } // namespace xyz

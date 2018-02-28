@@ -8,7 +8,8 @@ namespace xyz {
 void Engine::Init(Engine::Config config) {
   engine_elem_.executor = std::make_shared<Executor>(config.num_threads);
   engine_elem_.partition_manager = std::make_shared<PartitionManager>();
-  engine_elem_.function_store = std::make_shared<FunctionStore>();
+  engine_elem_.collection_map = std::make_shared<CollectionMap>();
+  engine_elem_.function_store = std::make_shared<FunctionStore>(engine_elem_.collection_map);
   engine_elem_.intermediate_store = std::make_shared<SimpleIntermediateStore>();
   engine_elem_.partition_tracker = std::make_shared<PartitionTracker>(
           engine_elem_.partition_manager, engine_elem_.executor);

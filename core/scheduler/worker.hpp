@@ -78,7 +78,6 @@ class Worker : public Actor {
   std::shared_ptr<Loader> loader_;
 
   // store the mapping from partition to node.
-  std::unordered_map<int, CollectionView> collection_map_;
   std::unordered_map<int, PlanSpec> plan_map_;
 
   std::promise<void> exit_promise_;

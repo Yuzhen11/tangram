@@ -23,20 +23,22 @@ class Scheduler : public Actor {
  public:
   Scheduler(int qid, std::shared_ptr<AbstractSender> sender, std::shared_ptr<Assigner> assigner = nullptr): 
       Actor(qid), sender_(sender), assigner_(assigner) {
-    Start();
   }
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
       scheduler_thread_.join();
     }
-    Stop();
+    if (start_) {
+      Stop();
+    }
   }
 
   // make the scheduler ready and start receiving RegisterProgram
   void Ready(std::vector<Node> nodes) {
     LOG(INFO) << "[Scheduler] Ready";
     nodes_ = nodes;
-    ready_ = true;
+    Start();
+    start_ = true;
   }
   void Wait();
 
@@ -102,7 +104,7 @@ class Scheduler : public Actor {
 
   std::promise<void> exit_promise_;
 
-  std::atomic<bool> ready_{false};
+  bool start_ = false;
 
   std::thread scheduler_thread_;
   std::promise<void> load_done_promise_;

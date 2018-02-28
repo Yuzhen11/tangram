@@ -6,11 +6,6 @@
 namespace xyz {
 
 void Scheduler::Process(Message msg) {
-  // wait until ready
-  while (!ready_.load()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
-
   CHECK_EQ(msg.data.size(), 2);  // cmd, content
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
