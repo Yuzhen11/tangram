@@ -165,6 +165,7 @@ TEST_F(TestWorker, LoadBlock) {
     AssignedBlock assigned_block = GetAssignedBlock();
     bin << assigned_block;
     Message msg;
+    msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     q->Push(msg);
@@ -199,6 +200,7 @@ TEST_F(TestWorker, Wait) {
     ScheduleFlag flag = ScheduleFlag::kExit;
     ctrl_bin << flag;
     Message msg;
+    msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     std::this_thread::sleep_for(std::chrono::milliseconds(5));
