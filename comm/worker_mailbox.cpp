@@ -31,7 +31,7 @@ void WorkerMailbox::Start() {
 
   // bind
   Bind(my_node_, 40);
-  VLOG(1) << "Bind to " << my_node_.DebugString();
+  VLOG(2) << "Bind to " << my_node_.DebugString();
 
   // connect to scheduler
   Connect(scheduler_node_);
@@ -52,7 +52,6 @@ void WorkerMailbox::Start() {
   SArrayBinStream bin;
   bin << ctrl;
   msg.AddData(bin.ToSArray());
-  // VLOG(1) << "Worker: my_node_.id = " << std::to_string(my_node_.id);
   Send(msg);
 
   // wait until ready
@@ -63,7 +62,7 @@ void WorkerMailbox::Start() {
   heartbeat_thread_ = std::thread(&WorkerMailbox::Heartbeat, this);
   start_time_ = time(NULL);
 
-  VLOG(1) << my_node_.DebugString() << " started";
+  VLOG(2) << my_node_.DebugString() << " started";
 }
 
 void WorkerMailbox::Stop() {
@@ -95,7 +94,6 @@ void WorkerMailbox::Heartbeat() {
 }
 
 void WorkerMailbox::HandleBarrierMsg() {
-  VLOG(2) << "Barrier at worker";
   barrier_finish_ = true;
 }
 
@@ -106,8 +104,6 @@ void WorkerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   UpdateID(msg, &dead_set, recovery_node);
 
   // worker connected to all other workers (get the info from scheduler)
-  VLOG(1) << "[Worker]In HandleRegisterMsg: nodes.size() = "
-          << std::to_string(nodes_.size());
   for (const auto &node : nodes_) {
     std::string addr_str = node.hostname + ":" + std::to_string(node.port);
     if (connected_nodes_.find(addr_str) == connected_nodes_.end()) {
@@ -126,8 +122,6 @@ void WorkerMailbox::UpdateID(Message *msg,
   SArrayBinStream bin;
   bin.FromSArray(msg->data[1]);
   bin >> nodes_;
-  VLOG(1) << "[Worker]In UpdateID(): nodes.size() = "
-          << std::to_string(nodes_.size());
   for (size_t i = 0; i < nodes_.size(); ++i) {
     const auto &node = nodes_[i];
     if (my_node_.hostname == node.hostname && my_node_.port == node.port) {
@@ -144,7 +138,6 @@ void WorkerMailbox::Receiving() {
     int recv_bytes = Recv(&msg);
     CHECK_NE(recv_bytes, -1);
     // duplicated message, TODO
-    VLOG(1) << "Received msg: " << msg.DebugString();
     if (msg.meta.flag == Flag::kMailboxControl) {
       Control ctrl;
       SArrayBinStream bin;
@@ -152,7 +145,7 @@ void WorkerMailbox::Receiving() {
       bin >> ctrl;
       if (ctrl.flag == MailboxFlag::kExit) {
         ready_ = false;
-        VLOG(1) << my_node_.DebugString() << " is stopped";
+        VLOG(2) << my_node_.DebugString() << " is stopped";
         break;
       } else if (ctrl.flag == MailboxFlag::kBarrier) {
         HandleBarrierMsg();

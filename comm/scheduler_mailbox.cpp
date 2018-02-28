@@ -21,7 +21,7 @@ void SchedulerMailbox::Start() {
 
   // bind
   Bind(my_node_, 1);
-  VLOG(1) << "Bind to " << my_node_.DebugString();
+  VLOG(2) << "Bind to " << my_node_.DebugString();
 
   // connect to scheduler
   Connect(scheduler_node_);
@@ -35,7 +35,7 @@ void SchedulerMailbox::Start() {
   }
 
   start_time_ = time(NULL);
-  VLOG(1) << my_node_.DebugString() << " started";
+  VLOG(2) << my_node_.DebugString() << " started";
 }
 
 void SchedulerMailbox::HandleBarrierMsg() {
@@ -67,7 +67,6 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   UpdateID(msg, &dead_set, recovery_node);
 
   if (nodes_.size() == num_workers_) {
-    VLOG(2) << "nodes_.size() == num_workers_";
     LOG(INFO) << num_workers_ << " nodes registered at scheduler.";
     // assign node id (dummy ranking, id from 1 to num_workers_)
     int id = 0;
@@ -77,7 +76,6 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
           node.hostname + ":" + std::to_string(node.port);
       if (connected_nodes_.find(node_host_ip) == connected_nodes_.end()) {
         CHECK_EQ(node.id, Node::kEmpty);
-        VLOG(1) << "assign id=" << id << " to node " << node.DebugString();
         node.id = id;
         Connect(node);
         UpdateHeartbeat(node.id);
@@ -97,10 +95,6 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
     Message back_msg;
     back_msg.AddData(ctrl_bin.ToSArray());
     back_msg.AddData(nodes_bin.ToSArray());
-    // VLOG(1) << "back_msg.data.size() = " <<
-    // std::to_string(back_msg.data.size());
-    // VLOG(1) << "back_msg.data[0].size() = " <<
-    // std::to_string(back_msg.data[0].size());
     for (int r : GetNodeIDs()) {
       if (shared_node_mapping_.find(r) == shared_node_mapping_.end()) {
         back_msg.meta.recver = r;

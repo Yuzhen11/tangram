@@ -36,10 +36,10 @@ TEST_F(TestSchedulerMailbox, SendAndRecv) {
   msg.AddData(vals);
 
   mailbox.Send(msg);
-  VLOG(1) << "Finished sending";
+  VLOG(2) << "Finished sending";
   Message recv_msg;
   mailbox.Recv(&recv_msg);
-  VLOG(1) << "Finished reciving";
+  VLOG(2) << "Finished reciving";
   EXPECT_EQ(recv_msg.meta.sender, msg.meta.sender);
   EXPECT_EQ(recv_msg.meta.recver, msg.meta.recver);
   EXPECT_EQ(recv_msg.meta.flag, msg.meta.flag);
@@ -54,7 +54,6 @@ TEST_F(TestSchedulerMailbox, SendAndRecv) {
   mailbox.CloseSockets();
 }
 
-/*
 TEST_F(TestSchedulerMailbox, StartStop) {
   Node node{0, "localhost", 32145, false};
   std::thread th1([=]() {
@@ -72,7 +71,6 @@ TEST_F(TestSchedulerMailbox, StartStop) {
   th1.join();
   th2.join();
 }
-*/
 
 } // namespace
 } // namespace xyz

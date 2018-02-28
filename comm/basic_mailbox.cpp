@@ -35,7 +35,7 @@ void BasicMailbox::DeregisterQueue(uint32_t queue_id) {
 }
 
 void BasicMailbox::Stop() {
-  VLOG(1) << my_node_.DebugString() << " is stopping";
+  VLOG(2) << my_node_.DebugString() << " is stopping";
   // Barrier();
 
   // stop threads
@@ -91,8 +91,6 @@ int BasicMailbox::Send(const Message &msg) {
   int send_bytes = meta_size;
 
   // send data
-  VLOG(1) << "Node " << my_node_.id
-          << " starts sending data: " << msg.DebugString();
   for (int i = 0; i < num_data; ++i) {
     zmq_msg_t data_msg;
     third_party::SArray<char> *data =
@@ -118,7 +116,6 @@ int BasicMailbox::Send(const Message &msg) {
 }
 
 int BasicMailbox::Recv(Message *msg) {
-  // VLOG(1) << "start Recv()";
   msg->data.clear();
   size_t recv_bytes = 0;
   for (int i = 0;; ++i) {
@@ -134,7 +131,6 @@ int BasicMailbox::Recv(Message *msg) {
       return -1;
     }
     size_t size = zmq_msg_size(zmsg);
-    VLOG(1) << std::to_string(size);
     recv_bytes += size;
 
     if (i == 0) {
@@ -194,9 +190,9 @@ void BasicMailbox::BindAndConnect() {
   zmq_ctx_set(context_, ZMQ_MAX_SOCKETS, 65536);
 
   Bind(scheduler_node_, 1);
-  VLOG(1) << "Finished binding";
+  VLOG(2) << "Finished binding";
   Connect(scheduler_node_);
-  VLOG(1) << "Finished connecting";
+  VLOG(2) << "Finished connecting";
 }
 
 void BasicMailbox::CloseSockets() {

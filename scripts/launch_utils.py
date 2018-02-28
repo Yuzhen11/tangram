@@ -25,11 +25,11 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params,
     hostlines = f.read().splitlines()
     for line in hostlines:
       if not line.startswith("#"):
-        hostlist.append(line.split(":")) # [id host port]
+        hostlist.append(line) # host
 
     program_params.update(common_params)
-    for [node_id, host, port] in hostlist:
-      print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
+    for host in hostlist:
+      print "host:%s" % host
       cmd = ssh_cmd + host + " "  # Start ssh command
       cmd += "\""  # Remote command starts
       cmd += clear_cmd
@@ -47,7 +47,7 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params,
   clear_cmd = "ls " + scheduler_path + " > /dev/null; "
   if dump_core:
       clear_cmd += "ulimit -c unlimited; "
-  print "node_id:%s, host:%s, port:%s" %(0, scheduler_params["scheduler"], scheduler_params["scheduler_port"])
+  print "Scheduler: node_id:%s, host:%s, port:%s" %(0, scheduler_params["scheduler"], scheduler_params["scheduler_port"])
   cmd = ssh_cmd + scheduler_params["scheduler"] + " "  # Start ssh command
   cmd += "\""  # Remote command starts
   cmd += clear_cmd
@@ -74,8 +74,7 @@ def kill_nodes(scheduler_name, prog_name, hostfile_path):
 
   # Get host IPs
   with open(hostfile_path, "r") as f:
-    hostlines = f.read().splitlines()
-  host_ips = [line.split(":")[1] for line in hostlines]
+    host_ips = f.read().splitlines()
 
   for ip in host_ips:
     cmd = ssh_cmd + ip + " killall -q " + prog_name
