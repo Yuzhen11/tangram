@@ -7,15 +7,19 @@ hostfile = "machinefiles/5nodes"
 progfile = "debug/LoadExample"
 schedulerfile = "debug/SchedulerMain"
 
-params = {
-    #"hdfs_namenode" : "proj10",
-    #"hdfs_namenode_port" : 9000,
-    #"input" : "hdfs:///jasper/kdd12",
+common_params = {
     "scheduler" : "proj10",
     "scheduler_port" : "33254",
     "num_worker" : 5,
-    "url" : "/datasets/classification/kdd12-5blocks",
+    "hdfs_namenode" : "proj10",
+    "hdfs_port" : 9000,
+}
 
+program_params = {
+    "url" : "/datasets/classification/kdd12-5blocks",
+}
+
+scheduler_params = {
 }
 
 env_params = (
@@ -28,4 +32,6 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-launch_util(schedulerfile, progfile, hostfile, env_params, params, sys.argv)
+dump_core = False
+launch_util(schedulerfile, progfile, hostfile, env_params, 
+        common_params, scheduler_params, program_params, sys.argv, dump_core)

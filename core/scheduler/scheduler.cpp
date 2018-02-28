@@ -2,7 +2,6 @@
 
 #include "core/scheduler/scheduler.hpp"
 #include "comm/simple_sender.hpp"
-#include "io/hdfs_browser.hpp"
 
 namespace xyz {
 
@@ -42,14 +41,13 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
     CHECK_LE(program_.load_plans.size(), 1);
     if (program_.load_plans.size() == 1) {
       auto lp = program_.load_plans[0];
-      auto browser = std::make_shared<HDFSBrowser>(lp.namenode, lp.port);
-      assigner_ = std::make_shared<Assigner>(sender_, browser);
       std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
       std::transform(
         nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
         [] (Node const& node){
         return std::make_pair(node.hostname, node.id);
         });  
+      CHECK(assigner_);
       int num_blocks = assigner_->Load(lp.url, assigned_nodes, 1);
     } else {
       load_done_promise_.set_value();
@@ -59,6 +57,9 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
       collection_map_.insert({c.collection_id, c});
     }
     init_program_ = true;
+    // spawn the scheduler thread
+    LOG(INFO) << "[Scheduler] starting the scheduling thread";
+    scheduler_thread_ = std::thread([this]() { Run(); });
   }
   register_program_count_ += 1;
   if (register_program_count_ == nodes_.size()) {

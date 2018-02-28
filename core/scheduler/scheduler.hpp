@@ -21,13 +21,14 @@ namespace xyz {
 
 class Scheduler : public Actor {
  public:
-  Scheduler(int qid, std::shared_ptr<AbstractSender> sender): 
-      Actor(qid), sender_(sender) {
-    scheduler_thread_ = std::thread([this]() { Run(); });
+  Scheduler(int qid, std::shared_ptr<AbstractSender> sender, std::shared_ptr<Assigner> assigner = nullptr): 
+      Actor(qid), sender_(sender), assigner_(assigner) {
     Start();
   }
   virtual ~Scheduler() override {
-    scheduler_thread_.join();
+    if (scheduler_thread_.joinable()) {
+      scheduler_thread_.join();
+    }
     Stop();
   }
 

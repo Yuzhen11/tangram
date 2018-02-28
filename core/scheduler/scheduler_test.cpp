@@ -23,7 +23,7 @@ TEST_F(TestScheduler, Create) {
   Scheduler scheduler(qid, sender);
 }
 
-TEST_F(TestScheduler, RegisterProgram) {
+TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   const int qid = 0;
   auto nodes = GetNodes();
   auto sender = std::make_shared<SimpleSender>();
@@ -78,7 +78,21 @@ TEST_F(TestScheduler, RegisterProgram) {
     ctrl_bin >> flag;
     EXPECT_EQ(flag, ScheduleFlag::kInitWorkers);
   }
-  ASSERT_EQ(sender->msgs.Size(), 0);
+  // send InitWorkersReply
+  {
+    SArrayBinStream ctrl_bin, bin;
+    ctrl_bin << ScheduleFlag::kInitWorkersReply;
+    Message msg;
+    msg.meta.sender = 10;
+    msg.meta.recver = 0;
+    msg.meta.flag = Flag::kOthers;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    q->Push(msg);
+
+    msg.meta.sender = 20;
+    q->Push(msg);  // register another time
+  }
 }
 
 }  // namespace

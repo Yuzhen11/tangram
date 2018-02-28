@@ -4,11 +4,14 @@
 #include "core/scheduler/scheduler.hpp"
 #include "comm/scheduler_mailbox.hpp"
 #include "comm/sender.hpp"
+#include "io/hdfs_browser.hpp"
+#include "io/assigner.hpp"
 
 DEFINE_int32(num_worker, -1, "The number of workers");
 DEFINE_string(scheduler, "proj10", "The host of scheduler");
-DEFINE_int32(scheduler_port, 9000, "The port of scheduler");
-DEFINE_string(url, "", "The url for hdfs file");
+DEFINE_int32(scheduler_port, -1, "The port of scheduler");
+DEFINE_string(hdfs_namenode, "proj10", "The namenode of hdfs");
+DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
 
 namespace xyz {
 
@@ -21,7 +24,9 @@ void RunScheduler() {
 
   // create scheduler and register queue
   const int id = 0;
-  Scheduler scheduler(id, sender);
+  auto browser = std::make_shared<HDFSBrowser>(FLAGS_hdfs_namenode, FLAGS_hdfs_port);
+  auto assigner = std::make_shared<Assigner>(sender, browser);
+  Scheduler scheduler(id, sender, assigner);
   scheduler_mailbox->RegisterQueue(id, scheduler.GetWorkQueue());
 
   // start mailbox
