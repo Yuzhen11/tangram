@@ -23,9 +23,11 @@ class Scheduler : public Actor {
  public:
   Scheduler(int qid, std::shared_ptr<AbstractSender> sender): 
       Actor(qid), sender_(sender) {
+    scheduler_thread_ = std::thread([this]() { Run(); });
     Start();
   }
   virtual ~Scheduler() override {
+    scheduler_thread_.join();
     Stop();
   }
 
@@ -36,6 +38,18 @@ class Scheduler : public Actor {
     ready_ = true;
   }
   void Wait();
+
+  void Run() {
+    LOG(INFO) << "waiting for load";
+    load_done_promise_.get_future().get();
+    LOG(INFO) << "load finish";
+    register_program_promise_.get_future().get();
+    LOG(INFO) << "[Scheduler] Received all RegisterProgram, start InitWorkers";
+    InitWorkers();
+    init_worker_reply_promise_.get_future().get();
+    LOG(INFO) << "[Scheduler] All workers registered, start scheduling.";
+    StartScheduling();
+  }
 
   /*
    * <- : receive
@@ -88,6 +102,11 @@ class Scheduler : public Actor {
   std::promise<void> exit_promise_;
 
   std::atomic<bool> ready_{false};
+
+  std::thread scheduler_thread_;
+  std::promise<void> load_done_promise_;
+  std::promise<void> register_program_promise_;
+  std::promise<void> init_worker_reply_promise_;
 };
 
 }  // namespace xyz

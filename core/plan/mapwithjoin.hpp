@@ -45,7 +45,7 @@ struct MapWithJoin : public MapPartWithJoin<T1, T2, MsgT, T3> {
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     SetMapPartWith();
-    this->Register(function_store);
+    MapPartWithJoin<T1, T2, MsgT, T3>::Register(function_store);
   }
 
   MapWithFuncT mapwith;  // a (with c) -> b

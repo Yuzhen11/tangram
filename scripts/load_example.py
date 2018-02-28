@@ -4,7 +4,7 @@ import sys
 from launch_utils import launch_util
 
 hostfile = "machinefiles/5nodes"
-progfile = "debug/SimpleExample"
+progfile = "debug/LoadExample"
 schedulerfile = "debug/SchedulerMain"
 
 params = {
@@ -14,7 +14,7 @@ params = {
     "scheduler" : "proj10",
     "scheduler_port" : "33254",
     "num_worker" : 5,
-    #"url" : "/datasets/classification/kdd12-5blocks",
+    "url" : "/datasets/classification/kdd12-5blocks",
 
 }
 

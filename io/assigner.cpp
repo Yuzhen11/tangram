@@ -87,7 +87,8 @@ void Assigner::Assign(std::pair<std::string, int> slave) {
   bin << assigned_block;
   Message msg;
   msg.meta.sender = 0;
-  msg.meta.recver = slave.second;
+  msg.meta.recver = slave.second * 10;
+  msg.meta.flag = Flag::kOthers;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
   sender_->Send(std::move(msg));

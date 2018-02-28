@@ -8,6 +8,7 @@
 DEFINE_int32(num_worker, -1, "The number of workers");
 DEFINE_string(scheduler, "proj10", "The host of scheduler");
 DEFINE_int32(scheduler_port, 9000, "The port of scheduler");
+DEFINE_string(url, "", "The url for hdfs file");
 
 namespace xyz {
 

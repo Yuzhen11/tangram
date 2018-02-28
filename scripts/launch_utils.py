@@ -15,16 +15,16 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
   assert os.path.isfile(hostfile_path)
   assert os.path.isfile(scheduler_path)
 
-  clear_cmd = "ls " + hostfile_path + " > /dev/null; ls " + prog_path + " > /dev/null; "
+  # clear_cmd = "ls " + hostfile_path + " > /dev/null; ls " + prog_path + " > /dev/null; "
   # use the following to allow core dumping
-  # clear_cmd = "ls " + hostfile_path + " > /dev/null; ls " + prog_path + " > /dev/null; ulimit -c unlimited; "
+  clear_cmd = "ls " + hostfile_path + " > /dev/null; ls " + prog_path + " > /dev/null; ulimit -c unlimited; "
   with open(hostfile_path, "r") as f:
-    hostlist = []  
+    hostlist = []
     hostlines = f.read().splitlines()
     for line in hostlines:
       if not line.startswith("#"):
         hostlist.append(line.split(":")) # [id host port]
-  
+
     for [node_id, host, port] in hostlist:
       print "node_id:%s, host:%s, port:%s" %(node_id, host, port)
       cmd = ssh_cmd + host + " "  # Start ssh command
@@ -33,14 +33,14 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
       # Command to run program
       cmd += env_params + " " + prog_path
       cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
-  
+
       cmd += "\""  # Remote Command ends
       cmd += " &"
       print cmd
       os.system(cmd)
 
   # run scheduler
-  clear_cmd = "ls " + scheduler_path + " > /dev/null; "
+  clear_cmd = "ls " + scheduler_path + " > /dev/null; ulimit -c unlimited; "
   print "node_id:%s, host:%s, port:%s" %(0, params["scheduler"], params["scheduler_port"])
   cmd = ssh_cmd + params["scheduler"] + " "  # Start ssh command
   cmd += "\""  # Remote command starts
@@ -48,7 +48,7 @@ def launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params):
   # Command to run program
   cmd += env_params + " " + scheduler_path
   cmd += "".join([" --%s=%s" % (k,v) for k,v in params.items()])
-  
+
   cmd += "\""  # Remote Command ends
   cmd += " &"
   print cmd
@@ -70,7 +70,7 @@ def kill_nodes(scheduler_name, prog_name, hostfile_path):
   with open(hostfile_path, "r") as f:
     hostlines = f.read().splitlines()
   host_ips = [line.split(":")[1] for line in hostlines]
-  
+
   for ip in host_ips:
     cmd = ssh_cmd + ip + " killall -q " + prog_name
     os.system(cmd)
@@ -89,7 +89,7 @@ def parse_file(schedulerfile, progfile, hostfile):
 
 
 def launch_util(schedulerfile, progfile, hostfile, env_params, params, argv):
-  scheduler_path, prog_path, hostfile_path = parse_file(schedulerfile, progfile, hostfile)  
+  scheduler_path, prog_path, hostfile_path = parse_file(schedulerfile, progfile, hostfile)
   if len(argv) == 1:
     launch_nodes(scheduler_path, prog_path, hostfile_path, env_params, params)
   elif len(argv) == 2 and argv[1] == "kill":

@@ -52,7 +52,7 @@ struct MapJoin : public MapPartJoin<T1, T2, MsgT>{
   }
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     SetMapPart();
-    this->Register(function_store);
+    MapPartJoin<T1, T2, MsgT>::Register(function_store);
   }
 
   MapFuncT map;  // a -> b

@@ -1,4 +1,8 @@
+#include <algorithm>
+
 #include "core/scheduler/scheduler.hpp"
+#include "comm/simple_sender.hpp"
+#include "io/hdfs_browser.hpp"
 
 namespace xyz {
 
@@ -35,7 +39,21 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
   if (!init_program_) {
     bin >> program_;
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
-
+    CHECK_LE(program_.load_plans.size(), 1);
+    if (program_.load_plans.size() == 1) {
+      auto lp = program_.load_plans[0];
+      auto browser = std::make_shared<HDFSBrowser>(lp.namenode, lp.port);
+      assigner_ = std::make_shared<Assigner>(sender_, browser);
+      std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
+      std::transform(
+        nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
+        [] (Node const& node){
+        return std::make_pair(node.hostname, node.id);
+        });  
+      int num_blocks = assigner_->Load(lp.url, assigned_nodes, 1);
+    } else {
+      load_done_promise_.set_value();
+    }
     for (auto c : program_.collections) {
       c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
       collection_map_.insert({c.collection_id, c});
@@ -44,8 +62,7 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
   }
   register_program_count_ += 1;
   if (register_program_count_ == nodes_.size()) {
-    LOG(INFO) << "[Scheduler] Received all RegisterProgram, start InitWorkers";
-    InitWorkers();
+    register_program_promise_.set_value();
   }
 }
 
@@ -61,8 +78,7 @@ void Scheduler::InitWorkers() {
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
   init_reply_count_ += 1;
   if (init_reply_count_ == nodes_.size()) {
-    LOG(INFO) << "[Scheduler] All workers registered, start scheduling.";
-    StartScheduling();
+    init_worker_reply_promise_.set_value();
   }
 }
 
@@ -92,7 +108,14 @@ void Scheduler::RunDummy() {
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
   bin >> block;
-  assigner_->FinishBlock(block);
+  LOG(INFO) << "[Scheduler] FinishBlock";
+  bool done = assigner_->FinishBlock(block);
+  if (done) {
+    // TODO
+    auto blocks = assigner_->GetFinishedBlocks();
+    // TODO: update collection map
+    load_done_promise_.set_value();
+  }
 }
 
 

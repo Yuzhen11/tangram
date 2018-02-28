@@ -26,6 +26,7 @@ void Loader::Load(AssignedBlock block) {
     Message msg;
     msg.meta.sender = qid_;
     msg.meta.recver = 0;  // TODO The qid of the assigner
+    msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));

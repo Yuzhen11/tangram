@@ -12,6 +12,7 @@ void Worker::RegisterProgram() {
   LOG(INFO) << "[Worker] RegisterProgram";
   CHECK(is_program_set_);
   ready_ = true;
+    
   SArrayBinStream bin;
   bin << program_;
   SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
@@ -65,6 +66,7 @@ void Worker::RunMap() {
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {
+  LOG(INFO) << "[Worker] LoadBlock";
   AssignedBlock block;
   bin >> block;
   loader_->Load(block);
