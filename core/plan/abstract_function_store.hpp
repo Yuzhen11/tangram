@@ -22,12 +22,17 @@ class AbstractFunctionStore {
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractPartitionCache>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
+  using CreatePartitionFuncT = std::function<std::shared_ptr<AbstractPartition>(
+          SArrayBinStream bin, int part_id, int num_part)>;
+
   ~AbstractFunctionStore(){}
   virtual void AddPartToIntermediate(int id, PartToOutput func) = 0;
   virtual void AddPartToOutputManager(int id, PartToOutput func) = 0;
   virtual void AddOutputsToBin(int id, OutputsToBin func) = 0;
   virtual void AddJoinFunc(int id, JoinFuncT func) = 0;
   virtual void AddMapWith(int id, MapWith func) = 0;
+
+  virtual void AddCreatePartitionFunc(int id, CreatePartitionFuncT func) = 0;
 };
 
 }  // namespaca xyz

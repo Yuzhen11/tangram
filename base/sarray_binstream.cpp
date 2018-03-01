@@ -30,4 +30,18 @@ third_party::SArray<char> SArrayBinStream::ToSArray() {
   return buffer_;
 }
 
+SArrayBinStream& operator<<(SArrayBinStream& stream, const SArrayBinStream& bin) {
+  stream << bin.Size();
+  stream.AddBin(bin.GetPtr(), bin.Size());
+  return stream;
+}
+SArrayBinStream& operator>>(SArrayBinStream& stream, SArrayBinStream& bin) {
+  size_t len;
+  stream >> len;
+  CHECK(bin.Size() == 0);
+  bin.CopyFrom(stream.GetPtr(), len);
+  stream.PopBin(len);
+  return stream;
+}
+
 }  // namespace xyz

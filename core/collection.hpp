@@ -12,8 +12,13 @@ template<typename T>
 class Collection {
  public:
   int id;
-  std::shared_ptr<AbstractKeyToPartMapper> mapper;
   int num_partition;
+  std::shared_ptr<AbstractKeyToPartMapper> mapper;
+
+  Collection(int _id): Collection(_id, 1) {}
+  Collection(int _id, int _num_part): 
+    id(_id), num_partition(_num_part) {
+  }
 
   CollectionView GetCollectionView() {
     CollectionView c;

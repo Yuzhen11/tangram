@@ -37,6 +37,12 @@ class SArrayBinStream {
     front_ = 0;
   }
   third_party::SArray<char> ToSArray();
+
+  inline const char* GetPtr() const { return (&buffer_[0]) + front_; }
+  void CopyFrom(const char* data, size_t size) {
+    buffer_.CopyFrom(data, size);
+    front_ = 0;
+  }
  private:
   third_party::SArray<char> buffer_;
   size_t front_ = 0;
@@ -163,5 +169,8 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::pair<FirstT, SecondT>&
     stream >> p.first >> p.second;
     return stream;
 }
+
+SArrayBinStream& operator<<(SArrayBinStream& stream, const SArrayBinStream& bin);
+SArrayBinStream& operator>>(SArrayBinStream& stream, SArrayBinStream& bin);
 
 }  // namespace xyz

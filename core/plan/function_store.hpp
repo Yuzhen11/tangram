@@ -23,6 +23,7 @@ class FunctionStore : public AbstractFunctionStore {
   using OutputsToBin = AbstractFunctionStore::OutputsToBin;
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
   using MapWith = AbstractFunctionStore::MapWith;
+  using CreatePartitionFuncT = AbstractFunctionStore::CreatePartitionFuncT;
 
   // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
@@ -48,6 +49,7 @@ class FunctionStore : public AbstractFunctionStore {
   const MapOutputToIntermediate& GetMapPart2(int id);
   const PartToIntermediate& GetMap(int id);
   const JoinFuncT& GetJoin(int id);
+  const CreatePartitionFuncT& GetCreatePartition(int id);
 
   // Used by plan to register function.
   virtual void AddPartToIntermediate(int id, PartToOutput func) override;
@@ -55,6 +57,7 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddOutputsToBin(int id, OutputsToBin func) override;
   virtual void AddJoinFunc(int id, JoinFuncT func) override;
   virtual void AddMapWith(int id, MapWith func) override;
+  virtual void AddCreatePartitionFunc(int id, CreatePartitionFuncT func) override;
 
  private:
   std::map<int, PartToOutputManager> part_to_output_manager_;
@@ -62,6 +65,8 @@ class FunctionStore : public AbstractFunctionStore {
   std::map<int, MapOutputToIntermediate> mapoutput_to_intermediate_;
   std::map<int, JoinFuncT> join_functions;
   std::map<int, PartWithToIntermediate> partwith_to_intermediate_;
+
+  std::map<int, CreatePartitionFuncT> create_partition_func_;
 
   std::shared_ptr<AbstractCollectionMap> collection_map_;
 };

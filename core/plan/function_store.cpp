@@ -21,6 +21,11 @@ const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
   return join_functions[id];
 }
 
+const FunctionStore::CreatePartitionFuncT& FunctionStore::GetCreatePartition(int id) {
+  CHECK(create_partition_func_.find(id) != create_partition_func_.end());
+  return create_partition_func_[id];
+}
+
 void FunctionStore::AddPartToIntermediate(int id, PartToOutput map) {
   auto ret = [this, map](ShuffleMeta meta, std::shared_ptr<AbstractPartition> partition, 
                std::shared_ptr<AbstractIntermediateStore> intermediate_store,
@@ -89,6 +94,10 @@ void FunctionStore::AddMapWith(int id, MapWith func) {
       intermediate_store->Add(msg);
     }
   }});
+}
+
+void FunctionStore::AddCreatePartitionFunc(int id, CreatePartitionFuncT func) {
+  create_partition_func_.insert({id, func});
 }
 
 }  // namespaca xyz

@@ -20,14 +20,14 @@ struct LoadPlanSpec {
 
   std::string DebugString() const {
     std::stringstream ss;
-    ss << ", load_collection_id: " << load_collection_id;
+    ss << "{ load_collection_id: " << load_collection_id;
     ss << ", load_partition_num: "<< load_partition_num;
     ss << ", url: " << url;
     ss << ", namenode: " << namenode;
     ss << ", port: " << port;
     ss << "}";
     return ss.str();
-}
+  }
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const LoadPlanSpec& p) {
     stream << p.load_collection_id << p.load_partition_num << p.url << p.namenode << p.port;

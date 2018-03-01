@@ -92,5 +92,21 @@ TEST_F(TestSArrayBinStream, Vector) {
   EXPECT_EQ(a, v);
 }
 
+TEST_F(TestSArrayBinStream, SArrayBinStream) {
+  SArrayBinStream bin;
+  SArrayBinStream bin_send;
+  SArrayBinStream bin_recv;
+  int a = 10;
+  bin_send << a;
+  bin << a << bin_send << a;
+
+  int b, c, d;
+  bin >> b >> bin_recv >> d;
+  bin_recv >> c;
+  EXPECT_EQ(a, b);
+  EXPECT_EQ(a, c);
+  EXPECT_EQ(a, d);
+}
+
 }  // namespace
 }  // namespace xyz

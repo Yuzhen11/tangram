@@ -7,10 +7,12 @@
 #include "scheduler/collection_view.hpp"
 #include "core/plan/plan_spec.hpp"
 #include "core/plan/load_plan_spec.hpp"
+#include "core/plan/collection_builder_spec.hpp"
 
 namespace xyz {
 
 struct ProgramContext {
+  std::vector<CollectionBuilderSpec> builder;
   std::vector<LoadPlanSpec> load_plans;
   std::vector<PlanSpec> plans;
   std::vector<CollectionView> collections;
@@ -19,7 +21,13 @@ struct ProgramContext {
     std::stringstream ss;
     ss << "{ # of plans: " << plans.size() 
        << ", # of collections: " << collections.size() 
+       << ", # of builder: " << builder.size() 
+       << ", # of load_plans: " << load_plans.size() 
        << " }\n";
+    ss << "builder:\n";
+    for (auto s : builder) {
+      ss << s.DebugString() << "\n";
+    }
     ss << "load_plans:\n";
     for (auto plan : load_plans) {
       ss << plan.DebugString() << "\n";
@@ -36,12 +44,12 @@ struct ProgramContext {
   }
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const ProgramContext& c) {
-    stream << c.load_plans << c.plans << c.collections;
+    stream << c.builder << c.load_plans << c.plans << c.collections;
   	return stream;
   }
   
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, ProgramContext& c) {
-    stream >> c.load_plans >> c.plans >> c.collections;
+    stream >> c.builder >> c.load_plans >> c.plans >> c.collections;
   	return stream;
   }
 };

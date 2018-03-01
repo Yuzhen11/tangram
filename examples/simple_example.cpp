@@ -1,5 +1,6 @@
 #include "core/program_context.hpp"
 #include "core/plan/mapjoin.hpp"
+#include "core/plan/collection_builder.hpp"
 #include "core/engine.hpp"
 
 #include "gflags/gflags.h"
@@ -16,6 +17,7 @@ namespace xyz {
 struct ObjT {
   using KeyT = int;
   using ValT = int;
+  ObjT() = default;
   ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
   int a;
@@ -26,8 +28,16 @@ void Run() {
   // 1. construct the plan
   int plan_id = 0;
   Collection<ObjT> c1{1};
-  Collection<ObjT> c2{2};
+  int num_part = 1;
+  Collection<ObjT> c2{2, num_part};
+  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
   MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
+
+  std::vector<ObjT> data;
+  for (int i = 0; i < 100; ++ i) {
+    data.push_back(ObjT(i));
+  }
+  CollectionBuilder<ObjT> builder(c1, data);
 
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
@@ -36,6 +46,7 @@ void Run() {
     obj->b += m;
   };
   ProgramContext program;
+  program.builder.push_back(builder.GetSpec());
   program.plans.push_back(plan.GetPlanSpec());
   program.collections.push_back(c1.GetCollectionView());
   program.collections.push_back(c2.GetCollectionView());
@@ -57,6 +68,7 @@ void Run() {
   engine.RegisterProgram(program);
   // add related functions
   engine.AddFunc(plan);
+  engine.AddFunc(builder);
 
   // start the mailbox and start to receive messages
   engine.Start();
