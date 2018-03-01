@@ -72,9 +72,8 @@ TEST_F(TestWorker, RegisterProgram) {
   const int pid = 0;
   const int mid = 1;
   const int jid = 2;
-  const int wid = -1;
   const int num_parts = 10;
-  PlanSpec plan{pid, mid, jid, wid};
+  PlanSpec plan{pid, mid, jid};
   CollectionView c1{mid, num_parts};
   CollectionView c2{jid, num_parts};
   program.plans.push_back(plan);
@@ -100,7 +99,6 @@ TEST_F(TestWorker, RegisterProgram) {
   EXPECT_EQ(p.plans[0].plan_id, pid);
   EXPECT_EQ(p.plans[0].map_collection_id, mid);
   EXPECT_EQ(p.plans[0].join_collection_id, jid);
-  EXPECT_EQ(p.plans[0].with_collection_id, wid);
   ASSERT_EQ(p.collections.size(), 2); 
   EXPECT_EQ(p.collections[0].collection_id, mid);
   EXPECT_EQ(p.collections[0].num_partition, num_parts);

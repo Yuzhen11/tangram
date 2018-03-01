@@ -69,6 +69,7 @@ TEST_F(TestLoader, Load) {
   EXPECT_EQ(finished_block.node_id, node.id);
   EXPECT_EQ(finished_block.qid, qid);
   EXPECT_EQ(finished_block.hostname, node.hostname);
+  EXPECT_EQ(finished_block.collection_id, collection_id);
   auto part = partition_manager->Get(collection_id, block_id)->partition;
   auto* p = static_cast<SeqPartition<std::string>*>(part.get());
   auto v = p->GetStorage();

@@ -17,7 +17,8 @@ int main(int argc, char** argv) {
   auto browser = std::make_shared<HDFSBrowser>(namenode, port);
 
   Assigner assigner(sender, browser);
-  int num_blocks = assigner.Load(url, {{"proj5", 0}}, 1);
+  int collection_id = 0;
+  int num_blocks = assigner.Load(collection_id, url, {{"proj5", 0}}, 1);
   LOG(INFO) << "blocks number: " << num_blocks;
 
   for (int i = 0; i < num_blocks; ++ i) {

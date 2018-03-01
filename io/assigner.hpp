@@ -25,7 +25,7 @@ class Assigner {
   ~Assigner() = default;
 
   // public api:
-  int Load(std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots);
+  int Load(int collection_id, std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots);
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
   bool Done();
@@ -34,7 +34,7 @@ class Assigner {
   }
 
   void InitBlocks(std::string url);
-  void Assign(std::pair<std::string, int> slave);
+  void Assign(int collection_id, std::pair<std::string, int> slave);
   std::string DebugStringLocalityMap();
   std::string DebugStringBlocks();
   std::string DebugStringFinishedBlocks();
@@ -53,6 +53,7 @@ class Assigner {
   std::map<int, std::pair<std::string, size_t>> assigned_blocks_;
   
   // finished blocks
+  // part_id/block_id: <url, offset, node_id>
   std::map<int, std::tuple<std::string, size_t, int>> finished_blocks_;
 
   int block_id_ = 0;

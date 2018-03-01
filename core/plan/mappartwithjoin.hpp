@@ -41,6 +41,7 @@ struct MapPartWithJoin {
     plan.map_collection_id = map_collection.id;
     plan.join_collection_id = join_collection.id;
     plan.with_collection_id = with_collection.id;
+    plan.num_iter = num_iter;
     return plan;
   }
 
@@ -84,6 +85,7 @@ struct MapPartWithJoin {
   Collection<T1> map_collection;
   Collection<T2> join_collection;
   Collection<T3> with_collection;
+  int num_iter = 1;
 
   MapPartWithFuncT mappartwith;
   JoinFuncT join;

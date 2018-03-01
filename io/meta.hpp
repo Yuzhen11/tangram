@@ -36,6 +36,7 @@ struct FinishedBlock {
   int node_id;
   int qid;
   std::string hostname;
+  int collection_id;
 
   std::string DebugString() const {
     std::stringstream ss;
@@ -43,15 +44,16 @@ struct FinishedBlock {
     ss << ", node_id: " << node_id;
     ss << ", qid: " << qid;
     ss << ", hostname: " << hostname;
+    ss << ", collection_id: " << collection_id;
     return ss.str();
   }
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const FinishedBlock& b) {
-    stream << b.block_id << b.node_id << b.qid << b.hostname;
+    stream << b.block_id << b.node_id << b.qid << b.hostname << b.collection_id;
     return stream;
   }
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, FinishedBlock& b) {
-    stream >> b.block_id >> b.node_id >> b.qid >> b.hostname;
+    stream >> b.block_id >> b.node_id >> b.qid >> b.hostname >> b.collection_id;
     return stream;
   }
 };

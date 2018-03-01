@@ -45,12 +45,13 @@ class Scheduler : public Actor {
   void Run() {
     TryLoad();
     load_done_promise_.get_future().get();
-    LOG(INFO) << "load finish";
+    LOG(INFO) << "[Scheduler] Finish loading " << program_.load_plans.size() << " collections";
     TryDistribute();
     distribute_done_promise_.get_future().get();
-    LOG(INFO) << "distributefinish";
+    LOG(INFO) << "[Scheduler] Finish distributing" << program_.builder.size() << " collections";
 
     // init the partitions
+    // TODO
     for (auto c : program_.collections) {
       c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
       LOG(INFO) << "[Scheduler] collection: " << c.DebugString();
@@ -129,8 +130,10 @@ class Scheduler : public Actor {
 
   int load_count_ = 0;
   int distribute_count_ = 0;
-  int distribute_part_count_ = 0;
   int distribute_part_expected_ = 0;
+
+  // collection_id, part_id, node_id
+  std::map<int, std::map<int, int>> distribute_map_;
 };
 
 }  // namespace xyz

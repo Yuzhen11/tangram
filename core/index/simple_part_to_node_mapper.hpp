@@ -12,6 +12,7 @@ namespace xyz {
 class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
  public:
   SimplePartToNodeMapper() = default;
+  SimplePartToNodeMapper(std::vector<int> v) : v_(std::move(v)) {}
 
   int GetNumParts() const {
     return v_.size();

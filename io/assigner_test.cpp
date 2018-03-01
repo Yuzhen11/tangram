@@ -47,13 +47,14 @@ TEST_F(TestAssigner, Load) {
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<FakeBrowser>();
   Assigner assigner(sender, browser);
-  assigner.Load("dummy", {{"node0", 0}, {"node1", 1}}, 1);
+  int collection_id = 0;
+  assigner.Load(collection_id, "dummy", {{"node0", 0}, {"node1", 1}}, 1);
   EXPECT_EQ(assigner.Done(), false);
-  FinishedBlock b0{0, 0, 0, "node0"};
+  FinishedBlock b0{0, 0, 0, "node0", collection_id};
   EXPECT_EQ(assigner.FinishBlock(b0), false);
-  FinishedBlock b1{1, 1, 0, "node1"};
+  FinishedBlock b1{1, 1, 0, "node1", collection_id};
   EXPECT_EQ(assigner.FinishBlock(b1), false);
-  FinishedBlock b2{2, 0, 0, "node0"};
+  FinishedBlock b2{2, 0, 0, "node0", collection_id};
   EXPECT_EQ(assigner.FinishBlock(b2), true);
 }
 

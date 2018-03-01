@@ -21,7 +21,7 @@ void Loader::Load(AssignedBlock block) {
     SArrayBinStream ctrl_bin, bin;
     ScheduleFlag flag = ScheduleFlag::kFinishBlock;
     ctrl_bin << flag;
-    FinishedBlock b{block.id, node_.id, qid_, node_.hostname};
+    FinishedBlock b{block.id, node_.id, qid_, node_.hostname, block.collection_id};
     bin << b;
     Message msg;
     msg.meta.sender = qid_;

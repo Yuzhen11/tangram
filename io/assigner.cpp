@@ -18,7 +18,7 @@ bool Assigner::FinishBlock(FinishedBlock block) {
     return true;
   } else {
     std::pair<std::string, int> slave{block.hostname, block.qid};
-    Assign(slave);
+    Assign(block.collection_id, slave);
     return false;
   }
 }
@@ -44,7 +44,7 @@ int Assigner::GetNumBlocks() {
 }
 
 // return num of blocks
-int Assigner::Load(std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots) {
+int Assigner::Load(int collection_id, std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots) {
   InitBlocks(url);
   num_finished_ = 0;
   num_assigned_ = 0;
@@ -56,13 +56,13 @@ int Assigner::Load(std::string url, std::vector<std::pair<std::string, int>> sla
   // TODO: use more scheduling sophisticatic algorithm
   for (auto slave: slaves) {
     for (int i = 0; i < num_slots; ++ i) {
-      Assign(slave);
+      Assign(collection_id, slave);
     }
   }
   return expected_num_finished_;
 }
 
-void Assigner::Assign(std::pair<std::string, int> slave) {
+void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   if (blocks_.empty()) {
     return;
   }
@@ -84,7 +84,7 @@ void Assigner::Assign(std::pair<std::string, int> slave) {
   assigned_block.url = block.first;
   assigned_block.offset = block.second;
   assigned_block.id = block_id_ ++;
-  assigned_block.collection_id = 0;  // TODO
+  assigned_block.collection_id = collection_id;
   bin << assigned_block;
   Message msg;
   msg.meta.sender = 0;

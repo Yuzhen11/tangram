@@ -101,11 +101,38 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
   LOG(INFO) << "[Scheduler] FinishBlock";
   bool done = assigner_->FinishBlock(block);
   if (done) {
-    // TODO
     auto blocks = assigner_->GetFinishedBlocks();
-    // TODO: update collection map
+    // construct the collection view
+    std::vector<int> part_to_node(blocks.size());
+    for (int i = 0; i < part_to_node.size(); ++ i) {
+      CHECK(blocks.find(i) != blocks.end()) << "unknown block id " << i;
+      part_to_node[i] = std::get<2>(blocks[i]);
+    }
+    CollectionView cv;
+    cv.collection_id = block.collection_id;
+    cv.mapper = SimplePartToNodeMapper(part_to_node);
+    cv.num_partition = cv.mapper.GetNumParts();
+    collection_map_[cv.collection_id] = cv;
+
     load_count_ += 1;
     TryLoad();
+  }
+}
+
+void Scheduler::TryLoad() {
+  if (load_count_ == program_.load_plans.size()) {
+    load_done_promise_.set_value();
+  } else {
+    auto lp = program_.load_plans[load_count_];
+    std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
+    std::transform(
+      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
+      [] (Node const& node){
+      return std::make_pair(node.hostname, node.id);
+      });  
+    CHECK(assigner_);
+    int num_blocks = assigner_->Load(lp.load_collection_id, lp.url, assigned_nodes, 1);
+    LOG(INFO) << "[Scheduler] Loading the " << distribute_count_ << " collection";
   }
 }
 
@@ -113,9 +140,20 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
   LOG(INFO) << "[Scheduler] FinishDistribute";
   int collection_id, part_id, node_id;
   bin >> collection_id >> part_id >> node_id;
-  // TODO store the succeed parts.
-  distribute_part_count_ += 1;
-  if (distribute_part_count_ == distribute_part_expected_) {
+  distribute_map_[collection_id][part_id] = node_id;
+  if (distribute_map_[collection_id].size() == distribute_part_expected_) {
+    // construct the collection view
+    std::vector<int> part_to_node(distribute_part_expected_);
+    for (int i = 0; i < part_to_node.size(); ++ i) {
+      CHECK(distribute_map_[collection_id].find(i) != distribute_map_[collection_id].end());
+      part_to_node[i] = distribute_map_[collection_id][i];
+    }
+    CollectionView cv;
+    cv.collection_id = collection_id;
+    cv.mapper = SimplePartToNodeMapper(part_to_node);
+    cv.num_partition = cv.mapper.GetNumParts();
+    collection_map_[collection_id] = cv;
+
     distribute_count_ += 1;
     TryDistribute();
   }
@@ -126,7 +164,6 @@ void Scheduler::TryDistribute() {
     distribute_done_promise_.set_value();
   } else {
     auto builder = program_.builder[distribute_count_];
-    distribute_part_count_ = 0;
     distribute_part_expected_ = builder.num_partition;
     // round-robin
     int node_index = 0;
@@ -145,22 +182,7 @@ void Scheduler::TryDistribute() {
       node_index += 1;
       node_index %= nodes_.size();
     }
-  }
-}
-
-void Scheduler::TryLoad() {
-  if (load_count_ == program_.load_plans.size()) {
-    load_done_promise_.set_value();
-  } else {
-    auto lp = program_.load_plans[load_count_];
-    std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
-    std::transform(
-      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
-      [] (Node const& node){
-      return std::make_pair(node.hostname, node.id);
-      });  
-    CHECK(assigner_);
-    int num_blocks = assigner_->Load(lp.url, assigned_nodes, 1);
+    LOG(INFO) << "[Scheduler] Distributing the " << distribute_count_ << " collection";
   }
 }
 

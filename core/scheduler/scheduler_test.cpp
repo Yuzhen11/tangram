@@ -37,9 +37,8 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   const int pid = 0;
   const int mid = 1;
   const int jid = 2;
-  const int wid = -1;
   const int num_parts = 10;
-  PlanSpec plan{pid, mid, jid, wid};
+  PlanSpec plan{pid, mid, jid};
   CollectionView c1{mid, num_parts};
   CollectionView c2{jid, num_parts};
   program.plans.push_back(plan);
