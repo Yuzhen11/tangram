@@ -89,7 +89,9 @@ class JoinTracker {
   bool FinishAll() {
     std::lock_guard<std::mutex> lk(mu);
     // LOG(INFO) << DebugString();
-    CHECK(tracker.size() == num_local_part_);
+    if (tracker.size() < num_local_part_) {
+      return false;
+    }
     for (auto kv: tracker) {
       if (kv.second.finished.size() < num_upstream_part_) {
         return false;
