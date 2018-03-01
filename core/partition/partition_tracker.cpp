@@ -1,5 +1,6 @@
 #include "core/partition/partition_tracker.hpp"
 #include "core/queue_node_map.hpp"
+#include "core/scheduler/control.hpp"
 
 namespace xyz {
 
@@ -14,6 +15,15 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
   unfinished_map_parts_ = unassigned_map_parts_;
   int num_local_part = partitions_->GetNumLocalParts(plan_.join_collection_id);
   int num_upstream_part = collection_map_->GetNumParts(plan_.map_collection_id);
+
+  // if no map partition
+  if (parts.empty()) {
+    SendMapFinish();
+  }
+  // if no join partition
+  if (num_local_part == 0) {
+    SendJoinFinish();
+  }
 
   // set the map/join tracker
   map_tracker_.reset(new MapTracker);
@@ -64,15 +74,7 @@ void PartitionTracker::FinishMap(int part_id, std::shared_ptr<VersionedPartition
   std::lock_guard<std::mutex> lk(mu_);
   unfinished_map_parts_.erase(part_id);
   if (unfinished_map_parts_.empty()) {
-    // send a message to worker
-    Message msg;
-    msg.meta.sender = GetJoinActorQid(node_id_);
-    msg.meta.recver = GetWorkerQid(node_id_);
-    msg.meta.flag = Flag::kOthers;
-    SArrayBinStream ctrl_bin, bin;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    sender_->Send(msg);
+    SendMapFinish();
   }
   if (pending_join_.find(part_id) != pending_join_.end()) {
     auto pending_work = pending_join_[part_id];
@@ -135,16 +137,36 @@ void PartitionTracker::FinishJoin(int part_id, int upstream_part_id) {
   std::lock_guard<std::mutex> lk(mu_);
   join_tracker_->Finish(part_id, upstream_part_id);
   if (join_tracker_->FinishAll()) {
-    // send a message to worker
-    Message msg;
-    msg.meta.sender = GetJoinActorQid(node_id_);
-    msg.meta.recver = GetWorkerQid(node_id_);
-    msg.meta.flag = Flag::kOthers;
-    SArrayBinStream ctrl_bin, bin;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    sender_->Send(msg);
+    SendJoinFinish();
   }
+}
+
+void PartitionTracker::SendMapFinish() {
+  // send a message to worker
+  Message msg;
+  msg.meta.sender = GetJoinActorQid(node_id_);
+  msg.meta.recver = GetWorkerQid(node_id_);
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, bin;
+  ctrl_bin << ScheduleFlag::kMapFinish;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  sender_->Send(msg);
+  LOG(INFO) << "Sending MapFinish";
+}
+
+void PartitionTracker::SendJoinFinish() {
+  // send a message to worker
+  Message msg;
+  msg.meta.sender = GetJoinActorQid(node_id_);
+  msg.meta.recver = GetWorkerQid(node_id_);
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, bin;
+  ctrl_bin << ScheduleFlag::kJoinFinish;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  sender_->Send(msg);
+  LOG(INFO) << "Sending JoinFinish";
 }
 
 }  // namespace xyz

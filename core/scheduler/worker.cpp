@@ -50,6 +50,14 @@ void Worker::Process(Message msg) {
       Exit();
       break;
     }
+    case ScheduleFlag::kMapFinish: {
+      MapFinish();
+      break;
+    }
+    case ScheduleFlag::kJoinFinish: {
+      JoinFinish();
+      break;
+    }
     default: CHECK(false);
   }
 }
@@ -87,6 +95,12 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 
 void Worker::Exit() {
   exit_promise_.set_value();
+}
+void Worker::MapFinish() {
+  LOG(INFO) << "[Worker] MapFinish";
+}
+void Worker::JoinFinish() {
+  LOG(INFO) << "[Worker] JoinFinish";
 }
 
 void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {

@@ -56,6 +56,9 @@ class PartitionTracker {
   void FinishMap(int part_id, std::shared_ptr<VersionedPartition> part);
   void StartJoin(int part_id, int upstream_part_id);
   void FinishJoin(int part_id, int upstream_part_id);
+
+  void SendMapFinish();
+  void SendJoinFinish();
  private:
   std::shared_ptr<PartitionManager> partitions_;
   PlanSpec plan_;

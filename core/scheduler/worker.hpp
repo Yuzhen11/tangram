@@ -73,6 +73,8 @@ class Worker : public Actor {
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
 
   void Exit();
+  void MapFinish();
+  void JoinFinish();
  private:
   EngineElem engine_elem_;
   std::shared_ptr<Loader> loader_;
