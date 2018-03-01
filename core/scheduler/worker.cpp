@@ -79,6 +79,7 @@ void Worker::RunDummy() {
 }
 
 void Worker::RunMap(SArrayBinStream bin) {
+  LOG(INFO) << "[Worker] [qid " << Qid() <<"] RunMap";
   int plan_id;
   bin >> plan_id;
   auto func = engine_elem_.function_store->GetMap(plan_id);

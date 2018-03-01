@@ -53,6 +53,7 @@ class Scheduler : public Actor {
     // init the partitions
     for (auto c : program_.collections) {
       c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
+      LOG(INFO) << "[Scheduler] collection: " << c.DebugString();
       collection_map_.insert({c.collection_id, c});
     }
 
@@ -85,6 +86,8 @@ class Scheduler : public Actor {
   void InitWorkersReply(SArrayBinStream bin);
 
   void RunDummy();
+
+  void RunMap();
 
   void Exit();
 

@@ -29,7 +29,7 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
   void BuildRandomMapFromNodeList(int num_parts, std::vector<int> nodes) {
     int num_nodes = nodes.size();
     v_.clear();
-    v_.reserve(num_parts);
+    v_.resize(num_parts);
     for (int i = 0; i < num_parts; ++ i) {
       v_[i] = nodes[rand() % num_nodes];
     }

@@ -15,32 +15,35 @@ DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
 namespace xyz {
 
 struct ObjT {
-  using KeyT = int;
+  using KeyT = std::string;
   using ValT = int;
   ObjT() = default;
   ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
-  int a;
+  KeyT a;
   int b;
 };
 
 void Run() {
   // 1. construct the plan
   int plan_id = 0;
-  Collection<ObjT> c1{1};
+  Collection<std::string> c1{1};
   int num_part = 1;
   Collection<ObjT> c2{2, num_part};
   c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
-  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
+  MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
 
-  std::vector<ObjT> data;
+  std::vector<std::string> data;
+  std::string word1 = "hh";
+  std::string word2 = "ww";
   for (int i = 0; i < 100; ++ i) {
-    data.push_back(ObjT(i));
+    data.push_back(word1);
+    data.push_back(word2);
   }
-  CollectionBuilder<ObjT> builder(c1, data);
+  CollectionBuilder<std::string> builder(c1, data);
 
-  plan.map = [](ObjT a) {
-    return std::pair<ObjT::KeyT, int>(a.Key(), 1);
+  plan.map = [](std::string word) {
+    return std::pair<std::string, int>(word, 1);
   };
   plan.join = [](ObjT* obj, int m) {
     obj->b += m;

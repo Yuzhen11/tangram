@@ -66,6 +66,7 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
 
 void Scheduler::StartScheduling() {
   RunDummy();
+  // RunMap();
   Exit();
 }
 
@@ -85,6 +86,13 @@ void Scheduler::Wait() {
 void Scheduler::RunDummy() {
   SArrayBinStream bin;
   SendToAllWorkers(ScheduleFlag::kDummy, bin);
+}
+
+void Scheduler::RunMap() {
+  SArrayBinStream bin;
+  CHECK_EQ(program_.plans.size(), 1);
+  bin << program_.plans[0].plan_id;
+  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
 void Scheduler::FinishBlock(SArrayBinStream bin) {
