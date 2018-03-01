@@ -10,6 +10,8 @@
 #include "core/partition/tracker.hpp"
 #include "core/executor/executor.hpp"
 #include "core/shuffle_meta.hpp"
+#include "comm/abstract_sender.hpp"
+#include "core/collection_map.hpp"
 
 namespace xyz {
 
@@ -24,9 +26,13 @@ struct JoinMeta {
  */
 class PartitionTracker {
  public:
-  PartitionTracker(std::shared_ptr<PartitionManager> partition_manager,
-                   std::shared_ptr<Executor> executor)
-      : partitions_(partition_manager), executor_(executor) {}
+  PartitionTracker(int node_id,
+                   std::shared_ptr<PartitionManager> partition_manager,
+                   std::shared_ptr<Executor> executor,
+                   std::shared_ptr<AbstractSender> sender,
+                   std::shared_ptr<CollectionMap> collection_map)
+      : node_id_(node_id), partitions_(partition_manager), executor_(executor), 
+        sender_(sender), collection_map_(collection_map) {}
 
   void SetPlan(PlanSpec plan);
   PlanSpec GetPlan() { return plan_; }
@@ -37,14 +43,14 @@ class PartitionTracker {
 
   // Called by join
   void RunJoin(JoinMeta join_meta);
-  void WaitAllJoin();
 
-  MapTracker* GetMapTracker() {
-    return &map_tracker_;
+  std::shared_ptr<MapTracker> GetMapTracker() {
+    return map_tracker_;
   }
-  JoinTracker* GetJoinTracker() {
-    return &join_tracker_;
+  std::shared_ptr<JoinTracker> GetJoinTracker() {
+    return join_tracker_;
   }
+  bool FinishAllJoin();
  private:
   void StartMap(int part_id);
   void FinishMap(int part_id, std::shared_ptr<VersionedPartition> part);
@@ -56,13 +62,18 @@ class PartitionTracker {
 
   std::condition_variable cond_;
   std::mutex mu_;
+  bool plan_set_ = false;
   std::set<int> unassigned_map_parts_;
   std::set<int> unfinished_map_parts_;
   std::map<int, std::vector<JoinMeta>> pending_join_;
-  JoinTracker join_tracker_;
-  MapTracker map_tracker_;
+
+  std::shared_ptr<JoinTracker> join_tracker_;
+  std::shared_ptr<MapTracker> map_tracker_;
 
   std::shared_ptr<Executor> executor_;
+  std::shared_ptr<AbstractSender> sender_;
+  std::shared_ptr<CollectionMap> collection_map_;
+  int node_id_;
 };
 
 }  // namespace

@@ -3,6 +3,8 @@
 #include "core/scheduler/collection_view.hpp"
 #include "core/abstract_collection_map.hpp"
 
+#include "glog/logging.h"
+
 namespace xyz {
 
 class CollectionMap : public AbstractCollectionMap {
@@ -10,6 +12,15 @@ class CollectionMap : public AbstractCollectionMap {
   void Init(std::unordered_map<int, CollectionView> collection_map){
     std::lock_guard<std::mutex> lk(mu_);
     collection_map_ = collection_map;
+  }
+  void Insert(CollectionView cv) {
+    std::lock_guard<std::mutex> lk(mu_);
+    collection_map_[cv.collection_id] = cv;
+  }
+  int GetNumParts(int cid) {
+    std::lock_guard<std::mutex> lk(mu_);
+    CHECK(collection_map_.find(cid) != collection_map_.end());
+    return collection_map_[cid].num_partition;
   }
   virtual int Lookup(int collection_id, int part_id) override {
     std::lock_guard<std::mutex> lk(mu_);

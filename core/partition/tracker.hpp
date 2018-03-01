@@ -1,9 +1,12 @@
 #pragma once
 
 #include <set>
+#include <sstream>
 
 #include "core/partition/task_timer.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
+
+#include "glog/logging.h"
 
 namespace xyz {
 
@@ -46,28 +49,71 @@ struct JoinPartTracker {
     running.erase(up_id);
     finished.insert(up_id);
   }
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "{ finished: " << finished.size();
+    ss << ", running: " << running.size();
+    ss << " }";
+    return ss.str();
+  }
   std::map<int, TaskTracker> tracker;  // upstream_part_id -> tracker
   std::set<int> running;
   std::set<int> finished;
 };
 
 // A node will hold some partitions.
-struct JoinTracker {
+class JoinTracker {
+ public:
+  JoinTracker(int num_local_part, int num_upstream_part) {
+    num_local_part_ = num_local_part;
+    num_upstream_part_ = num_upstream_part;
+  }
   void Add(int part_id, int up_id) {
+    std::lock_guard<std::mutex> lk(mu);
     tracker[part_id].Add(up_id);
   }
   bool Has(int part_id, int up_id) {
+    std::lock_guard<std::mutex> lk(mu);
     return tracker[part_id].Has(up_id);
   }
   void Run(int part_id, int up_id) {
+    std::lock_guard<std::mutex> lk(mu);
     CHECK(tracker.find(part_id) != tracker.end());
     tracker[part_id].Run(up_id);
   }
   void Finish(int part_id, int up_id) {
+    std::lock_guard<std::mutex> lk(mu);
     CHECK(tracker.find(part_id) != tracker.end());
     tracker[part_id].Finish(up_id);
   }
+  bool FinishAll() {
+    std::lock_guard<std::mutex> lk(mu);
+    // LOG(INFO) << DebugString();
+    CHECK(tracker.size() == num_local_part_);
+    for (auto kv: tracker) {
+      if (kv.second.finished.size() < num_upstream_part_) {
+        return false;
+      }
+    }
+    return true;
+  }
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "{ num_local_part_:" << num_local_part_;
+    ss << ", num_upstream_part_:" << num_upstream_part_;
+    ss << ", tracker size:" << tracker.size();
+    ss << ", tracker: ";
+    for (auto kv : tracker) {
+      ss << "<" << kv.first << ", " << kv.second.DebugString() << "> ";
+    }
+    ss << "}";
+    return ss.str();
+  }
+ private:
+  int num_local_part_;
+  int num_upstream_part_;
   std::map<int, JoinPartTracker> tracker;
+  std::mutex mu;
 };
 
 // MapTaskTracker is to record the progress of a map task
@@ -109,22 +155,33 @@ struct MapTaskTracker : public TaskTracker, public AbstractMapProgressTracker {
 
 // A node will have some map partition
 // TODO do we need to protect this structure?
-struct MapTracker {
+class MapTracker {
+ public:
   void Add(int part_id, int num_objs) {
+    std::lock_guard<std::mutex> lk(mu_);
     tracker.insert({part_id, std::make_shared<MapTaskTracker>(map_count, num_objs)});
     map_count += 1;
   }
   void Run(int part_id) {
+    std::lock_guard<std::mutex> lk(mu_);
     CHECK(tracker.find(part_id) != tracker.end());
     tracker[part_id]->Run();
   }
   void Finish(int part_id) {
+    std::lock_guard<std::mutex> lk(mu_);
     CHECK(tracker.find(part_id) != tracker.end());
     tracker[part_id]->Finish();
   }
+  std::shared_ptr<MapTaskTracker> GetTaskTracker(int part_id) {
+    std::lock_guard<std::mutex> lk(mu_);
+    CHECK(tracker.find(part_id) != tracker.end());
+    return tracker[part_id];
+  }
 
+ private:
   int map_count = 0;  // to record the creating order of the map tasks.
   std::map<int, std::shared_ptr<MapTaskTracker>> tracker;
+  std::mutex mu_;
 };
 
 }  // namespace xyz

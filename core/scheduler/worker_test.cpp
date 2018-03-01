@@ -23,19 +23,21 @@ EngineElem GetEngineElem() {
   const int num_threads = 1;
   const std::string namenode = "fake_namenode";
   const int port = 1000;
+  Node node;
+  node.id = 0;
   EngineElem engine_elem;
+  engine_elem.node = node;
   engine_elem.executor = std::make_shared<Executor>(num_threads);
   engine_elem.partition_manager = std::make_shared<PartitionManager>();
   engine_elem.collection_map = std::make_shared<CollectionMap>();
   engine_elem.function_store = std::make_shared<FunctionStore>(engine_elem.collection_map);
   engine_elem.intermediate_store = std::make_shared<SimpleIntermediateStore>();
+  engine_elem.sender = std::make_shared<SimpleSender>();
   engine_elem.partition_tracker = std::make_shared<PartitionTracker>(
-          engine_elem.partition_manager, engine_elem.executor);
+          node.id, engine_elem.partition_manager, engine_elem.executor, 
+          engine_elem.sender, engine_elem.collection_map);
   engine_elem.namenode = namenode;
   engine_elem.port = port;
-  Node node;
-  engine_elem.node = node;
-  engine_elem.sender = std::make_shared<SimpleSender>();
   return engine_elem;
 }
 
