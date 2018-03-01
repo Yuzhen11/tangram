@@ -8,7 +8,7 @@
 #include "core/partition/partition_manager.hpp"
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/plan/function_store.hpp"
-#include "core/intermediate/simple_intermediate_store.hpp"
+#include "core/intermediate/intermediate_store.hpp"
 #include "core/plan/plan_spec.hpp"
 
 #include "core/scheduler/worker.hpp"

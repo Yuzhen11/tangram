@@ -11,7 +11,6 @@ void Engine::Init(Engine::Config config) {
   engine_elem_.partition_manager = std::make_shared<PartitionManager>();
   engine_elem_.collection_map = std::make_shared<CollectionMap>();
   engine_elem_.function_store = std::make_shared<FunctionStore>(engine_elem_.collection_map);
-  engine_elem_.intermediate_store = std::make_shared<SimpleIntermediateStore>();
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
   config_ = config;
@@ -26,6 +25,7 @@ void Engine::Start() {
   engine_elem_.sender = std::make_shared<Sender>(-1, mailbox_.get());
   engine_elem_.node = mailbox_->my_node();
 
+  engine_elem_.intermediate_store = std::make_shared<IntermediateStore>(engine_elem_.sender);
   engine_elem_.partition_tracker = std::make_shared<PartitionTracker>(
           engine_elem_.node.id, engine_elem_.partition_manager, 
           engine_elem_.executor, engine_elem_.sender, engine_elem_.collection_map);
