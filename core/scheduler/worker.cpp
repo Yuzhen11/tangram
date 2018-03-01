@@ -58,6 +58,10 @@ void Worker::Process(Message msg) {
       JoinFinish();
       break;
     }
+    case ScheduleFlag::kDistribute: {
+      Distribute(bin);
+      break;
+    }
     default: CHECK(false);
   }
 }
@@ -91,6 +95,19 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   loader_->Load(block);
+}
+
+void Worker::Distribute(SArrayBinStream bin) {
+  LOG(INFO) << "[Worker] Distribute";
+  int part_id;
+  CollectionBuilderSpec builder;
+  bin >> part_id >> builder;
+  auto func = engine_elem_.function_store->GetCreatePartition(builder.collection_id);
+  auto part = func(builder.data, part_id, builder.num_partition);
+  engine_elem_.partition_manager->Insert(builder.collection_id, part_id, std::move(part));
+  SArrayBinStream reply_bin;
+  reply_bin << builder.collection_id << part_id << engine_elem_.node.id;
+  SendMsgToScheduler(ScheduleFlag::kFinishDistribute, reply_bin);
 }
 
 void Worker::Exit() {

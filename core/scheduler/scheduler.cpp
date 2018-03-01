@@ -26,6 +26,10 @@ void Scheduler::Process(Message msg) {
       FinishBlock(bin);
       break;
     }
+    case ScheduleFlag::kFinishDistribute: {
+      FinishDistribute(bin);
+      break;
+    }
     default: CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }
 }
@@ -94,6 +98,45 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
     // TODO: update collection map
     load_count_ += 1;
     TryLoad();
+  }
+}
+
+void Scheduler::FinishDistribute(SArrayBinStream bin) {
+  LOG(INFO) << "[Scheduler] FinishDistribute";
+  int collection_id, part_id, node_id;
+  bin >> collection_id >> part_id >> node_id;
+  // TODO store the succeed parts.
+  distribute_part_count_ += 1;
+  if (distribute_part_count_ == distribute_part_expected_) {
+    distribute_count_ += 1;
+    TryDistribute();
+  }
+}
+
+void Scheduler::TryDistribute() {
+  if (distribute_count_ == program_.builder.size()) {
+    distribute_done_promise_.set_value();
+  } else {
+    auto builder = program_.builder[distribute_count_];
+    distribute_part_count_ = 0;
+    distribute_part_expected_ = builder.num_partition;
+    // round-robin
+    int node_index = 0;
+    for (int i = 0; i < builder.num_partition; ++ i) {
+      Message msg;
+      msg.meta.sender = 0;
+      msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
+      msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin, bin;
+      ctrl_bin << ScheduleFlag::kDistribute;
+      bin << i << builder;
+      msg.AddData(ctrl_bin.ToSArray());
+      msg.AddData(bin.ToSArray());
+      sender_->Send(std::move(msg));
+
+      node_index += 1;
+      node_index %= nodes_.size();
+    }
   }
 }
 

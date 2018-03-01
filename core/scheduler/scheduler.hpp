@@ -46,6 +46,9 @@ class Scheduler : public Actor {
     TryLoad();
     load_done_promise_.get_future().get();
     LOG(INFO) << "load finish";
+    TryDistribute();
+    distribute_done_promise_.get_future().get();
+    LOG(INFO) << "distributefinish";
 
     // init the partitions
     for (auto c : program_.collections) {
@@ -93,8 +96,10 @@ class Scheduler : public Actor {
   void SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin);
 
   void FinishBlock(SArrayBinStream bin);
+  void FinishDistribute(SArrayBinStream bin);
  private:
   void TryLoad();
+  void TryDistribute();
  private:
   std::shared_ptr<AbstractSender> sender_;
 
@@ -116,9 +121,13 @@ class Scheduler : public Actor {
 
   std::thread scheduler_thread_;
   std::promise<void> load_done_promise_;
+  std::promise<void> distribute_done_promise_;
   std::promise<void> init_worker_reply_promise_;
 
   int load_count_ = 0;
+  int distribute_count_ = 0;
+  int distribute_part_count_ = 0;
+  int distribute_part_expected_ = 0;
 };
 
 }  // namespace xyz

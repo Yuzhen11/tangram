@@ -69,6 +69,7 @@ class Worker : public Actor {
   void RunSpeculativeMap();
 
   void LoadBlock(SArrayBinStream bin);
+  void Distribute(SArrayBinStream bin);
   
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
 
