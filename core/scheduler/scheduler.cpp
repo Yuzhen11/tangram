@@ -32,34 +32,15 @@ void Scheduler::Process(Message msg) {
 
 void Scheduler::RegisterProgram(SArrayBinStream bin) {
   if (!init_program_) {
+    init_program_ = true;
     bin >> program_;
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
-    CHECK_LE(program_.load_plans.size(), 1);
-    if (program_.load_plans.size() == 1) {
-      auto lp = program_.load_plans[0];
-      std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
-      std::transform(
-        nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
-        [] (Node const& node){
-        return std::make_pair(node.hostname, node.id);
-        });  
-      CHECK(assigner_);
-      int num_blocks = assigner_->Load(lp.url, assigned_nodes, 1);
-    } else {
-      load_done_promise_.set_value();
-    }
-    for (auto c : program_.collections) {
-      c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
-      collection_map_.insert({c.collection_id, c});
-    }
-    init_program_ = true;
-    // spawn the scheduler thread
-    LOG(INFO) << "[Scheduler] starting the scheduling thread";
-    scheduler_thread_ = std::thread([this]() { Run(); });
   }
   register_program_count_ += 1;
   if (register_program_count_ == nodes_.size()) {
-    register_program_promise_.set_value();
+    // spawn the scheduler thread
+    LOG(INFO) << "[Scheduler] all workers registerred, start the scheduling thread";
+    scheduler_thread_ = std::thread([this]() { Run(); });
   }
 }
 
@@ -111,10 +92,26 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
     // TODO
     auto blocks = assigner_->GetFinishedBlocks();
     // TODO: update collection map
-    load_done_promise_.set_value();
+    load_count_ += 1;
+    TryLoad();
   }
 }
 
+void Scheduler::TryLoad() {
+  if (load_count_ == program_.load_plans.size()) {
+    load_done_promise_.set_value();
+  } else {
+    auto lp = program_.load_plans[load_count_];
+    std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
+    std::transform(
+      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
+      [] (Node const& node){
+      return std::make_pair(node.hostname, node.id);
+      });  
+    CHECK(assigner_);
+    int num_blocks = assigner_->Load(lp.url, assigned_nodes, 1);
+  }
+}
 
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;

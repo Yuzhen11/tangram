@@ -43,10 +43,16 @@ class Scheduler : public Actor {
   void Wait();
 
   void Run() {
-    LOG(INFO) << "waiting for load";
+    TryLoad();
     load_done_promise_.get_future().get();
     LOG(INFO) << "load finish";
-    register_program_promise_.get_future().get();
+
+    // init the partitions
+    for (auto c : program_.collections) {
+      c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
+      collection_map_.insert({c.collection_id, c});
+    }
+
     LOG(INFO) << "[Scheduler] Received all RegisterProgram, start InitWorkers";
     InitWorkers();
     init_worker_reply_promise_.get_future().get();
@@ -88,6 +94,8 @@ class Scheduler : public Actor {
 
   void FinishBlock(SArrayBinStream bin);
  private:
+  void TryLoad();
+ private:
   std::shared_ptr<AbstractSender> sender_;
 
   std::vector<int> workers_;
@@ -108,8 +116,9 @@ class Scheduler : public Actor {
 
   std::thread scheduler_thread_;
   std::promise<void> load_done_promise_;
-  std::promise<void> register_program_promise_;
   std::promise<void> init_worker_reply_promise_;
+
+  int load_count_ = 0;
 };
 
 }  // namespace xyz
