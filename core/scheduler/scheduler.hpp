@@ -14,6 +14,7 @@
 #include "core/program_context.hpp"
 
 #include "io/assigner.hpp"
+#include "io/meta.hpp"
 
 #include "glog/logging.h"
 
@@ -43,25 +44,17 @@ class Scheduler : public Actor {
   void Wait();
 
   void Run() {
+    // TODO do we need to lock some functions as two threads may work on the same data.
     TryLoad();
     load_done_promise_.get_future().get();
     LOG(INFO) << "[Scheduler] Finish loading " << program_.load_plans.size() << " collections";
     TryDistribute();
     distribute_done_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish distributing" << program_.builder.size() << " collections";
+    LOG(INFO) << "[Scheduler] Finish distributing " << program_.builder.size() << " collections";
 
-    // init the partitions
-    // TODO
-    for (auto c : program_.collections) {
-      c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
-      LOG(INFO) << "[Scheduler] collection: " << c.DebugString();
-      collection_map_.insert({c.collection_id, c});
-    }
-
-    LOG(INFO) << "[Scheduler] Received all RegisterProgram, start InitWorkers";
     InitWorkers();
     init_worker_reply_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] All workers registered, start scheduling.";
+    LOG(INFO) << "[Scheduler] Finish initiating workers, start scheduling.";
     StartScheduling();
   }
 
@@ -101,9 +94,11 @@ class Scheduler : public Actor {
 
   void FinishBlock(SArrayBinStream bin);
   void FinishDistribute(SArrayBinStream bin);
+  void FinishJoin(SArrayBinStream bin);
  private:
   void TryLoad();
   void TryDistribute();
+  void TryRunPlan();
  private:
   std::shared_ptr<AbstractSender> sender_;
 
@@ -134,6 +129,10 @@ class Scheduler : public Actor {
 
   // collection_id, part_id, node_id
   std::map<int, std::map<int, int>> distribute_map_;
+  // collection_id, part_id, <url, offset, node_id>
+  std::map<int, std::map<int, StoredBlock>> stored_blocks_;
+
+  int program_count_ = 0;
 };
 
 }  // namespace xyz

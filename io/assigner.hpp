@@ -29,7 +29,7 @@ class Assigner {
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
   bool Done();
-  std::map<int, std::tuple<std::string, size_t, int>> GetFinishedBlocks() const {
+  std::map<int, StoredBlock> GetFinishedBlocks() const {
     return finished_blocks_;
   }
 
@@ -54,7 +54,7 @@ class Assigner {
   
   // finished blocks
   // part_id/block_id: <url, offset, node_id>
-  std::map<int, std::tuple<std::string, size_t, int>> finished_blocks_;
+  std::map<int, StoredBlock> finished_blocks_;
 
   int block_id_ = 0;
 

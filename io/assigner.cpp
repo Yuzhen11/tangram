@@ -10,7 +10,7 @@ bool Assigner::FinishBlock(FinishedBlock block) {
   auto url = assigned_blocks_[block.block_id].first;
   auto offset = assigned_blocks_[block.block_id].second;
   assigned_blocks_.erase(block.block_id);
-  std::tuple<std::string, size_t, int> b{url, offset, block.node_id};
+  StoredBlock b{url, offset, block.node_id};
   finished_blocks_.insert({block.block_id, b});
   num_finished_ += 1;
 
@@ -138,8 +138,7 @@ std::string Assigner::DebugStringFinishedBlocks() {
   ss << "finished block:\n";
   for (auto& kv : finished_blocks_) {
     ss << "block id: " << kv.first;
-    ss << " <" << std::get<0>(kv.second) << ", " << std::get<1>(kv.second) 
-        << "> on " << std::get<2>(kv.second);
+    ss << " " << kv.second.DebugString();
     ss << "\n";
   }
   return ss.str();

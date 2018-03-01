@@ -6,6 +6,19 @@
 
 namespace xyz {
 
+struct StoredBlock {
+  std::string url;
+  size_t offset;
+  int node_id;
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "url: " << url;
+    ss << ", offset: " << offset;
+    ss << ", node_id: " << node_id;
+    return ss.str();
+  }
+};
+
 struct AssignedBlock {
   std::string url;
   size_t offset;
