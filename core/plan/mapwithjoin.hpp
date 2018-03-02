@@ -4,28 +4,37 @@
 
 namespace xyz {
 
-template<typename T1, typename T2, typename MsgT, typename T3>
-struct MapWithJoin : public MapPartWithJoin<T1, T2, MsgT, T3> {
-  using MapWithFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&, TypedCache<T3>*)>;
-  using MapVecWithFuncT = std::function<std::vector<std::pair<typename T2::KeyT, MsgT>>(const T1&, TypedCache<T3>*)>;
+template<typename C1, typename C2, typename C3, typename ObjT1, typename ObjT2, typename ObjT3, typename MsgT>
+struct MapWithJoin;
+
+template<typename MsgT, typename C1, typename C2, typename C3>
+MapWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT> GetMapWithJoin(int plan_id, C1 c1, C2 c2, C3 c3) {
+  MapWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT> plan(plan_id, c1, c2, c3);
+  return plan;
+}
+
+template<typename C1, typename C2, typename C3, typename ObjT1, typename ObjT2, typename ObjT3, typename MsgT>
+struct MapWithJoin : public MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT> {
+  using MapWithFuncT = std::function<std::pair<typename ObjT2::KeyT, MsgT>(const ObjT1&, TypedCache<ObjT3>*)>;
+  using MapVecWithFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(const ObjT1&, TypedCache<ObjT3>*)>;
   using MapPartWithFuncT = 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractPartitionCache>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
 
-  MapWithJoin(int plan_id, Collection<T1> map_collection, 
-       Collection<T2> join_collection,
-       Collection<T3> with_collection) 
-      : MapPartWithJoin<T1, T2, MsgT, T3>(plan_id, map_collection, join_collection, with_collection) {
+  MapWithJoin(int plan_id, C1 map_collection, 
+       C2 join_collection,
+       C3 with_collection) 
+      : MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT>(plan_id, map_collection, join_collection, with_collection) {
   }
 
   void SetMapPartWith() {
     CHECK((mapwith != nullptr) ^ (mapvec_with != nullptr));
     // construct the mappartwith
-    this->mappartwith = [this](TypedPartition<T1>* p, 
+    this->mappartwith = [this](TypedPartition<ObjT1>* p, 
             AbstractMapProgressTracker* tracker,
             AbstractPartitionCache* cache) {
-      std::vector<std::pair<typename T2::KeyT, MsgT>> kvs;
+      std::vector<std::pair<typename ObjT2::KeyT, MsgT>> kvs;
       int i = 0;
       for (auto& elem : *p) {
         if (mapwith != nullptr) {
@@ -45,7 +54,7 @@ struct MapWithJoin : public MapPartWithJoin<T1, T2, MsgT, T3> {
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     SetMapPartWith();
-    MapPartWithJoin<T1, T2, MsgT, T3>::Register(function_store);
+    MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT>::Register(function_store);
   }
 
   MapWithFuncT mapwith;  // a (with c) -> b

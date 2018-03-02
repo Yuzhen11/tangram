@@ -42,13 +42,14 @@ void Run() {
     data.push_back(word1);
     data.push_back(word2);
   }
-  Collection<std::string> c1{1, 1, data};
+  Collection<std::string, SeqPartition<std::string>> c1{1, 1, data};
   int num_part = 1;
   Collection<ObjT> c2{2, num_part};
   c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
 
   int plan_id = 0;
-  MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
+  // MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
+  auto plan = GetMapJoin<int>(plan_id, c1, c2);
   plan.map = [](std::string word) {
     return std::pair<std::string, int>(word, 1);
   };

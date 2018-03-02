@@ -7,15 +7,16 @@
 #include "core/scheduler/collection_view.hpp"
 
 #include "core/index/abstract_key_to_part_mapper.hpp"
-#include "core/partition/seq_partition.hpp"
+#include "core/partition/indexed_seq_partition.hpp"
 
 #include <memory>
 
 namespace xyz {
 
-template<typename T>
+template<typename T, typename PartitionT = IndexedSeqPartition<T>>
 class Collection {
  public:
+  using ObjT = T;
   int id;
   int num_partition;
   std::vector<T> data;
@@ -38,7 +39,7 @@ class Collection {
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     function_store->AddCreatePartitionFunc(id, [](SArrayBinStream bin, int part_id, int num_part) {
-      auto part = std::make_shared<SeqPartition<T>>();
+      auto part = std::make_shared<PartitionT>();
       int i = 0;
       std::vector<T> vec;
       bin >> vec;

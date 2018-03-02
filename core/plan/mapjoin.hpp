@@ -16,24 +16,33 @@
 
 namespace xyz {
 
+template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT>
+struct MapJoin;
+
+template<typename MsgT, typename C1, typename C2>
+MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoin(int plan_id, C1 c1, C2 c2) {
+  MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> plan(plan_id, c1, c2);
+  return plan;
+}
+
 /*
  * Requires T2 to be in the form {T2::KeyT, T2::ValT}
  */
-template<typename T1, typename T2, typename MsgT>
-struct MapJoin : public MapPartJoin<T1, T2, MsgT>{
-  using MapFuncT = std::function<std::pair<typename T2::KeyT, MsgT>(const T1&)>;
-  using MapVecFuncT = std::function<std::vector<std::pair<typename T2::KeyT, MsgT>>(const T1&)>;
+template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT>
+struct MapJoin : public MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>{
+  using MapFuncT = std::function<std::pair<typename ObjT2::KeyT, MsgT>(const ObjT1&)>;
+  using MapVecFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(const ObjT1&)>;
 
-  MapJoin(int plan_id, Collection<T1> map_collection, Collection<T2> join_collection)
-      : MapPartJoin<T1, T2, MsgT>(plan_id, map_collection, join_collection) {
+  MapJoin(int plan_id, C1 map_collection, C2 join_collection)
+      : MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>(plan_id, map_collection, join_collection) {
   }
 
   void SetMapPart() {
     CHECK((map != nullptr) ^ (map_vec != nullptr));
     // construct the mappart
-    this->mappart = [this](TypedPartition<T1>* p, AbstractMapProgressTracker* tracker) {
+    this->mappart = [this](TypedPartition<ObjT1>* p, AbstractMapProgressTracker* tracker) {
       CHECK_NOTNULL(p);
-      std::vector<std::pair<typename T2::KeyT, MsgT>> kvs;
+      std::vector<std::pair<typename ObjT2::KeyT, MsgT>> kvs;
       int i = 0;
       for (auto& elem : *p) {
         if (map != nullptr) {
@@ -52,7 +61,7 @@ struct MapJoin : public MapPartJoin<T1, T2, MsgT>{
   }
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     SetMapPart();
-    MapPartJoin<T1, T2, MsgT>::Register(function_store);
+    MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>::Register(function_store);
   }
 
   MapFuncT map;  // a -> b

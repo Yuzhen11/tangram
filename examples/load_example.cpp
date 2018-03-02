@@ -30,8 +30,8 @@ void Run() {
   int plan_id = 0;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2};
-  MapJoin<ObjT, ObjT, int> plan(plan_id, c1, c2);
   LoadPlanSpec load_plan_spec(c1.id, FLAGS_url, "proj10", 9000);
+  auto plan = GetMapJoin<int>(plan_id, c1, c2);
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
   };
