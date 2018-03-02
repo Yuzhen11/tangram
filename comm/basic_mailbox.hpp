@@ -51,8 +51,7 @@ public:
   void DeregisterQueue(uint32_t queue_id);
 
   virtual void Start() = 0;
-
-  virtual void Stop();
+  void Stop();
 
   // return # of bytes sended
   virtual int Send(const Message &msg) override;
@@ -112,9 +111,10 @@ protected:
 
   // only used by scheduler (ps-lite put these in postoffice)
   std::mutex heartbeat_mu_;
+  std::thread heartbeat_thread_;
   std::unordered_map<int, time_t> heartbeats_;
-  // make it get from outside in the future
-  int heartbeat_timeout_ = 60;
+  // TODO: make it get from outside in the future
+  int heartbeat_timeout_ = 1;
   std::vector<int> GetDeadNodes(int timeout = 60);
 
   // start time of the node

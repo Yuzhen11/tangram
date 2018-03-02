@@ -34,6 +34,9 @@ void SchedulerMailbox::Start() {
     std::this_thread::sleep_for(std::chrono::milliseconds(1));
   }
 
+  // Check the heartbeats of workers and find out dead nodes
+  heartbeat_thread_ = std::thread(&SchedulerMailbox::CheckHeartbeat, this, heartbeat_timeout_);
+
   start_time_ = time(NULL);
   VLOG(2) << my_node_.DebugString() << " started";
 }
@@ -173,10 +176,25 @@ void SchedulerMailbox::UpdateID(Message *msg,
   }
 }
 
+void SchedulerMailbox::CheckHeartbeat(int time_out) {
+  while (ready_.load()) {
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+    if (!ready_.load())
+      break;
+
+    std::vector<int> deadnodes = GetDeadNodes(time_out);
+    if (!deadnodes.empty()) {
+      // TODO: start a new worker node
+      VLOG(1) << "Detected " << std::to_string(deadnodes.size()) << " deadnode";
+    }
+  }
+}
+
 void SchedulerMailbox::UpdateHeartbeat(int node_id) {
   time_t t = time(NULL);
   std::lock_guard<std::mutex> lk(heartbeat_mu_);
   heartbeats_[node_id] = t;
+  LOG(INFO) << "Heartbeat from node_id: " << std::to_string(node_id) << " time: " << std::to_string(t);
 }
 
 void SchedulerMailbox::Receiving() {

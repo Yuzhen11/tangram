@@ -10,12 +10,10 @@ public:
   ~WorkerMailbox();
 
   virtual void Start() override;
-  void Stop() override;
+  // Just for test
+  virtual void StopHeartbeat();
 
 private:
-  // heartbeat
-  std::thread heartbeat_thread_;
-
   virtual void Heartbeat();
   virtual void HandleBarrierMsg() override;
   virtual void HandleRegisterMsg(Message *msg, Node &recovery_node) override;

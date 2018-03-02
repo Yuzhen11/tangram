@@ -60,6 +60,7 @@ TEST_F(TestSchedulerMailbox, StartStop) {
     // Scheduler
     SchedulerMailbox mailbox(node, 1);
     mailbox.Start();
+    //std::this_thread::sleep_for(std::chrono::seconds(2));
     mailbox.Stop();
   });
   std::thread th2([=]() {
@@ -68,8 +69,8 @@ TEST_F(TestSchedulerMailbox, StartStop) {
     mailbox.Start();
     mailbox.Stop();
   });
-  th1.join();
   th2.join();
+  th1.join();
 }
 
 } // namespace

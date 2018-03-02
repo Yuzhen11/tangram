@@ -31,7 +31,7 @@ void WorkerMailbox::Start() {
 
   // bind
   Bind(my_node_, 40);
-  VLOG(2) << "Bind to " << my_node_.DebugString();
+  LOG(INFO) << "Bind to " << my_node_.DebugString();
 
   // connect to scheduler
   Connect(scheduler_node_);
@@ -62,20 +62,12 @@ void WorkerMailbox::Start() {
   heartbeat_thread_ = std::thread(&WorkerMailbox::Heartbeat, this);
   start_time_ = time(NULL);
 
-  VLOG(2) << my_node_.DebugString() << " started";
+  LOG(INFO) << my_node_.DebugString() << " started";
 }
-
-void WorkerMailbox::Stop() {
-  BasicMailbox::Stop();
-  heartbeat_thread_.join();
-}
-
-// heartbeat
-std::thread heartbeat_thread_;
 
 void WorkerMailbox::Heartbeat() {
   // heartbeat interval, make it self-defined in the future
-  const int interval = 0;
+  const int interval = 1;
   while (interval > 0 && ready_.load()) {
     std::this_thread::sleep_for(std::chrono::seconds(interval));
     if (!ready_.load())
@@ -91,6 +83,10 @@ void WorkerMailbox::Heartbeat() {
     msg.AddData(bin.ToSArray());
     Send(msg);
   }
+}
+
+void WorkerMailbox::StopHeartbeat() {
+  heartbeat_thread_.join();
 }
 
 void WorkerMailbox::HandleBarrierMsg() {

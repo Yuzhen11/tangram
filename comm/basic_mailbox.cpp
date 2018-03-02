@@ -55,6 +55,8 @@ void BasicMailbox::Stop() {
   // close sockets
   CloseSockets();
   LOG(INFO) << my_node_.DebugString() << " is stopped";
+
+  heartbeat_thread_.join();
 }
 
 // return # of bytes sended

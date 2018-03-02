@@ -11,6 +11,7 @@ public:
   virtual void Start() override;
 
 private:
+  void CheckHeartbeat(int time_out);
   void UpdateHeartbeat(int node_id);
   virtual void HandleBarrierMsg() override;
   virtual void HandleRegisterMsg(Message *msg, Node &recovery_node) override;
