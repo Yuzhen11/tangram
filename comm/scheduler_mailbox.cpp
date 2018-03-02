@@ -35,7 +35,7 @@ void SchedulerMailbox::Start() {
   }
 
   // Check the heartbeats of workers and find out dead nodes
-  heartbeat_thread_ = std::thread(&SchedulerMailbox::CheckHeartbeat, this, heartbeat_timeout_);
+  heartbeat_thread_ = std::thread(&SchedulerMailbox::CheckHeartbeat, this, kHeartbeatTimeout);
 
   start_time_ = time(NULL);
   VLOG(2) << my_node_.DebugString() << " started";
@@ -65,7 +65,7 @@ void SchedulerMailbox::HandleBarrierMsg() {
 
 void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   // reference:
-  auto dead_nodes = GetDeadNodes(heartbeat_timeout_);
+  auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
   std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
   UpdateID(msg, &dead_set, recovery_node);
 
@@ -111,7 +111,7 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
 
   else if (recovery_node.is_recovery) {
     VLOG(1) << "recovery_node.is_recovery == true";
-    auto dead_nodes = GetDeadNodes(heartbeat_timeout_);
+    auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
     std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
     // send back the recovery node
     Connect(recovery_node);
@@ -178,7 +178,7 @@ void SchedulerMailbox::UpdateID(Message *msg,
 
 void SchedulerMailbox::CheckHeartbeat(int time_out) {
   while (ready_.load()) {
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(kHeartbeatCheckInterval));
     if (!ready_.load())
       break;
 
@@ -194,7 +194,7 @@ void SchedulerMailbox::UpdateHeartbeat(int node_id) {
   time_t t = time(NULL);
   std::lock_guard<std::mutex> lk(heartbeat_mu_);
   heartbeats_[node_id] = t;
-  LOG(INFO) << "Heartbeat from node_id: " << std::to_string(node_id) << " time: " << std::to_string(t);
+  VLOG(1) << "Heartbeat from node_id: " << std::to_string(node_id) << " time: " << std::to_string(t);
 }
 
 void SchedulerMailbox::Receiving() {

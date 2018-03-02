@@ -17,7 +17,7 @@ bool Assigner::FinishBlock(FinishedBlock block) {
   if (num_finished_ == expected_num_finished_) {
     return true;
   } else {
-    std::pair<std::string, int> slave{block.hostname, block.qid};
+    std::pair<std::string, int> slave{block.hostname, block.node_id};
     Assign(block.collection_id, slave);
     return false;
   }

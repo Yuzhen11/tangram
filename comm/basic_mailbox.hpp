@@ -114,7 +114,10 @@ protected:
   std::thread heartbeat_thread_;
   std::unordered_map<int, time_t> heartbeats_;
   // TODO: make it get from outside in the future
-  int heartbeat_timeout_ = 1;
+  // in seconds
+  const int kHeartbeatTimeout = 1;
+  const int kHeartbeatReportInterval = 1; 
+  const int kHeartbeatCheckInterval = 1; 
   std::vector<int> GetDeadNodes(int timeout = 60);
 
   // start time of the node

@@ -67,6 +67,7 @@ int BasicMailbox::Send(const Message &msg) {
   auto it = senders_.find(recver_id);
   if (it == senders_.end()) {
     LOG(WARNING) << "there is no socket to node " << recver_id;
+    LOG(INFO) << msg.DebugString();
     return -1;
   }
   void *socket = it->second;

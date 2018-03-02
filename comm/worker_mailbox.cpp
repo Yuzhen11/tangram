@@ -66,10 +66,8 @@ void WorkerMailbox::Start() {
 }
 
 void WorkerMailbox::Heartbeat() {
-  // heartbeat interval, make it self-defined in the future
-  const int interval = 1;
-  while (interval > 0 && ready_.load()) {
-    std::this_thread::sleep_for(std::chrono::seconds(interval));
+  while (kHeartbeatReportInterval > 0 && ready_.load()) {
+    std::this_thread::sleep_for(std::chrono::seconds(kHeartbeatReportInterval));
     if (!ready_.load())
       break;
     Message msg;
@@ -95,7 +93,7 @@ void WorkerMailbox::HandleBarrierMsg() {
 
 void WorkerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   // reference:
-  auto dead_nodes = GetDeadNodes(heartbeat_timeout_);
+  auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
   std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
   UpdateID(msg, &dead_set, recovery_node);
 
