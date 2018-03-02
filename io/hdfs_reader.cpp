@@ -33,6 +33,7 @@ void HdfsReader::Init(std::string hdfs_namenode, int hdfs_namenode_port, std::st
   hdfsBuilderSetNameNode(builder, hdfs_namenode.c_str());
   hdfsBuilderSetNameNodePort(builder, hdfs_namenode_port);
   fs_ = hdfsBuilderConnect(builder);
+  CHECK(fs_);
   hdfsFreeBuilder(builder);
   InitBlocksize(fs_, url);
   data_ = new char[hdfs_block_size_];

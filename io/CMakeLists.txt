@@ -6,7 +6,10 @@ file(GLOB io-src-files
 	)
 
 if(LIBHDFS3_FOUND)
-    file(GLOB io-src-hdfs-files hdfs_browser.cpp hdfs_reader.cpp)
+    file(GLOB io-src-hdfs-files 
+        hdfs_browser.cpp 
+        hdfs_reader.cpp
+        hdfs_writer.cpp)
     list(APPEND io-src-files ${io-src-hdfs-files})
 endif(LIBHDFS3_FOUND)
 
@@ -14,14 +17,22 @@ add_library(io-objs OBJECT ${io-src-files})
 set_property(TARGET io-objs PROPERTY CXX_STANDARD 11)
 add_dependencies(io-objs ${external_project_dependencies})
 
-add_executable(HDFSAssignerMain hdfs_assigner_main.cpp)
-target_link_libraries(HDFSAssignerMain xyz)
-target_link_libraries(HDFSAssignerMain ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET HDFSAssignerMain PROPERTY CXX_STANDARD 11)
-add_dependencies(HDFSAssignerMain ${external_project_dependencies})
+if(LIBHDFS3_FOUND)
+    add_executable(HDFSAssignerMain hdfs_assigner_main.cpp)
+    target_link_libraries(HDFSAssignerMain xyz)
+    target_link_libraries(HDFSAssignerMain ${HUSKY_EXTERNAL_LIB})
+    set_property(TARGET HDFSAssignerMain PROPERTY CXX_STANDARD 11)
+    add_dependencies(HDFSAssignerMain ${external_project_dependencies})
+    
+    add_executable(HDFSReaderMain hdfs_reader_main.cpp)
+    target_link_libraries(HDFSReaderMain xyz)
+    target_link_libraries(HDFSReaderMain ${HUSKY_EXTERNAL_LIB})
+    set_property(TARGET HDFSReaderMain PROPERTY CXX_STANDARD 11)
+    add_dependencies(HDFSReaderMain ${external_project_dependencies})
 
-add_executable(HDFSReaderMain hdfs_reader_main.cpp)
-target_link_libraries(HDFSReaderMain xyz)
-target_link_libraries(HDFSReaderMain ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET HDFSReaderMain PROPERTY CXX_STANDARD 11)
-add_dependencies(HDFSReaderMain ${external_project_dependencies})
+    add_executable(HDFSWriterMain hdfs_writer_main.cpp)
+    target_link_libraries(HDFSWriterMain xyz)
+    target_link_libraries(HDFSWriterMain ${HUSKY_EXTERNAL_LIB})
+    set_property(TARGET HDFSWriterMain PROPERTY CXX_STANDARD 11)
+    add_dependencies(HDFSWriterMain ${external_project_dependencies})
+endif(LIBHDFS3_FOUND)
