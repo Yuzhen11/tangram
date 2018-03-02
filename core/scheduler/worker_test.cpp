@@ -74,8 +74,8 @@ TEST_F(TestWorker, RegisterProgram) {
   const int jid = 2;
   const int num_parts = 10;
   PlanSpec plan{pid, mid, jid};
-  CollectionView c1{mid, num_parts};
-  CollectionView c2{jid, num_parts};
+  CollectionSpec c1{mid, num_parts};
+  CollectionSpec c2{jid, num_parts};
   program.plans.push_back(plan);
   program.collections.push_back(c1);
   program.collections.push_back(c2);

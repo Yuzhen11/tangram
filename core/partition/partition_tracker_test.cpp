@@ -120,6 +120,7 @@ TEST_F(TestPartitionTracker, RunAllMap) {
     }
   });
   th.join();
+  auto msg = sender->Get();
 }
 
 TEST_F(TestPartitionTracker, RunAllMapAndJoin) {

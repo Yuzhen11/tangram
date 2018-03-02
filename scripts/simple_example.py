@@ -35,6 +35,6 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-dump_core = True
+dump_core = False
 launch_util(schedulerfile, progfile, hostfile, env_params, 
         common_params, scheduler_params, program_params, sys.argv, dump_core)

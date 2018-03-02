@@ -50,7 +50,7 @@ class Scheduler : public Actor {
     LOG(INFO) << "[Scheduler] Finish loading " << program_.load_plans.size() << " collections";
     TryDistribute();
     distribute_done_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish distributing " << program_.builder.size() << " collections";
+    LOG(INFO) << "[Scheduler] Finish distributing " << program_.collections.size() << " collections";
 
     InitWorkers();
     init_worker_reply_promise_.get_future().get();

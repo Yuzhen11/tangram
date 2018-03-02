@@ -1,5 +1,5 @@
 #include "core/scheduler/worker.hpp"
-#include "core/plan/plan_spec.hpp"
+#include "core/plan/collection_spec.hpp"
 #include "core/shuffle_meta.hpp"
 #include "core/queue_node_map.hpp"
 
@@ -105,13 +105,13 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 void Worker::Distribute(SArrayBinStream bin) {
   LOG(INFO) << "[Worker] Distribute";
   int part_id;
-  CollectionBuilderSpec builder;
-  bin >> part_id >> builder;
-  auto func = engine_elem_.function_store->GetCreatePartition(builder.collection_id);
-  auto part = func(builder.data, part_id, builder.num_partition);
-  engine_elem_.partition_manager->Insert(builder.collection_id, part_id, std::move(part));
+  CollectionSpec spec;
+  bin >> part_id >> spec;
+  auto func = engine_elem_.function_store->GetCreatePartition(spec.collection_id);
+  auto part = func(spec.data, part_id, spec.num_partition);
+  engine_elem_.partition_manager->Insert(spec.collection_id, part_id, std::move(part));
   SArrayBinStream reply_bin;
-  reply_bin << builder.collection_id << part_id << engine_elem_.node.id;
+  reply_bin << spec.collection_id << part_id << engine_elem_.node.id;
   SendMsgToScheduler(ScheduleFlag::kFinishDistribute, reply_bin);
 }
 

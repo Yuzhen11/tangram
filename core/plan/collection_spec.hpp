@@ -6,7 +6,7 @@
 
 namespace xyz {
 
-struct CollectionBuilderSpec {
+struct CollectionSpec {
   int collection_id;
   int num_partition;
   SArrayBinStream data;
@@ -20,12 +20,12 @@ struct CollectionBuilderSpec {
     return ss.str();
   }
 
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const CollectionBuilderSpec& s) {
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const CollectionSpec& s) {
     stream << s.collection_id << s.num_partition << s.data;
   	return stream;
   }
   
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, CollectionBuilderSpec& s) {
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, CollectionSpec& s) {
     stream >> s.collection_id >> s.num_partition >> s.data;
   	return stream;
   }

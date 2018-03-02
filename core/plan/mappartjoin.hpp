@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/collection.hpp"
+#include "core/plan/collection.hpp"
 
 #include "core/partition/abstract_partition.hpp"
 #include "core/map_output/partitioned_map_output.hpp"

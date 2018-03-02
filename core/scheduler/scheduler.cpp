@@ -54,12 +54,6 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
 
 void Scheduler::InitWorkers() {
   // init the partitions
-  for (auto c : program_.collections) {
-    if (collection_map_.find(c.collection_id) == collection_map_.end()) {
-      c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
-      collection_map_.insert({c.collection_id, c});
-    }
-  }
   for (auto kv: collection_map_) {
     LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
@@ -81,9 +75,9 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
 
 void Scheduler::StartScheduling() {
   // TODO
-  //RunDummy();
-  //Exit();
-  TryRunPlan();
+  RunDummy();
+  Exit();
+  // TryRunPlan();
 }
 
 void Scheduler::Exit() {
@@ -178,21 +172,21 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
 }
 
 void Scheduler::TryDistribute() {
-  if (distribute_count_ == program_.builder.size()) {
+  if (distribute_count_ == program_.collections.size()) {
     distribute_done_promise_.set_value();
   } else {
-    auto builder = program_.builder[distribute_count_];
-    distribute_part_expected_ = builder.num_partition;
+    auto collection = program_.collections[distribute_count_];
+    distribute_part_expected_ = collection.num_partition;
     // round-robin
     int node_index = 0;
-    for (int i = 0; i < builder.num_partition; ++ i) {
+    for (int i = 0; i < collection.num_partition; ++ i) {
       Message msg;
       msg.meta.sender = 0;
       msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
       msg.meta.flag = Flag::kOthers;
       SArrayBinStream ctrl_bin, bin;
       ctrl_bin << ScheduleFlag::kDistribute;
-      bin << i << builder;
+      bin << i << collection;
       msg.AddData(ctrl_bin.ToSArray());
       msg.AddData(bin.ToSArray());
       sender_->Send(std::move(msg));

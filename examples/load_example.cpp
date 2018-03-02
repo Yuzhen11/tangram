@@ -18,6 +18,7 @@ namespace xyz {
 struct ObjT {
   using KeyT = int;
   using ValT = int;
+  ObjT() = default;
   ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
   int a;
@@ -40,8 +41,8 @@ void Run() {
   ProgramContext program;
   program.plans.push_back(plan.GetPlanSpec());
   program.load_plans.push_back(load_plan_spec);
-  program.collections.push_back(c1.GetCollectionView());
-  program.collections.push_back(c2.GetCollectionView());
+  // program.collections.push_back(c1.GetSpec());
+  program.collections.push_back(c2.GetSpec());
 
   // 2. create engine and register the plan
   Engine::Config config;
@@ -60,6 +61,8 @@ void Run() {
   engine.RegisterProgram(program);
   // add related functions
   engine.AddFunc(plan);
+  // engine.AddFunc(c1);
+  engine.AddFunc(c2);
 
   // start the mailbox and start to receive messages
   engine.Start();

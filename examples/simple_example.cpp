@@ -1,6 +1,7 @@
 #include "core/program_context.hpp"
 #include "core/plan/mapjoin.hpp"
-#include "core/plan/collection_builder.hpp"
+// #include "core/plan/collection_builder.hpp"
+#include "core/plan/collection.hpp"
 #include "core/engine.hpp"
 
 #include "gflags/gflags.h"
@@ -22,17 +23,18 @@ struct ObjT {
   KeyT Key() const { return a; }
   KeyT a;
   int b;
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const ObjT& obj) {
+    stream << obj.a << obj.b;
+    return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, ObjT& obj) {
+    stream >> obj.a >> obj.b;
+    return stream;
+  }
 };
 
 void Run() {
   // 1. construct the plan
-  int plan_id = 0;
-  Collection<std::string> c1{1};
-  int num_part = 1;
-  Collection<ObjT> c2{2, num_part};
-  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
-  MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
-
   std::vector<std::string> data;
   std::string word1 = "hh";
   std::string word2 = "ww";
@@ -40,8 +42,13 @@ void Run() {
     data.push_back(word1);
     data.push_back(word2);
   }
-  CollectionBuilder<std::string> builder(c1, data);
+  Collection<std::string> c1{1, 1, data};
+  int num_part = 1;
+  Collection<ObjT> c2{2, num_part};
+  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
 
+  int plan_id = 0;
+  MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
   plan.map = [](std::string word) {
     return std::pair<std::string, int>(word, 1);
   };
@@ -49,10 +56,9 @@ void Run() {
     obj->b += m;
   };
   ProgramContext program;
-  program.builder.push_back(builder.GetSpec());
   program.plans.push_back(plan.GetPlanSpec());
-  program.collections.push_back(c1.GetCollectionView());
-  program.collections.push_back(c2.GetCollectionView());
+  program.collections.push_back(c1.GetSpec());
+  program.collections.push_back(c2.GetSpec());
 
   // 2. create engine and register the plan
   Engine::Config config;
@@ -71,7 +77,8 @@ void Run() {
   engine.RegisterProgram(program);
   // add related functions
   engine.AddFunc(plan);
-  engine.AddFunc(builder);
+  engine.AddFunc(c1);
+  engine.AddFunc(c2);
 
   // start the mailbox and start to receive messages
   engine.Start();
