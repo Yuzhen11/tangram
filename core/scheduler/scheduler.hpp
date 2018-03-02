@@ -81,7 +81,7 @@ class Scheduler : public Actor {
 
   void RunDummy();
 
-  void RunMap();
+  void RunMap(PlanSpec plan);
 
   void Exit();
 
@@ -132,7 +132,8 @@ class Scheduler : public Actor {
   // collection_id, part_id, <url, offset, node_id>
   std::map<int, std::map<int, StoredBlock>> stored_blocks_;
 
-  int program_count_ = 0;
+  int program_num_plans_finished_ = 0;
+  int num_workers_finish_a_plan_ = 0;
 };
 
 }  // namespace xyz

@@ -59,14 +59,16 @@ void Scheduler::InitWorkers() {
       c.mapper.BuildRandomMap(c.num_partition, nodes_.size());  // Build the PartToNodeMap
       collection_map_.insert({c.collection_id, c});
     }
-    LOG(INFO) << "[Scheduler] collection: " << c.DebugString();
+  }
+  for (auto kv: collection_map_) {
+    LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
 
   LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
+  LOG(INFO) << "[Scheduler] size: " << collection_map_.size();
   SArrayBinStream bin;
   bin << collection_map_;
-  SArrayBinStream ctrl_bin;
   SendToAllWorkers(ScheduleFlag::kInitWorkers, bin);
 }
 
@@ -79,9 +81,9 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
 
 void Scheduler::StartScheduling() {
   // TODO
-  RunDummy();
-  // RunMap();
-  Exit();
+  //RunDummy();
+  //Exit();
+  TryRunPlan();
 }
 
 void Scheduler::Exit() {
@@ -102,10 +104,11 @@ void Scheduler::RunDummy() {
   SendToAllWorkers(ScheduleFlag::kDummy, bin);
 }
 
-void Scheduler::RunMap() {
+void Scheduler::RunMap(PlanSpec plan) {
   SArrayBinStream bin;
-  CHECK_EQ(program_.plans.size(), 1);
-  bin << program_.plans[0].plan_id;
+  //CHECK_EQ(program_.plans.size(), 1);
+  //bin << program_.plans[0].plan_id;
+  bin << plan.plan_id;
   SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
@@ -202,17 +205,24 @@ void Scheduler::TryDistribute() {
 }
 
 void Scheduler::FinishJoin(SArrayBinStream bin) {
-  LOG(INFO) << "[Scheduler] FinishJoin";
-  // TODO
+  LOG(INFO) << "[Scheduler] FinishJoin (" << num_workers_finish_a_plan_ << "/" << num_workers_ << ")";
+  if (num_workers_finish_a_plan_ == num_workers_) {
+    num_workers_finish_a_plan_ = 0;
+    program_num_plans_finished_ += 1;
+    TryRunPlan();
+  } else {
+    num_workers_finish_a_plan_ += 1;
+  }
 }
 
 void Scheduler::TryRunPlan() {
-  if (program_count_ == program_.plans.size()) {
+  if (program_num_plans_finished_ == program_.plans.size()) {
     LOG(INFO) << "[Scheduler] Finish all plans";
     Exit();
   } else {
-    auto plan = program_.plans[program_count_];
-    // TODO
+    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_ + 1 << "/" << program_.plans.size() << ")";
+    auto plan = program_.plans[program_num_plans_finished_];
+    RunMap(plan);
   }
 }
 

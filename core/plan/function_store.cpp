@@ -1,6 +1,7 @@
 #include "core/plan/function_store.hpp"
 
 #include "glog/logging.h"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 
@@ -39,7 +40,7 @@ void FunctionStore::AddPartToIntermediate(int id, PartToOutput map) {
       Message msg;
       msg.meta.sender = 0;
       CHECK(collection_map_);
-      msg.meta.recver = collection_map_->Lookup(meta.collection_id, i);
+      msg.meta.recver = GetJoinActorQid(collection_map_->Lookup(meta.collection_id, i));
       msg.meta.flag = Flag::kOthers;
       SArrayBinStream ctrl_bin;
       meta.part_id = i;  // set the part_id here

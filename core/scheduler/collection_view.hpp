@@ -16,6 +16,7 @@ struct CollectionView {
     ss << "{ collection_id: " << collection_id;
     ss << ", num_partition: " << num_partition;
     ss << ", setup?: " << (mapper.GetNumParts() == num_partition ? "True":"False");
+    ss << ", mapper: " << mapper.DebugString();
     ss << "}";
     return ss.str();
   }

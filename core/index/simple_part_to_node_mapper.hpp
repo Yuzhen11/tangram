@@ -4,6 +4,7 @@
 #include <vector>
 #include <numeric>
 #include <set>
+#include <sstream>
 
 #include "core/index/abstract_part_to_node_mapper.hpp"
 
@@ -13,6 +14,14 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
  public:
   SimplePartToNodeMapper() = default;
   SimplePartToNodeMapper(std::vector<int> v) : v_(std::move(v)) {}
+
+  std::string DebugString() const {
+    std::stringstream ss;
+    for (int i = 0; i < v_.size(); ++ i) {
+      ss << i << ":" << v_[i] << " ";
+    }
+    return ss.str();
+  }
 
   int GetNumParts() const {
     return v_.size();
