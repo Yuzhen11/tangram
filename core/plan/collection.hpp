@@ -19,21 +19,36 @@ class Collection {
   using ObjT = T;
   int id;
   int num_partition;
+  CollectionSource source = CollectionSource::kOthers;
+  // from distribute
   std::vector<T> data;
+  // from hdfs file
+  std::string load_url;
+
   std::shared_ptr<AbstractKeyToPartMapper> mapper;
 
   Collection(int _id): Collection(_id, 1) {}
   Collection(int _id, int _num_part): 
     id(_id), num_partition(_num_part) {
   }
-  Collection(int _id, int _num_part, std::vector<T> _data)
-      : id(_id), num_partition(_num_part), data(_data) {}
+
+  void Distribute(std::vector<T> _data) {
+    source = CollectionSource::kDistribute;
+    data = _data;
+  }
+
+  void Load(std::string url) {
+    source = CollectionSource::kLoad;
+    load_url = url;
+  }
 
   CollectionSpec GetSpec() {
     CollectionSpec s;
     s.collection_id = id;
     s.num_partition = num_partition;
     s.data << data;
+    s.source = source;
+    s.load_url = load_url;
     return s;
   }
 

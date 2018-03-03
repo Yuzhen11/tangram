@@ -45,12 +45,10 @@ class Scheduler : public Actor {
 
   void Run() {
     // TODO do we need to lock some functions as two threads may work on the same data.
-    TryLoad();
-    load_done_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish loading " << program_.load_plans.size() << " collections";
-    TryDistribute();
-    distribute_done_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish distributing " << program_.collections.size() << " collections";
+    prepare_collection_count_ = -1;
+    PrepareNextCollection();
+    prepare_collection_promise_.get_future().get();
+    LOG(INFO) << "[Scheduler] Finish collections preparation";
 
     InitWorkers();
     init_worker_reply_promise_.get_future().get();
@@ -96,9 +94,10 @@ class Scheduler : public Actor {
   void FinishDistribute(SArrayBinStream bin);
   void FinishJoin(SArrayBinStream bin);
  private:
-  void TryLoad();
-  void TryDistribute();
+  void Load(CollectionSpec);
+  void Distribute(CollectionSpec);
   void TryRunPlan();
+  void PrepareNextCollection();
  private:
   std::shared_ptr<AbstractSender> sender_;
 
@@ -117,12 +116,10 @@ class Scheduler : public Actor {
   bool start_ = false;
 
   std::thread scheduler_thread_;
-  std::promise<void> load_done_promise_;
-  std::promise<void> distribute_done_promise_;
   std::promise<void> init_worker_reply_promise_;
 
-  int load_count_ = 0;
-  int distribute_count_ = 0;
+  int prepare_collection_count_ = 0;
+  std::promise<void> prepare_collection_promise_;
   int distribute_part_expected_ = 0;
 
   // collection_id, part_id, node_id

@@ -57,9 +57,6 @@ void Scheduler::InitWorkers() {
   for (auto kv: collection_map_) {
     LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
-  for (auto kv: collection_map_) {
-    LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
-  }
 
   LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
@@ -109,6 +106,26 @@ void Scheduler::RunMap(PlanSpec plan) {
   SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
+void Scheduler::PrepareNextCollection() {
+  // find next collection that needs to load/distribute
+  prepare_collection_count_ += 1;
+  if (prepare_collection_count_ == program_.collections.size()) {
+    prepare_collection_promise_.set_value();
+    return;
+  } else {
+    auto c = program_.collections[prepare_collection_count_];
+    if (c.source == CollectionSource::kLoad) {
+      LOG(INFO) << "[Scheduler] Loading collection: " << c.collection_id;
+      Load(c);
+    } else if (c.source == CollectionSource::kDistribute || c.source == CollectionSource::kOthers) {
+      LOG(INFO) << "[Scheduler] Distributing collection: " << c.collection_id;
+      Distribute(c);
+    } else {
+      CHECK(false) << c.DebugString();
+    }
+  }
+}
+
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
   bin >> block;
@@ -129,26 +146,19 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
     cv.num_partition = cv.mapper.GetNumParts();
     collection_map_[cv.collection_id] = cv;
 
-    load_count_ += 1;
-    TryLoad();
+    PrepareNextCollection();
   }
 }
 
-void Scheduler::TryLoad() {
-  if (load_count_ == program_.load_plans.size()) {
-    load_done_promise_.set_value();
-  } else {
-    auto lp = program_.load_plans[load_count_];
-    std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
-    std::transform(
-      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
-      [] (Node const& node){
-      return std::make_pair(node.hostname, node.id);
-      });  
-    CHECK(assigner_);
-    int num_blocks = assigner_->Load(lp.load_collection_id, lp.url, assigned_nodes, 1);
-    LOG(INFO) << "[Scheduler] Loading the " << distribute_count_ << " collection";
-  }
+void Scheduler::Load(CollectionSpec c) {
+  std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
+  std::transform(
+    nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
+    [] (Node const& node){
+    return std::make_pair(node.hostname, node.id);
+    });  
+  CHECK(assigner_);
+  int num_blocks = assigner_->Load(c.collection_id, c.load_url, assigned_nodes, 1);
 }
 
 void Scheduler::FinishDistribute(SArrayBinStream bin) {
@@ -169,35 +179,28 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
     cv.num_partition = cv.mapper.GetNumParts();
     collection_map_[collection_id] = cv;
 
-    distribute_count_ += 1;
-    TryDistribute();
+    PrepareNextCollection();
   }
 }
 
-void Scheduler::TryDistribute() {
-  if (distribute_count_ == program_.collections.size()) {
-    distribute_done_promise_.set_value();
-  } else {
-    auto collection = program_.collections[distribute_count_];
-    distribute_part_expected_ = collection.num_partition;
-    // round-robin
-    int node_index = 0;
-    for (int i = 0; i < collection.num_partition; ++ i) {
-      Message msg;
-      msg.meta.sender = 0;
-      msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
-      msg.meta.flag = Flag::kOthers;
-      SArrayBinStream ctrl_bin, bin;
-      ctrl_bin << ScheduleFlag::kDistribute;
-      bin << i << collection;
-      msg.AddData(ctrl_bin.ToSArray());
-      msg.AddData(bin.ToSArray());
-      sender_->Send(std::move(msg));
+void Scheduler::Distribute(CollectionSpec c) {
+  distribute_part_expected_ = c.num_partition;
+  // round-robin
+  int node_index = 0;
+  for (int i = 0; i < c.num_partition; ++ i) {
+    Message msg;
+    msg.meta.sender = 0;
+    msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
+    msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, bin;
+    ctrl_bin << ScheduleFlag::kDistribute;
+    bin << i << c;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    sender_->Send(std::move(msg));
 
-      node_index += 1;
-      node_index %= nodes_.size();
-    }
-    LOG(INFO) << "[Scheduler] Distributing the " << distribute_count_ << " collection";
+    node_index += 1;
+    node_index %= nodes_.size();
   }
 }
 

@@ -42,7 +42,8 @@ void Run() {
     data.push_back(word1);
     data.push_back(word2);
   }
-  Collection<std::string, SeqPartition<std::string>> c1{1, 1, data};
+  Collection<std::string, SeqPartition<std::string>> c1(1, 1);
+  c1.Distribute(data);
   int num_part = 1;
   Collection<ObjT> c2{2, num_part};
   c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);

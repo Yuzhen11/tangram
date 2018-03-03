@@ -1,6 +1,5 @@
 #include "core/program_context.hpp"
 #include "core/plan/mapjoin.hpp"
-#include "core/plan/load_plan_spec.hpp"
 #include "core/engine.hpp"
 
 #include "gflags/gflags.h"
@@ -30,7 +29,7 @@ void Run() {
   int plan_id = 0;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2};
-  LoadPlanSpec load_plan_spec(c1.id, FLAGS_url, "proj10", 9000);
+  c1.Load(FLAGS_url);
   auto plan = GetMapJoin<int>(plan_id, c1, c2);
   plan.map = [](ObjT a) {
     return std::pair<ObjT::KeyT, int>(a.Key(), 1);
@@ -40,8 +39,7 @@ void Run() {
   };
   ProgramContext program;
   // program.plans.push_back(plan.GetPlanSpec());
-  program.load_plans.push_back(load_plan_spec);
-  // program.collections.push_back(c1.GetSpec());
+  program.collections.push_back(c1.GetSpec());
   program.collections.push_back(c2.GetSpec());
 
   // 2. create engine and register the plan
