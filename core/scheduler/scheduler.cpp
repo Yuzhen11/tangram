@@ -205,12 +205,22 @@ void Scheduler::Distribute(CollectionSpec c) {
 }
 
 void Scheduler::FinishJoin(SArrayBinStream bin) {
-  LOG(INFO) << "[Scheduler] FinishJoin (" << num_workers_finish_a_plan_ + 1 << "/" << nodes_.size() << ")";
-  num_workers_finish_a_plan_ += 1;
+  //LOG(INFO) << "[Scheduler] FinishJoin:"
+  // << " num_workers_finish_a_plan_iteration_ (" << num_workers_finish_a_plan_iteration_ << ", " << nodes_.size() << ")"
+  //  << " num_plan_iteration_finished_ (" << num_plan_iteration_finished_ << ", " << program_.plans[program_num_plans_finished_].num_iter << ")"
+  //  << " program_num_plans_finished_ (" << program_num_plans_finished_ << ", " << program_.plans.size() << ")";
+
+  num_workers_finish_a_plan_iteration_ += 1;
   
-  if (num_workers_finish_a_plan_ == nodes_.size()) {
-    num_workers_finish_a_plan_ = 0;
-    program_num_plans_finished_ += 1;
+  if (num_workers_finish_a_plan_iteration_ == nodes_.size()) {
+    num_workers_finish_a_plan_iteration_ = 0;
+    num_plan_iteration_finished_ += 1;
+
+    if (num_plan_iteration_finished_ == program_.plans[program_num_plans_finished_].num_iter){
+      num_plan_iteration_finished_ = 0;
+      program_num_plans_finished_ += 1;
+    }
+
     TryRunPlan();
   }
 }

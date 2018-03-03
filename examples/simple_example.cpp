@@ -36,16 +36,17 @@ struct ObjT {
 void Run() {
   // 1. construct the plan
   std::vector<std::string> data;
-  std::string word1 = "hh";
-  std::string word2 = "ww";
-  for (int i = 0; i < 100; ++ i) {
-    data.push_back(word1);
-    data.push_back(word2);
+  for (int i = 0; i < 10; ++ i) {
+    data.push_back("a");
+    data.push_back("b");
+    data.push_back("c");
+    data.push_back("d");
+    data.push_back("e");
   }
-  Collection<std::string, SeqPartition<std::string>> c1(1, 1);
+  Collection<std::string, SeqPartition<std::string>> c1(1, 3);
   c1.Distribute(data);
-  int num_part = 1;
-  Collection<ObjT> c2{2, num_part};
+  int num_part = 10;
+  Collection<ObjT> c2{2, num_part}; // id, num_part
   c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
 
   int plan_id = 0;
@@ -56,9 +57,17 @@ void Run() {
   };
   plan.join = [](ObjT* obj, int m) {
     obj->b += m;
+    LOG(INFO) << "join result: " << obj->a << " " << obj->b;
   };
+  plan.combine = [](int m, int n){
+    //LOG(INFO) << "combine result: " << m + n;
+    return m + n;
+  };
+
   ProgramContext program;
-  program.plans.push_back(plan.GetPlanSpec());
+  auto plan_spec = plan.GetPlanSpec();
+  plan_spec.num_iter = 5;
+  program.plans.push_back(plan_spec);
   program.collections.push_back(c1.GetSpec());
   program.collections.push_back(c2.GetSpec());
 
