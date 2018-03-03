@@ -39,7 +39,7 @@ void Run() {
     obj->b += m;
   };
   ProgramContext program;
-  program.plans.push_back(plan.GetPlanSpec());
+  // program.plans.push_back(plan.GetPlanSpec());
   program.load_plans.push_back(load_plan_spec);
   // program.collections.push_back(c1.GetSpec());
   program.collections.push_back(c2.GetSpec());

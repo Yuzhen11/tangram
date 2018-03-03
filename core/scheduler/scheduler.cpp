@@ -213,11 +213,11 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
 }
 
 void Scheduler::TryRunPlan() {
-  if (program_num_plans_finished_ + 1 == program_.plans.size()) {
+  if (program_num_plans_finished_  == program_.plans.size()) {
     LOG(INFO) << "[Scheduler] Finish all plans";
     Exit();
   } else {
-    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_ + 1 << "/" << program_.plans.size() << ")";
+    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_ << "/" << program_.plans.size() << ")";
     auto plan = program_.plans[program_num_plans_finished_];
     RunMap(plan);
   }
