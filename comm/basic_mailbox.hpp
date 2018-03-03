@@ -49,26 +49,20 @@ public:
 
   void RegisterQueue(uint32_t queue_id, ThreadsafeQueue<Message> *const queue);
   void DeregisterQueue(uint32_t queue_id);
-
   virtual void Start() = 0;
   void Stop();
 
   // return # of bytes sended
   virtual int Send(const Message &msg) override;
-
   int Recv(Message *msg);
-
   void Barrier();
 
   // For testing only
   void BindAndConnect();
 
   void CloseSockets();
-
   void Connect(const Node &node);
-
   const Node &my_node() const;
-
   std::vector<Node> GetNodes();
 
 protected:
@@ -89,7 +83,6 @@ protected:
   // maps the id of node which is added later to the id of node
   // which is with the same ip:port and added first
   std::unordered_map<int, int> shared_node_mapping_;
-  const std::vector<int> GetNodeIDs();
 
   std::map<uint32_t, ThreadsafeQueue<Message> *const> queue_map_;
 
@@ -107,16 +100,8 @@ protected:
   void *receiver_ = nullptr;
   std::mutex mu_;
 
-  // only used by scheduler (ps-lite put these in postoffice)
-  std::mutex heartbeat_mu_;
+  // heartbeat
   std::thread heartbeat_thread_;
-  std::unordered_map<int, time_t> heartbeats_;
-  // TODO: make it get from outside in the future
-  // in seconds
-  const int kHeartbeatTimeout = 1;
-  const int kHeartbeatReportInterval = 1; 
-  const int kHeartbeatCheckInterval = 1; 
-  std::vector<int> GetDeadNodes(int timeout = 60);
 
   // start time of the node
   time_t start_time_;

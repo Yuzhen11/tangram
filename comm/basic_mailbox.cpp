@@ -16,7 +16,6 @@ SArrayBinStream &operator>>(xyz::SArrayBinStream &stream, Control &ctrl) {
   return stream;
 }
 
-
 BasicMailbox::BasicMailbox(Node scheduler_node, int num_workers)
     : scheduler_node_(scheduler_node), num_workers_(num_workers) {}
 
@@ -63,7 +62,8 @@ void BasicMailbox::Stop() {
 int BasicMailbox::Send(const Message &msg) {
   std::lock_guard<std::mutex> lk(mu_);
   // find the socket
-  int recver_id = msg.meta.flag == Flag::kOthers ? GetNodeId(msg.meta.recver) : msg.meta.recver;  // TODO
+  int recver_id = msg.meta.flag == Flag::kOthers ? GetNodeId(msg.meta.recver)
+                                                 : msg.meta.recver; // TODO
   auto it = senders_.find(recver_id);
   if (it == senders_.end()) {
     LOG(WARNING) << "there is no socket to node " << recver_id;
@@ -251,33 +251,4 @@ void BasicMailbox::Bind(const Node &node, int max_retry) {
       LOG(FATAL) << "bind to " + address + " failed: " << zmq_strerror(errno);
   }
 }
-
-const std::vector<int> BasicMailbox::GetNodeIDs() {
-  std::vector<int> temp;
-  for (auto it : connected_nodes_) {
-    temp.push_back(it.second);
-  }
-  return temp;
-}
-
-std::vector<int> BasicMailbox::GetDeadNodes(int timeout) {
-  std::vector<int> dead_nodes;
-  if (!ready_ || timeout == 0)
-    return dead_nodes;
-
-  time_t curr_time = time(NULL);
-  const auto nodes = GetNodeIDs();
-  {
-    std::lock_guard<std::mutex> lk(heartbeat_mu_);
-    for (int r : nodes) {
-      auto it = heartbeats_.find(r);
-      if ((it == heartbeats_.end() || it->second + timeout < curr_time) &&
-          start_time_ + timeout < curr_time) {
-        dead_nodes.push_back(r);
-      }
-    }
-  }
-  return dead_nodes;
-}
-
 } // namespace xyz

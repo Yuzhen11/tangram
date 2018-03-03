@@ -14,6 +14,7 @@ public:
   virtual void StopHeartbeat();
 
 private:
+  const int kHeartbeatReportInterval = 1;
   virtual void Heartbeat();
   virtual void HandleBarrierMsg() override;
   virtual void HandleRegisterMsg(Message *msg, Node &recovery_node) override;

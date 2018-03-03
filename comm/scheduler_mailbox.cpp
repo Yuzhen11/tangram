@@ -35,7 +35,8 @@ void SchedulerMailbox::Start() {
   }
 
   // Check the heartbeats of workers and find out dead nodes
-  heartbeat_thread_ = std::thread(&SchedulerMailbox::CheckHeartbeat, this, kHeartbeatTimeout);
+  heartbeat_thread_ =
+      std::thread(&SchedulerMailbox::CheckHeartbeat, this, kHeartbeatTimeout);
 
   start_time_ = time(NULL);
   VLOG(2) << my_node_.DebugString() << " started";
@@ -176,8 +177,28 @@ void SchedulerMailbox::UpdateID(Message *msg,
   }
 }
 
+std::vector<int> SchedulerMailbox::GetDeadNodes(int timeout) {
+  std::vector<int> dead_nodes;
+  if (!ready_ || timeout == 0)
+    return dead_nodes;
+
+  time_t curr_time = time(NULL);
+  const auto nodes = GetNodeIDs();
+  {
+    std::lock_guard<std::mutex> lk(heartbeat_mu_);
+    for (int r : nodes) {
+      auto it = heartbeats_.find(r);
+      if ((it == heartbeats_.end() || it->second + timeout < curr_time) &&
+          start_time_ + timeout < curr_time) {
+        dead_nodes.push_back(r);
+      }
+    }
+  }
+  return dead_nodes;
+}
+
 void SchedulerMailbox::CheckHeartbeat(int time_out) {
-  while (ready_.load()) {
+  while (ready_.load() && kHeartbeatCheckInterval > 0) {
     std::this_thread::sleep_for(std::chrono::seconds(kHeartbeatCheckInterval));
     if (!ready_.load())
       break;
@@ -194,7 +215,16 @@ void SchedulerMailbox::UpdateHeartbeat(int node_id) {
   time_t t = time(NULL);
   std::lock_guard<std::mutex> lk(heartbeat_mu_);
   heartbeats_[node_id] = t;
-  VLOG(1) << "Heartbeat from node_id: " << std::to_string(node_id) << " time: " << std::to_string(t);
+  VLOG(1) << "Heartbeat from node_id: " << std::to_string(node_id)
+          << " time: " << std::to_string(t);
+}
+
+const std::vector<int> SchedulerMailbox::GetNodeIDs() {
+  std::vector<int> temp;
+  for (auto it : connected_nodes_) {
+    temp.push_back(it.second);
+  }
+  return temp;
 }
 
 void SchedulerMailbox::Receiving() {
@@ -223,7 +253,8 @@ void SchedulerMailbox::Receiving() {
         UpdateHeartbeat(msg.meta.sender);
       }
     } else {
-      CHECK(queue_map_.find(msg.meta.recver) != queue_map_.end()) << msg.meta.recver;
+      CHECK(queue_map_.find(msg.meta.recver) != queue_map_.end())
+          << msg.meta.recver;
       queue_map_[msg.meta.recver]->Push(std::move(msg));
     }
   }

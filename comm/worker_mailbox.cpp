@@ -83,13 +83,9 @@ void WorkerMailbox::Heartbeat() {
   }
 }
 
-void WorkerMailbox::StopHeartbeat() {
-  heartbeat_thread_.join();
-}
+void WorkerMailbox::StopHeartbeat() { heartbeat_thread_.join(); }
 
-void WorkerMailbox::HandleBarrierMsg() {
-  barrier_finish_ = true;
-}
+void WorkerMailbox::HandleBarrierMsg() { barrier_finish_ = true; }
 
 void WorkerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   UpdateID(msg, recovery_node);
@@ -142,7 +138,8 @@ void WorkerMailbox::Receiving() {
         HandleRegisterMsg(&msg, recovery_node);
       }
     } else {
-      CHECK(queue_map_.find(msg.meta.recver) != queue_map_.end()) << msg.meta.recver;
+      CHECK(queue_map_.find(msg.meta.recver) != queue_map_.end())
+          << msg.meta.recver;
       queue_map_[msg.meta.recver]->Push(std::move(msg));
     }
   }

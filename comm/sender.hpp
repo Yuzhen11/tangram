@@ -7,14 +7,11 @@
 namespace xyz {
 
 class Sender : public AbstractSender, public Actor {
- public:
-  Sender(int qid, AbstractMailbox* mailbox) 
-      : Actor(qid), mailbox_(mailbox) {
+public:
+  Sender(int qid, AbstractMailbox *mailbox) : Actor(qid), mailbox_(mailbox) {
     Start();
   }
-  ~Sender() {
-    Stop();
-  }
+  ~Sender() { Stop(); }
 
   virtual void Send(Message msg) override;
   virtual void Process(Message msg) override;
