@@ -99,9 +99,12 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   LOG(INFO) << "[Worker] LoadBlock";
   AssignedBlock block;
   bin >> block;
-  loader_->Load(block, [this](SArrayBinStream bin) {
+  loader_->Load(block, 
+  [this](SArrayBinStream bin) {
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);
-  });
+  },
+  engine_elem_.function_store->GetCreatePartFromReader(block.collection_id)
+  );
 }
 
 void Worker::Distribute(SArrayBinStream bin) {
@@ -109,7 +112,7 @@ void Worker::Distribute(SArrayBinStream bin) {
   int part_id;
   CollectionSpec spec;
   bin >> part_id >> spec;
-  auto func = engine_elem_.function_store->GetCreatePartition(spec.collection_id);
+  auto func = engine_elem_.function_store->GetCreatePartFromBin(spec.collection_id);
   auto part = func(spec.data, part_id, spec.num_partition);
   engine_elem_.partition_manager->Insert(spec.collection_id, part_id, std::move(part));
   SArrayBinStream reply_bin;

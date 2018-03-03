@@ -31,9 +31,10 @@ class Collection {
     data_ = data;
   }
 
-  void Load(std::string url) {
+  void Load(std::string url, std::function<T(std::string&)> parse_line) {
     source_ = CollectionSource::kLoad;
     load_url_ = url;
+    parse_line_ = parse_line;
   }
   
   void SetMapper(std::shared_ptr<AbstractKeyToPartMapper> mapper) {
@@ -54,7 +55,26 @@ class Collection {
   }
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
-    function_store->AddCreatePartitionFunc(id_, [](SArrayBinStream bin, int part_id, int num_part) {
+    if (source_ == CollectionSource::kLoad) {
+      RegisterCreatePartFromReader(function_store);
+    } else {  // kDistribute and kOthers
+      RegisterCreatePartFromBin(function_store);
+    }
+  }
+
+  void RegisterCreatePartFromReader(std::shared_ptr<AbstractFunctionStore> function_store) {
+    function_store->AddCreatePartFromReaderFunc(id_, [this](std::shared_ptr<AbstractReader> reader) {
+      auto part = std::make_shared<PartitionT>();
+      while (reader->HasLine()) {
+        auto s = reader->GetLine();
+        part->Add(parse_line_(s));
+      }
+      return part;
+    });
+  }
+  
+  void RegisterCreatePartFromBin(std::shared_ptr<AbstractFunctionStore> function_store) {
+    function_store->AddCreatePartFromBinFunc(id_, [](SArrayBinStream bin, int part_id, int num_part) {
       auto part = std::make_shared<PartitionT>();
       int i = 0;
       std::vector<T> vec;
@@ -76,6 +96,8 @@ class Collection {
   std::vector<T> data_;
   // from hdfs file
   std::string load_url_;
+  std::function<T(std::string&)> parse_line_;
+
 
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
 

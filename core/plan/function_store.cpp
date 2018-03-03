@@ -22,9 +22,14 @@ const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
   return join_functions[id];
 }
 
-const FunctionStore::CreatePartitionFuncT& FunctionStore::GetCreatePartition(int id) {
-  CHECK(create_partition_func_.find(id) != create_partition_func_.end());
-  return create_partition_func_[id];
+const FunctionStore::CreatePartFromBinFuncT& FunctionStore::GetCreatePartFromBin(int id) {
+  CHECK(create_part_from_bin_.find(id) != create_part_from_bin_.end()) << id;
+  return create_part_from_bin_[id];
+}
+
+const FunctionStore::CreatePartFromReaderFuncT& FunctionStore::GetCreatePartFromReader(int id) {
+  CHECK(create_part_from_reader_.find(id) != create_part_from_reader_.end()) << id;
+  return create_part_from_reader_[id];
 }
 
 void FunctionStore::AddPartToIntermediate(int id, PartToOutput map) {
@@ -97,8 +102,12 @@ void FunctionStore::AddMapWith(int id, MapWith func) {
   }});
 }
 
-void FunctionStore::AddCreatePartitionFunc(int id, CreatePartitionFuncT func) {
-  create_partition_func_.insert({id, func});
+void FunctionStore::AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) {
+  create_part_from_bin_.insert({id, func});
+}
+
+void FunctionStore::AddCreatePartFromReaderFunc(int id, CreatePartFromReaderFuncT func) {
+  create_part_from_reader_.insert({id, func});
 }
 
 }  // namespaca xyz

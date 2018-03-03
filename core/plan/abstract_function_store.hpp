@@ -8,6 +8,7 @@
 #include "core/partition/abstract_partition.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
+#include "io/abstract_reader.hpp"
 
 namespace xyz { 
 
@@ -22,8 +23,10 @@ class AbstractFunctionStore {
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractPartitionCache>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
-  using CreatePartitionFuncT = std::function<std::shared_ptr<AbstractPartition>(
+  using CreatePartFromBinFuncT = std::function<std::shared_ptr<AbstractPartition>(
           SArrayBinStream bin, int part_id, int num_part)>;
+  using CreatePartFromReaderFuncT = std::function<std::shared_ptr<AbstractPartition>(
+          std::shared_ptr<AbstractReader>)>;
 
   ~AbstractFunctionStore(){}
   virtual void AddPartToIntermediate(int id, PartToOutput func) = 0;
@@ -32,7 +35,8 @@ class AbstractFunctionStore {
   virtual void AddJoinFunc(int id, JoinFuncT func) = 0;
   virtual void AddMapWith(int id, MapWith func) = 0;
 
-  virtual void AddCreatePartitionFunc(int id, CreatePartitionFuncT func) = 0;
+  virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) = 0;
+  virtual void AddCreatePartFromReaderFunc(int id, CreatePartFromReaderFuncT func) = 0;
 };
 
 }  // namespaca xyz

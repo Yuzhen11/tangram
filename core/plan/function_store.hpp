@@ -2,7 +2,6 @@
 
 #include <map>
 
-
 #include "core/plan/abstract_function_store.hpp"
 
 #include "core/map_output/map_output_storage.hpp"
@@ -23,7 +22,8 @@ class FunctionStore : public AbstractFunctionStore {
   using OutputsToBin = AbstractFunctionStore::OutputsToBin;
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
   using MapWith = AbstractFunctionStore::MapWith;
-  using CreatePartitionFuncT = AbstractFunctionStore::CreatePartitionFuncT;
+  using CreatePartFromBinFuncT = AbstractFunctionStore::CreatePartFromBinFuncT;
+  using CreatePartFromReaderFuncT = AbstractFunctionStore::CreatePartFromReaderFuncT;
 
   // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
@@ -49,7 +49,8 @@ class FunctionStore : public AbstractFunctionStore {
   const MapOutputToIntermediate& GetMapPart2(int id);
   const PartToIntermediate& GetMap(int id);
   const JoinFuncT& GetJoin(int id);
-  const CreatePartitionFuncT& GetCreatePartition(int id);
+  const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
+  const CreatePartFromReaderFuncT& GetCreatePartFromReader(int id);
 
   // Used by plan to register function.
   virtual void AddPartToIntermediate(int id, PartToOutput func) override;
@@ -57,7 +58,8 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddOutputsToBin(int id, OutputsToBin func) override;
   virtual void AddJoinFunc(int id, JoinFuncT func) override;
   virtual void AddMapWith(int id, MapWith func) override;
-  virtual void AddCreatePartitionFunc(int id, CreatePartitionFuncT func) override;
+  virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) override;
+  virtual void AddCreatePartFromReaderFunc(int id, CreatePartFromReaderFuncT func) override;
 
  private:
   std::map<int, PartToOutputManager> part_to_output_manager_;
@@ -66,7 +68,8 @@ class FunctionStore : public AbstractFunctionStore {
   std::map<int, JoinFuncT> join_functions;
   std::map<int, PartWithToIntermediate> partwith_to_intermediate_;
 
-  std::map<int, CreatePartitionFuncT> create_partition_func_;
+  std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;
+  std::map<int, CreatePartFromReaderFuncT> create_part_from_reader_;
 
   std::shared_ptr<AbstractCollectionMap> collection_map_;
 };

@@ -15,24 +15,33 @@ DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
 namespace xyz {
 
 struct ObjT {
-  using KeyT = int;
+  using KeyT = std::string;
   using ValT = int;
   ObjT() = default;
   ObjT(KeyT key) : a(key), b(0) {}
   KeyT Key() const { return a; }
-  int a;
+  KeyT a;
   int b;
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const ObjT& obj) {
+    stream << obj.a << obj.b;
+    return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, ObjT& obj) {
+    stream >> obj.a >> obj.b;
+    return stream;
+  }
 };
 
 void Run() {
   // 1. construct the plan
   int plan_id = 0;
-  Collection<ObjT> c1{1};
+  Collection<std::string, SeqPartition<std::string>> c1{1};
+  c1.Load(FLAGS_url, [](std::string& s) { return s; });
+
   Collection<ObjT> c2{2};
-  c1.Load(FLAGS_url);
   auto plan = GetMapJoin<int>(plan_id, c1, c2);
-  plan.map = [](ObjT a) {
-    return std::pair<ObjT::KeyT, int>(a.Key(), 1);
+  plan.map = [](const std::string& a) {
+    return std::pair<std::string, int>(a, 1);
   };
   plan.join = [](ObjT* obj, int m) {
     obj->b += m;
@@ -59,7 +68,7 @@ void Run() {
   engine.RegisterProgram(program);
   // add related functions
   engine.AddFunc(plan);
-  // engine.AddFunc(c1);
+  engine.AddFunc(c1);
   engine.AddFunc(c2);
 
   // start the mailbox and start to receive messages
