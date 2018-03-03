@@ -38,9 +38,11 @@ void Engine::Start() {
 
   // create worker actor
   const int worker_id = GetWorkerQid(engine_elem_.node.id);
-  // set hdfs reader 
-  auto reader = std::make_shared<HdfsReader>();
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, reader);
+  // set hdfs loader 
+  auto loader = std::make_shared<Loader>(worker_id, engine_elem_.executor,
+            engine_elem_.partition_manager, engine_elem_.namenode, engine_elem_.port,
+            engine_elem_.node, []() { return std::make_shared<HdfsReader>(); });
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, loader);
   worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
 

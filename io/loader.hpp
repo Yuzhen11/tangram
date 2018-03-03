@@ -3,7 +3,6 @@
 #include <mutex>
 #include <condition_variable>
 
-#include "comm/abstract_sender.hpp"
 #include "base/message.hpp"
 #include "base/node.hpp"
 #include "base/sarray_binstream.hpp"
@@ -17,15 +16,14 @@ namespace xyz {
 
 class Loader {
  public:
-  Loader(int qid, std::shared_ptr<AbstractSender> sender, 
-          std::shared_ptr<AbstractReader> reader,
-          std::shared_ptr<Executor> executor,
+  Loader(int qid, std::shared_ptr<Executor> executor,
           std::shared_ptr<PartitionManager> partition_manager,
           std::string namenode, int port,
-          Node node)
-      : qid_(qid), sender_(sender), reader_(reader), executor_(executor),
+          Node node, 
+          std::function<std::shared_ptr<AbstractReader>()> reader_getter)
+      : qid_(qid), executor_(executor),
         partition_manager_(partition_manager), namenode_(namenode), port_(port),
-        node_(node) {
+        node_(node), reader_getter_(reader_getter) {
   }
 
   ~Loader() {
@@ -33,10 +31,14 @@ class Loader {
     cond_.wait(lk, [this]() { return num_finished_ == num_added_; });
   }
 
-  void Load(AssignedBlock block);
+  // load and store as string
+  void Load(AssignedBlock block,
+            std::function<void(SArrayBinStream bin)> finish_handle);
+
+  void Load(AssignedBlock block,
+            std::function<void(SArrayBinStream bin)> finish_handle,
+            std::function<std::shared_ptr<AbstractPartition>(std::shared_ptr<AbstractReader>)> reader);
  private:
-  std::shared_ptr<AbstractSender> sender_;
-  std::shared_ptr<AbstractReader> reader_;
   std::shared_ptr<Executor> executor_;
   std::shared_ptr<PartitionManager> partition_manager_;
 
@@ -50,6 +52,7 @@ class Loader {
   int num_finished_ = 0;
   std::mutex mu_;
   std::condition_variable cond_;
+  std::function<std::shared_ptr<AbstractReader>()> reader_getter_;
 };
 
 }  // namespace xyz

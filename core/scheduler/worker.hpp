@@ -25,11 +25,8 @@ namespace xyz {
 
 class Worker : public Actor {
  public:
-  Worker(int qid, EngineElem engine_elem, std::shared_ptr<AbstractReader> reader): 
-      Actor(qid), engine_elem_(engine_elem) {
-    loader_ = std::make_shared<Loader>(qid, engine_elem_.sender, reader, engine_elem_.executor,
-            engine_elem_.partition_manager, engine_elem_.namenode, engine_elem_.port,
-            engine_elem_.node);
+  Worker(int qid, EngineElem engine_elem, std::shared_ptr<Loader> loader): 
+      Actor(qid), engine_elem_(engine_elem), loader_(loader) {
     Start();
   }
   virtual ~Worker() override {

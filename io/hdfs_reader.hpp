@@ -9,10 +9,17 @@ namespace xyz {
 
 class HdfsReader : public AbstractReader {
  public:
-  virtual std::vector<std::string> Read(std::string namenode, int port, 
-          std::string url, size_t offset) override;
+  ~HdfsReader() { delete [] data_; }
+  virtual std::vector<std::string> ReadBlock() override;
 
-  void Init(std::string hdfs_namenode, int hdfs_namenode_port, std::string url);
+  virtual void Init(std::string namenode, int port, 
+          std::string url, size_t offset) override;
+  virtual bool HasLine() override;
+  virtual std::string GetLine() override;
+  virtual int GetNumLineRead() override;
+
+ private:
+  void InitHdfs(std::string hdfs_namenode, int hdfs_namenode_port, std::string url);
 
   void InitBlocksize(hdfsFS fs, std::string url);
 
@@ -24,7 +31,7 @@ class HdfsReader : public AbstractReader {
 
   boost::string_ref fetch_next();
  private:
-  char* data_;
+  char* data_ = nullptr;
   hdfsFS fs_;
   size_t hdfs_block_size_;
 
@@ -35,6 +42,9 @@ class HdfsReader : public AbstractReader {
   boost::string_ref buffer_;
   std::string fn_;
   hdfsFile file_ = NULL;
+
+  boost::string_ref tmp_line_;
+  int tmp_line_count_ = 0;
 };
 
 }  // namespace xyz

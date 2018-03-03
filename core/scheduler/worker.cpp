@@ -99,7 +99,9 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   LOG(INFO) << "[Worker] LoadBlock";
   AssignedBlock block;
   bin >> block;
-  loader_->Load(block);
+  loader_->Load(block, [this](SArrayBinStream bin) {
+    SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);
+  });
 }
 
 void Worker::Distribute(SArrayBinStream bin) {

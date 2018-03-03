@@ -3,18 +3,37 @@
 
 namespace xyz {
 
-std::vector<std::string> HdfsReader::Read(std::string namenode, int port, 
+void HdfsReader::Init(std::string namenode, int port, 
           std::string url, size_t offset) {
-  Init(namenode, port, url);
+  InitHdfs(namenode, port, url);
 
   fn_ = url;
   offset_ = offset;
-  std::vector<std::string> ret;
-  boost::string_ref line;
-  int c = 0;
+  size_t offset_ = 0;
+  int l = 0;
+  int r = 0;
 
   bool success = fetch_new_block();
   CHECK(success);
+}
+bool HdfsReader::HasLine() {
+  return next(tmp_line_);
+}
+std::string HdfsReader::GetLine() {
+  tmp_line_count_ += 1;
+  if (tmp_line_count_ % 10000 == 0) {
+    LOG(INFO) << tmp_line_count_ << " lines read.";
+  }
+  return tmp_line_.to_string();
+}
+int HdfsReader::GetNumLineRead() {
+  return tmp_line_count_;
+}
+
+std::vector<std::string> HdfsReader::ReadBlock() {
+  std::vector<std::string> ret;
+  int c = 0;
+  boost::string_ref line;
   while (next(line)) {
     auto s = line.to_string();
     // LOG(INFO) << "Read: " << s;
@@ -28,7 +47,7 @@ std::vector<std::string> HdfsReader::Read(std::string namenode, int port,
   return ret;
 }
 
-void HdfsReader::Init(std::string hdfs_namenode, int hdfs_namenode_port, std::string url) {
+void HdfsReader::InitHdfs(std::string hdfs_namenode, int hdfs_namenode_port, std::string url) {
   struct hdfsBuilder* builder = hdfsNewBuilder();
   hdfsBuilderSetNameNode(builder, hdfs_namenode.c_str());
   hdfsBuilderSetNameNodePort(builder, hdfs_namenode_port);
@@ -36,6 +55,7 @@ void HdfsReader::Init(std::string hdfs_namenode, int hdfs_namenode_port, std::st
   CHECK(fs_);
   hdfsFreeBuilder(builder);
   InitBlocksize(fs_, url);
+  CHECK(data_ == nullptr);
   data_ = new char[hdfs_block_size_];
 }
 

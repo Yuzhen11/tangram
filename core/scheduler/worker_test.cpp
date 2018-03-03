@@ -3,21 +3,12 @@
 
 #include "worker.hpp"
 #include "comm/simple_sender.hpp"
+#include "io/fake_reader.hpp"
 
 namespace xyz {
 namespace {
 
 class TestWorker : public testing::Test {};
-
-struct FakeReader : public AbstractReader {
- public:
-  virtual std::vector<std::string> Read(std::string namenode, int port, 
-          std::string url, size_t offset) override {
-    VLOG(1) << "namenode: " << namenode << ", port: " << port
-        << ", url: " << url << ", offset: " << offset;
-    return {"a", "b", "c"};
-  }
-};
 
 EngineElem GetEngineElem() {
   const int num_threads = 1;
@@ -62,8 +53,10 @@ AssignedBlock GetAssignedBlock() {
 TEST_F(TestWorker, Create) {
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto reader = std::make_shared<FakeReader>();
-  Worker worker(qid, engine_elem, reader);
+  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  Worker worker(qid, engine_elem, loader);
 }
 
 TEST_F(TestWorker, RegisterProgram) {
@@ -83,8 +76,10 @@ TEST_F(TestWorker, RegisterProgram) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto reader = std::make_shared<FakeReader>();
-  Worker worker(qid, engine_elem, reader);
+  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  Worker worker(qid, engine_elem, loader);
   worker.SetProgram(program);
   worker.RegisterProgram();
 
@@ -115,8 +110,10 @@ TEST_F(TestWorker, InitWorkers) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto reader = std::make_shared<FakeReader>();
-  Worker worker(qid, engine_elem, reader);
+  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  Worker worker(qid, engine_elem, loader);
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -154,8 +151,10 @@ TEST_F(TestWorker, LoadBlock) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto reader = std::make_shared<FakeReader>();
-  Worker worker(qid, engine_elem, reader);
+  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  Worker worker(qid, engine_elem, loader);
   auto* q = worker.GetWorkQueue();
 
   // send request
@@ -192,8 +191,10 @@ TEST_F(TestWorker, Wait) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto reader = std::make_shared<FakeReader>();
-  Worker worker(qid, engine_elem, reader);
+  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  Worker worker(qid, engine_elem, loader);
   auto* q = worker.GetWorkQueue();
 
   std::thread th([=]() {
