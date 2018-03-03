@@ -47,7 +47,7 @@ void Run() {
   c1.Distribute(data);
   int num_part = 10;
   Collection<ObjT> c2{2, num_part}; // id, num_part
-  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
+  c2.SetMapper(std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part));
 
   int plan_id = 0;
   // MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);

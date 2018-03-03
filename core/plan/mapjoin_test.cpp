@@ -47,7 +47,7 @@ TEST_F(TestMapJoin, GetMapPartFunc) {
   int num_part = 1;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2, num_part};
-  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
+  c2.SetMapper(std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part));
   auto plan = GetMapJoin<int>(plan_id, c1, c2);
 
   plan.map = [](ObjT a) {
@@ -75,7 +75,7 @@ TEST_F(TestMapJoin, GetMapPartFuncVec) {
   int num_part = 1;
   Collection<ObjT> c1{1};
   Collection<ObjT> c2{2, num_part};
-  c2.mapper = std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part);
+  c2.SetMapper(std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(num_part));
   auto plan = GetMapJoin<int>(plan_id, c1, c2);
 
   plan.map_vec = [](ObjT a) {

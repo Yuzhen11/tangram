@@ -47,9 +47,9 @@ struct MapPartWithJoin {
   PlanSpec GetPlanSpec() {
     PlanSpec plan;
     plan.plan_id = plan_id;
-    plan.map_collection_id = map_collection.id;
-    plan.join_collection_id = join_collection.id;
-    plan.with_collection_id = with_collection.id;
+    plan.map_collection_id = map_collection.Id();
+    plan.join_collection_id = join_collection.Id();
+    plan.with_collection_id = with_collection.Id();
     plan.num_iter = num_iter;
     return plan;
   }
@@ -79,10 +79,10 @@ struct MapPartWithJoin {
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;
-      TypedCache<ObjT3> typed_cache(cache, with_collection.mapper, with_collection.id, version);
+      TypedCache<ObjT3> typed_cache(cache, with_collection.GetMapper(), with_collection.id, version);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
-      CHECK_NOTNULL(this->join_collection.mapper);
-      auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection.mapper);
+      CHECK_NOTNULL(this->join_collection.GetMapper());
+      auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection.GetMapper());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
       output->Add(mappartwith(p, tracker.get(), &typed_cache));

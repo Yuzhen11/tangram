@@ -35,8 +35,8 @@ struct MapPartJoin {
   PlanSpec GetPlanSpec() {
     PlanSpec plan;
     plan.plan_id = plan_id;
-    plan.map_collection_id = map_collection.id;
-    plan.join_collection_id = join_collection.id;
+    plan.map_collection_id = map_collection.Id();
+    plan.join_collection_id = join_collection.Id();
     plan.num_iter = num_iter;
     return plan;
   }
@@ -62,8 +62,8 @@ struct MapPartJoin {
     CHECK_NOTNULL(mappart);
     return [this](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
-      CHECK_NOTNULL(join_collection.mapper);
-      auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(join_collection.mapper);
+      CHECK_NOTNULL(join_collection.GetMapper());
+      auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(join_collection.GetMapper());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
       output->Add(mappart(p, tracker.get()));
