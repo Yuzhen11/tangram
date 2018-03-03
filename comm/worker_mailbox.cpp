@@ -92,10 +92,7 @@ void WorkerMailbox::HandleBarrierMsg() {
 }
 
 void WorkerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
-  // reference:
-  auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
-  std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
-  UpdateID(msg, &dead_set, recovery_node);
+  UpdateID(msg, recovery_node);
 
   // worker connected to all other workers (get the info from scheduler)
   for (const auto &node : nodes_) {
@@ -109,9 +106,7 @@ void WorkerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   ready_ = true;
 }
 
-void WorkerMailbox::UpdateID(Message *msg,
-                             std::unordered_set<int> *deadnodes_set,
-                             Node &recovery_node) {
+void WorkerMailbox::UpdateID(Message *msg, Node &recovery_node) {
   // update my id
   SArrayBinStream bin;
   bin.FromSArray(msg->data[1]);

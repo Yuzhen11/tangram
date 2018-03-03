@@ -96,8 +96,6 @@ protected:
   // Handle different msgs
   virtual void HandleBarrierMsg() = 0;
   virtual void HandleRegisterMsg(Message *msg, Node &recovery_node) = 0;
-  virtual void UpdateID(Message *msg, std::unordered_set<int> *deadnodes_set,
-                        Node &recovery_node) = 0;
 
   // receiver
   std::thread receiver_thread_;
