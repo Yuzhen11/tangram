@@ -69,7 +69,7 @@ void Worker::Process(Message msg) {
 void Worker::InitWorkers(SArrayBinStream bin) {
   std::unordered_map<int, CollectionView> collection_map;
   bin >> collection_map;
-  LOG(INFO) << "[Worker] " << collection_map.size(); 
+  LOG(INFO) << "[Worker] collection map size: " << collection_map.size(); 
   for (auto kv: collection_map) {
     LOG(INFO) << kv.first << " " << kv.second.DebugString();
   }
@@ -123,6 +123,8 @@ void Worker::MapFinish() {
 }
 void Worker::JoinFinish() {
   LOG(INFO) << "[Worker] [qid "<< Qid() <<" ]"<<" JoinFinish";
+  SArrayBinStream bin;
+  SendMsgToScheduler(ScheduleFlag::kJoinFinish, bin);
 }
 
 void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {

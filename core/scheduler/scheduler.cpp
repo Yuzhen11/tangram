@@ -57,6 +57,9 @@ void Scheduler::InitWorkers() {
   for (auto kv: collection_map_) {
     LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
+  for (auto kv: collection_map_) {
+    LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
+  }
 
   LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
@@ -75,9 +78,9 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
 
 void Scheduler::StartScheduling() {
   // TODO
-  RunDummy();
-  Exit();
-  // TryRunPlan();
+  //RunDummy();
+  //Exit();
+  TryRunPlan();
 }
 
 void Scheduler::Exit() {
@@ -199,18 +202,18 @@ void Scheduler::TryDistribute() {
 }
 
 void Scheduler::FinishJoin(SArrayBinStream bin) {
-  LOG(INFO) << "[Scheduler] FinishJoin (" << num_workers_finish_a_plan_ << "/" << num_workers_ << ")";
-  if (num_workers_finish_a_plan_ == num_workers_) {
+  LOG(INFO) << "[Scheduler] FinishJoin (" << num_workers_finish_a_plan_ + 1 << "/" << nodes_.size() << ")";
+  num_workers_finish_a_plan_ += 1;
+  
+  if (num_workers_finish_a_plan_ == nodes_.size()) {
     num_workers_finish_a_plan_ = 0;
     program_num_plans_finished_ += 1;
     TryRunPlan();
-  } else {
-    num_workers_finish_a_plan_ += 1;
   }
 }
 
 void Scheduler::TryRunPlan() {
-  if (program_num_plans_finished_ == program_.plans.size()) {
+  if (program_num_plans_finished_ + 1 == program_.plans.size()) {
     LOG(INFO) << "[Scheduler] Finish all plans";
     Exit();
   } else {

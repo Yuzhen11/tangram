@@ -47,6 +47,7 @@ class Collection {
         if (i % num_part == part_id) {
           part->Add(elem);
         }
+        i += 1;
       }
       return part;
     });

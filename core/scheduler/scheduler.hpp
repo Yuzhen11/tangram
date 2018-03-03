@@ -102,10 +102,8 @@ class Scheduler : public Actor {
  private:
   std::shared_ptr<AbstractSender> sender_;
 
-  std::vector<int> workers_;
   int register_program_count_ = 0;
   int init_reply_count_ = 0;
-  int num_workers_ = 0;   // TODO
 
   bool init_program_ = false;
   ProgramContext program_;
