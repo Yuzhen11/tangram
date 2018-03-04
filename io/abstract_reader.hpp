@@ -10,16 +10,15 @@ public:
   virtual ~AbstractReader() {}
 
   // call Init before reading.
-  virtual void Init(std::string namenode, int port, std::string url,
-                    size_t offset) = 0;
+  virtual void Init(std::string url, size_t offset) = 0;
 
   // read block api.
   virtual std::vector<std::string> ReadBlock() = 0;
 
   /*
    * Usage:
-   * HdfsReader reader;
-   * reader.Init(namenode, port, url, offset);
+   * HdfsReader reader(namenode, port);
+   * reader.Init(url, offset);
    * while (reader.HasLine()) {
    *   auto s = reader.GetLine();
    * }

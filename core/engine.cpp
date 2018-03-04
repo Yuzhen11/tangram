@@ -43,15 +43,15 @@ void Engine::Start() {
   // create worker actor
   const int worker_id = GetWorkerQid(engine_elem_.node.id);
 
+  const std::string namenode = engine_elem_.namenode;
+  const int port = engine_elem_.port;
   // set hdfs loader
   auto loader = std::make_shared<Loader>(
       worker_id, engine_elem_.executor, engine_elem_.partition_manager,
-      engine_elem_.namenode, engine_elem_.port, engine_elem_.node,
-      []() { return std::make_shared<HdfsReader>(); });
+      engine_elem_.node,
+      [namenode, port]() { return std::make_shared<HdfsReader>(namenode, port); });
 
   // set hdfs writer
-  const std::string namenode = engine_elem_.namenode;
-  const int port = engine_elem_.port;
   auto writer = std::make_shared<WriterWrapper>(
       worker_id, engine_elem_.executor, engine_elem_.partition_manager, [namenode, port]() {
         return std::make_shared<HdfsWriter>(namenode, port);

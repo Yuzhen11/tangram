@@ -9,11 +9,12 @@ namespace xyz {
 
 class HdfsReader : public AbstractReader {
 public:
+  HdfsReader(std::string namenode, int port)
+      : namenode_(namenode), port_(port) {}
   ~HdfsReader() { delete[] data_; }
   virtual std::vector<std::string> ReadBlock() override;
 
-  virtual void Init(std::string namenode, int port, std::string url,
-                    size_t offset) override;
+  virtual void Init(std::string url, size_t offset) override;
   virtual bool HasLine() override;
   virtual std::string GetLine() override;
   virtual int GetNumLineRead() override;
@@ -47,6 +48,9 @@ private:
 
   boost::string_ref tmp_line_;
   int tmp_line_count_ = 0;
+
+  std::string namenode_;
+  int port_;
 };
 
 } // namespace xyz

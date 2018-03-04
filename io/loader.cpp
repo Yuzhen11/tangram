@@ -16,7 +16,7 @@ void Loader::Load(AssignedBlock block,
     // 1. read
     CHECK(reader_getter_);
     auto reader = reader_getter_();
-    reader->Init(namenode_, port_, block.url, block.offset);
+    reader->Init(block.url, block.offset);
     auto part = read_func(reader);
     partition_manager_->Insert(block.collection_id, block.id, std::move(part));
 

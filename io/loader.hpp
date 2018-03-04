@@ -18,10 +18,10 @@ class Loader {
 public:
   Loader(int qid, std::shared_ptr<Executor> executor,
          std::shared_ptr<PartitionManager> partition_manager,
-         std::string namenode, int port, Node node,
+         Node node,
          std::function<std::shared_ptr<AbstractReader>()> reader_getter)
       : qid_(qid), executor_(executor), partition_manager_(partition_manager),
-        namenode_(namenode), port_(port), node_(node),
+        node_(node),
         reader_getter_(reader_getter) {}
 
   ~Loader() {
@@ -42,9 +42,6 @@ public:
 private:
   std::shared_ptr<Executor> executor_;
   std::shared_ptr<PartitionManager> partition_manager_;
-
-  std::string namenode_;
-  int port_;
 
   int qid_;
   Node node_;

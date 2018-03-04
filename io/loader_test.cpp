@@ -20,13 +20,11 @@ TEST_F(TestLoader, Create) {
   const int qid = 0;
   auto executor = std::make_shared<Executor>(4);
   auto partition_manager = std::make_shared<PartitionManager>();
-  std::string namenode = "fake_namenode";
-  int port = 9000;
   Node node;
   node.id = 2;
   node.hostname = "proj10";
   auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, namenode, port, node,
+  Loader loader(qid, executor, partition_manager, node,
                 reader_getter);
 }
 
@@ -34,13 +32,11 @@ TEST_F(TestLoader, Load) {
   const int qid = 0;
   auto executor = std::make_shared<Executor>(4);
   auto partition_manager = std::make_shared<PartitionManager>();
-  std::string namenode = "fake_namenode";
-  int port = 9000;
   Node node;
   node.id = 2;
   node.hostname = "proj10";
   auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, namenode, port, node,
+  Loader loader(qid, executor, partition_manager, node,
                 reader_getter);
 
   const int block_id = 23;

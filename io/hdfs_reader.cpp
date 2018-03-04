@@ -3,9 +3,8 @@
 
 namespace xyz {
 
-void HdfsReader::Init(std::string namenode, int port, std::string url,
-                      size_t offset) {
-  InitHdfs(namenode, port, url);
+void HdfsReader::Init(std::string url, size_t offset) {
+  InitHdfs(namenode_, port_, url);
 
   fn_ = url;
   offset_ = offset;

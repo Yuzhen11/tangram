@@ -15,8 +15,8 @@ int main(int argc, char **argv) {
   // block api
   int c = 0;
   for (auto offset : offsets) {
-    HdfsReader reader;
-    reader.Init(namenode, port, url, offset);
+    HdfsReader reader(namenode, port);
+    reader.Init(url, offset);
     auto a = reader.ReadBlock();
     c += a.size();
   }
@@ -25,8 +25,8 @@ int main(int argc, char **argv) {
   // iterator api
   c = 0;
   for (auto offset : offsets) {
-    HdfsReader reader;
-    reader.Init(namenode, port, url, offset);
+    HdfsReader reader(namenode, port);
+    reader.Init(url, offset);
     while (reader.HasLine()) {
       auto s = reader.GetLine();
     }
