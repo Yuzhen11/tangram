@@ -21,7 +21,7 @@ void Engine::Start() {
   // create mailbox
   Node scheduler_node{0, config_.scheduler, config_.scheduler_port, false};
   mailbox_ =
-      std::make_shared<WorkerMailbox>(scheduler_node, config_.num_workers);
+      std::make_shared<WorkerMailbox>(scheduler_node);
   mailbox_->Start(); // start the mailbox so we can get the node
 
   engine_elem_.sender = std::make_shared<Sender>(-1, mailbox_.get());

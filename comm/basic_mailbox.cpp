@@ -16,8 +16,8 @@ SArrayBinStream &operator>>(xyz::SArrayBinStream &stream, Control &ctrl) {
   return stream;
 }
 
-BasicMailbox::BasicMailbox(Node scheduler_node, int num_workers)
-    : scheduler_node_(scheduler_node), num_workers_(num_workers) {}
+BasicMailbox::BasicMailbox(Node scheduler_node)
+    : scheduler_node_(scheduler_node) {}
 
 BasicMailbox::~BasicMailbox() {}
 

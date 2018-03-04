@@ -26,5 +26,7 @@ private:
   const std::vector<int> GetNodeIDs();
   void UpdateID(Message *msg, std::unordered_set<int> *deadnodes_set,
                 Node &recovery_node);
+
+  int num_workers_;
 };
 } // namespace xyz

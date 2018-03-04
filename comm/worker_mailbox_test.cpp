@@ -11,12 +11,12 @@ class TestWorkerMailbox : public testing::Test {};
 
 TEST_F(TestWorkerMailbox, Construct) {
   Node node{0, "localhost", 32145, false};
-  WorkerMailbox mailbox(node, 5);
+  WorkerMailbox mailbox(node);
 }
 
 TEST_F(TestWorkerMailbox, BindAndConnect) {
   Node node{0, "localhost", 32145, false};
-  WorkerMailbox mailbox(node, 5);
+  WorkerMailbox mailbox(node);
   mailbox.BindAndConnect();
   mailbox.CloseSockets();
 }

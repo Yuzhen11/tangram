@@ -2,8 +2,8 @@
 
 namespace xyz {
 
-WorkerMailbox::WorkerMailbox(Node scheduler_node, int num_workers)
-    : BasicMailbox(scheduler_node, num_workers) {}
+WorkerMailbox::WorkerMailbox(Node scheduler_node)
+    : BasicMailbox(scheduler_node) {}
 
 WorkerMailbox::~WorkerMailbox() {}
 

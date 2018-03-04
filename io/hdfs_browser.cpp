@@ -15,6 +15,8 @@ HDFSBrowser::HDFSBrowser(std::string hdfs_namenode, int port)
 
 std::vector<BlockInfo> HDFSBrowser::Browse(std::string url) {
   CHECK(fs_);
+  CHECK_EQ(hdfsExists(fs_, url.c_str()), 0) << "url: " << url << "does not exit in hdfs"
+          << " <namenode,port>:<" << hdfs_namenode_ << "," << hdfs_namenode_port_ << ">.";
   std::vector<BlockInfo> rets;
   int num_files;
   int dummy;

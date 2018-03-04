@@ -65,7 +65,7 @@ TEST_F(TestSchedulerMailbox, StartStop) {
   });
   std::thread th2([=]() {
     // Worker
-    WorkerMailbox mailbox(node, 1);
+    WorkerMailbox mailbox(node);
     mailbox.Start();
     mailbox.Stop();
   });

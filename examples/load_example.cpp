@@ -5,12 +5,13 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-DEFINE_int32(num_worker, -1, "The number of workers");
-DEFINE_string(scheduler, "proj10", "The host of scheduler");
-DEFINE_int32(scheduler_port, 9000, "The port of scheduler");
-DEFINE_string(url, "", "The url for hdfs file");
+DEFINE_string(scheduler, "", "The host of scheduler");
+DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "proj10", "The namenode of hdfs");
 DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
+DEFINE_int32(num_local_threads, 1, "# local_threads");
+
+DEFINE_string(url, "", "The url for hdfs file");
 
 namespace xyz {
 
@@ -53,10 +54,9 @@ void Run() {
 
   // 2. create engine and register the plan
   Engine::Config config;
-  config.num_workers = FLAGS_num_worker;
   config.scheduler = FLAGS_scheduler;
   config.scheduler_port = FLAGS_scheduler_port;
-  config.num_threads = 1;
+  config.num_threads = FLAGS_num_local_threads;
   config.namenode = FLAGS_hdfs_namenode;
   config.port = FLAGS_hdfs_port;
 
@@ -83,7 +83,6 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  CHECK_NE(FLAGS_num_worker, -1);
   CHECK(!FLAGS_scheduler.empty());
 
   xyz::Run();

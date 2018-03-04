@@ -3,7 +3,7 @@
 namespace xyz {
 
 SchedulerMailbox::SchedulerMailbox(Node scheduler_node, int num_workers)
-    : BasicMailbox(scheduler_node, num_workers) {}
+    : BasicMailbox(scheduler_node), num_workers_(num_workers) {}
 
 SchedulerMailbox::~SchedulerMailbox() {}
 

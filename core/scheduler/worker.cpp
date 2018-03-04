@@ -101,9 +101,9 @@ void Worker::RunMap(SArrayBinStream bin) {
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {
-  LOG(INFO) << "[Worker] LoadBlock";
   AssignedBlock block;
   bin >> block;
+  LOG(INFO) << "[Worker] LoadBlock: " << block.DebugString();
   reader_wrapper_->ReadBlock(block, 
   engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
   [this](SArrayBinStream bin) {
@@ -142,7 +142,10 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   );
 }
 
-void Worker::Exit() { exit_promise_.set_value(); }
+void Worker::Exit() { 
+  LOG(INFO) << "[Worker] " << engine_elem_.node.id << " Exit";
+  exit_promise_.set_value(); 
+}
 void Worker::MapFinish() {
   LOG(INFO) << "[Worker] [qid " << Qid() << " ]"
             << " MapFinish";

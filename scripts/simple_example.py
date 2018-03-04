@@ -13,7 +13,6 @@ common_params = {
     #"input" : "hdfs:///jasper/kdd12",
     "scheduler" : "proj10",
     "scheduler_port" : "33254",
-    "num_worker" : 5,
     #"url" : "/datasets/classification/kdd12-5blocks",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
@@ -23,6 +22,7 @@ program_params = {
 }
 
 scheduler_params = {
+    "num_worker" : 5,
 }
 
 env_params = (

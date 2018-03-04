@@ -6,7 +6,7 @@ namespace xyz {
 
 class WorkerMailbox : public BasicMailbox {
 public:
-  WorkerMailbox(Node scheduler_node, int num_workers);
+  WorkerMailbox(Node scheduler_node);
   ~WorkerMailbox();
 
   virtual void Start() override;

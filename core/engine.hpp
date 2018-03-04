@@ -25,7 +25,6 @@ namespace xyz {
 class Engine {
  public:
   struct Config {
-    int num_workers;
     std::string scheduler;
     int scheduler_port;
     int num_threads;
@@ -34,7 +33,6 @@ class Engine {
     std::string DebugString() const {
       std::stringstream ss;
       ss << " { ";
-      ss << "num workers: " << num_workers;
       ss << ", scheduler: " << scheduler;
       ss << ", scheduler_port: " << scheduler_port;
       ss << ", num_threads: " << num_threads;

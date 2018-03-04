@@ -44,7 +44,7 @@ inline void FreeData(void *data, void *hint) {
 
 class BasicMailbox : public AbstractMailbox {
 public:
-  BasicMailbox(Node scheduler_node, int num_workers);
+  BasicMailbox(Node scheduler_node);
   ~BasicMailbox();
 
   void RegisterQueue(uint32_t queue_id, ThreadsafeQueue<Message> *const queue);
@@ -75,7 +75,6 @@ protected:
 
   // all worker nodes
   std::vector<Node> nodes_;
-  int num_workers_;
 
   // node's address string (i.e. ip:port) -> node id
   // this map is updated when ip:port is received for the first time

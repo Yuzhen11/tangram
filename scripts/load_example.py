@@ -10,16 +10,18 @@ schedulerfile = "debug/SchedulerMain"
 common_params = {
     "scheduler" : "proj10",
     "scheduler_port" : "33254",
-    "num_worker" : 1,
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }
 
 program_params = {
     "url" : "/datasets/classification/kdd12-5blocks",
+    "num_local_threads" : 2
+    # "url" : "/datasets/classification/url_combined",
 }
 
 scheduler_params = {
+    "num_worker" : 5,
 }
 
 env_params = (

@@ -136,7 +136,7 @@ void Scheduler::PrepareNextCollection() {
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
   bin >> block;
-  LOG(INFO) << "[Scheduler] FinishBlock";
+  LOG(INFO) << "[Scheduler] FinishBlock: " << block.DebugString();
   bool done = assigner_->FinishBlock(block);
   if (done) {
     auto blocks = assigner_->GetFinishedBlocks();
