@@ -11,7 +11,7 @@ void Worker::Wait() {
 }
 
 void Worker::RegisterProgram() {
-  LOG(INFO) << "[Worker] RegisterProgram";
+  LOG(INFO) << WorkerInfo() << "RegisterProgram";
   CHECK(is_program_set_);
   ready_ = true;
 
@@ -74,19 +74,21 @@ void Worker::Process(Message msg) {
 void Worker::InitWorkers(SArrayBinStream bin) {
   std::unordered_map<int, CollectionView> collection_map;
   bin >> collection_map;
+  /*
   LOG(INFO) << "[Worker] collection map size: " << collection_map.size();
   for (auto kv : collection_map) {
     LOG(INFO) << kv.first << " " << kv.second.DebugString();
   }
+  */
   engine_elem_.collection_map->Init(collection_map);
   SArrayBinStream dummy_bin;
   SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
 }
 
-void Worker::RunDummy() { LOG(INFO) << "[Worker] RunDummy"; }
+void Worker::RunDummy() { LOG(INFO) << WorkerInfo() << "RunDummy"; }
 
 void Worker::RunMap(SArrayBinStream bin) {
-  LOG(INFO) << "[Worker] [qid " << Qid() << "] RunMap";
+  LOG(INFO) << WorkerInfo() << "RunMap";
   int plan_id;
   bin >> plan_id;
   auto func = engine_elem_.function_store->GetMap(plan_id);
@@ -103,7 +105,7 @@ void Worker::RunMap(SArrayBinStream bin) {
 void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
-  LOG(INFO) << "[Worker] LoadBlock: " << block.DebugString();
+  LOG(INFO) << WorkerInfo() << "LoadBlock: " << block.DebugString();
   reader_wrapper_->ReadBlock(block, 
   engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
   [this](SArrayBinStream bin) {
@@ -113,7 +115,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 }
 
 void Worker::Distribute(SArrayBinStream bin) {
-  LOG(INFO) << "[Worker] Distribute";
+  // LOG(INFO) << WorkerInfo() << "[Worker] Distribute";
   int part_id;
   CollectionSpec spec;
   bin >> part_id >> spec;
@@ -143,16 +145,14 @@ void Worker::CheckPoint(SArrayBinStream bin) {
 }
 
 void Worker::Exit() { 
-  LOG(INFO) << "[Worker] " << engine_elem_.node.id << " Exit";
+  LOG(INFO) << WorkerInfo() << "Exit";
   exit_promise_.set_value(); 
 }
 void Worker::MapFinish() {
-  LOG(INFO) << "[Worker] [qid " << Qid() << " ]"
-            << " MapFinish";
+  LOG(INFO) << WorkerInfo() << "MapFinish";
 }
 void Worker::JoinFinish() {
-  LOG(INFO) << "[Worker] [qid " << Qid() << " ]"
-            << " JoinFinish";
+  LOG(INFO) << WorkerInfo() << "JoinFinish";
   SArrayBinStream bin;
   SendMsgToScheduler(ScheduleFlag::kJoinFinish, bin);
 }

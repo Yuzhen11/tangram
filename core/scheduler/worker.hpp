@@ -76,6 +76,12 @@ public:
   void JoinFinish();
 
 private:
+  int Id() { return engine_elem_.node.id; }
+  std::string WorkerInfo() { 
+    std::stringstream ss;
+    ss << "[Worker " << Id() << "]: ";
+    return ss.str();
+  }
   EngineElem engine_elem_;
   std::shared_ptr<ReaderWrapper> reader_wrapper_;
   std::shared_ptr<WriterWrapper> writer_;

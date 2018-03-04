@@ -66,7 +66,6 @@ void Scheduler::InitWorkers() {
 
   LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
-  LOG(INFO) << "[Scheduler] size: " << collection_map_.size();
   SArrayBinStream bin;
   bin << collection_map_;
   SendToAllWorkers(ScheduleFlag::kInitWorkers, bin);

@@ -51,8 +51,10 @@ int Assigner::Load(int collection_id, std::string url,
   expected_num_finished_ = blocks_.size();
   // Need to ensure that there is no message coming before Load().
 
-  LOG(INFO) << "Assigning " << blocks_.size() << " paritition to "
-            << slaves.size() << " slaves";
+  LOG(INFO) << "Loading: " << url
+            << ", as collection: " << collection_id
+            << ", assigning " << blocks_.size() 
+            << " parititions to " << slaves.size() << " slaves";
   // TODO: use more scheduling sophisticatic algorithm
   for (auto slave : slaves) {
     for (int i = 0; i < num_slots; ++i) {

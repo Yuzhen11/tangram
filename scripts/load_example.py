@@ -16,7 +16,7 @@ common_params = {
 
 program_params = {
     "url" : "/datasets/classification/kdd12-5blocks",
-    "num_local_threads" : 2
+    "num_local_threads" : 2,
     # "url" : "/datasets/classification/url_combined",
 }
 
