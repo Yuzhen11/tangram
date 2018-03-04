@@ -43,7 +43,13 @@ TEST_F(TestWriterWrapper, Write) {
 
   ThreadsafeQueue<SArrayBinStream> q;
   writer.Write(0, 0, "/tmp/tmp/d.txt",
-               [&q](SArrayBinStream bin) { q.Push(bin); });
+               [](std::shared_ptr<AbstractPartition> p) { 
+                  SArrayBinStream bin;
+                  p->ToBin(bin);
+                  return bin;
+               },
+               [&q](SArrayBinStream bin) { q.Push(bin); }
+               );
   SArrayBinStream recv_bin;
   q.WaitAndPop(&recv_bin);
 }

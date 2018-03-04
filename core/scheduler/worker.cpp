@@ -105,10 +105,10 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   loader_->Load(block, 
+  engine_elem_.function_store->GetCreatePartFromReader(block.collection_id),
   [this](SArrayBinStream bin) {
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);
-  },
-  engine_elem_.function_store->GetCreatePartFromReader(block.collection_id)
+  }
   );
 }
 
@@ -130,9 +130,16 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  writer_->Write(collection_id, part_id, dest_url, [this](SArrayBinStream bin) {
-    SendMsgToScheduler(ScheduleFlag::kFinishCheckPoint, bin);
-  });
+  writer_->Write(collection_id, part_id, dest_url, 
+    [](std::shared_ptr<AbstractPartition> p) { 
+       SArrayBinStream bin;
+       p->ToBin(bin);
+       return bin;
+    }, 
+    [this](SArrayBinStream bin) {
+      SendMsgToScheduler(ScheduleFlag::kFinishCheckPoint, bin);
+    }
+  );
 }
 
 void Worker::Exit() { exit_promise_.set_value(); }

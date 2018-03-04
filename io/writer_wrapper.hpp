@@ -15,7 +15,12 @@ public:
 
   ~WriterWrapper() {}
 
+  /*
+   * part_to_bin : user-defined writer
+   * The Write function calls the lambda to generate an SArrayBinStream
+   */
   void Write(int collection_id, int part_id, std::string dest_url,
+             std::function<SArrayBinStream(std::shared_ptr<AbstractPartition>)> part_to_bin,
              std::function<void(SArrayBinStream bin)> finish_handle);
 
 private:

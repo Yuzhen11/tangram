@@ -29,15 +29,14 @@ public:
     cond_.wait(lk, [this]() { return num_finished_ == num_added_; });
   }
 
-  // load and store as string
   void Load(AssignedBlock block,
+            std::function<std::shared_ptr<AbstractPartition>(
+                std::shared_ptr<AbstractReader>)> reader,
             std::function<void(SArrayBinStream bin)> finish_handle);
 
+  // deprecated
   void Load(AssignedBlock block,
-            std::function<void(SArrayBinStream bin)> finish_handle,
-            std::function<std::shared_ptr<AbstractPartition>(
-                std::shared_ptr<AbstractReader>)>
-                reader);
+            std::function<void(SArrayBinStream bin)> finish_handle);
 
 private:
   std::shared_ptr<Executor> executor_;
