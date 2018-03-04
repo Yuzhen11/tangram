@@ -3,7 +3,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 file(GLOB io-src-files
 	assigner.cpp
     loader.cpp
-    writer.cpp
+    writer_wrapper.cpp
 	)
 
 if(LIBHDFS3_FOUND)

@@ -19,14 +19,14 @@
 
 #include "glog/logging.h"
 #include "io/loader.hpp"
-#include "io/writer.hpp"
+#include "io/writer_wrapper.hpp"
 
 namespace xyz {
 
 class Worker : public Actor {
 public:
   Worker(int qid, EngineElem engine_elem, std::shared_ptr<Loader> loader,
-         std::shared_ptr<Writer> writer)
+         std::shared_ptr<WriterWrapper> writer)
       : Actor(qid), engine_elem_(engine_elem), loader_(loader),
         writer_(writer) {
     Start();
@@ -78,7 +78,7 @@ public:
 private:
   EngineElem engine_elem_;
   std::shared_ptr<Loader> loader_;
-  std::shared_ptr<Writer> writer_;
+  std::shared_ptr<WriterWrapper> writer_;
 
   // store the mapping from partition to node.
   std::unordered_map<int, PlanSpec> plan_map_;

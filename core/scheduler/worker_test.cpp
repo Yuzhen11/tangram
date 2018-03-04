@@ -3,9 +3,8 @@
 
 #include "comm/simple_sender.hpp"
 #include "io/fake_reader.hpp"
-#include "io/hdfs_writer.hpp"
-#include "io/writer.hpp"
-#include "worker.hpp"
+#include "io/fake_writer.hpp"
+#include "core/scheduler/worker.hpp"
 
 #include "core/partition/seq_partition.hpp"
 
@@ -72,9 +71,9 @@ TEST_F(TestWorker, Create) {
       qid, engine_elem.executor, engine_elem.partition_manager,
       engine_elem.namenode, engine_elem.port, engine_elem.node,
       []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(
+  auto writer = std::make_shared<WriterWrapper>(
       1, engine_elem.executor, engine_elem.partition_manager,
-      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+      []() { return std::make_shared<FakeWriter>(); });
   Worker worker(qid, engine_elem, loader, writer);
 }
 
@@ -99,9 +98,9 @@ TEST_F(TestWorker, RegisterProgram) {
       qid, engine_elem.executor, engine_elem.partition_manager,
       engine_elem.namenode, engine_elem.port, engine_elem.node,
       []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(
+  auto writer = std::make_shared<WriterWrapper>(
       qid, engine_elem.executor, engine_elem.partition_manager,
-      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+      []() { return std::make_shared<FakeWriter>(); });
   Worker worker(qid, engine_elem, loader, writer);
   worker.SetProgram(program);
   worker.RegisterProgram();
@@ -137,9 +136,9 @@ TEST_F(TestWorker, InitWorkers) {
       qid, engine_elem.executor, engine_elem.partition_manager,
       engine_elem.namenode, engine_elem.port, engine_elem.node,
       []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(
+  auto writer = std::make_shared<WriterWrapper>(
       qid, engine_elem.executor, engine_elem.partition_manager,
-      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+      []() { return std::make_shared<FakeWriter>(); });
   Worker worker(qid, engine_elem, loader, writer);
   auto *q = worker.GetWorkQueue();
 
@@ -184,9 +183,9 @@ TEST_F(TestWorker, LoadBlock) {
       qid, engine_elem.executor, engine_elem.partition_manager,
       engine_elem.namenode, engine_elem.port, engine_elem.node,
       []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(qid, engine_elem.executor,
+  auto writer = std::make_shared<WriterWrapper>(qid, engine_elem.executor,
 engine_elem.partition_manager, []() {
-    return std::make_shared<HdfsWriter>("proj10", 9000);
+    return std::make_shared<FakeWriter>();
   });
   Worker worker(qid, engine_elem, loader, writer);
   auto *q = worker.GetWorkQueue();
@@ -231,9 +230,9 @@ TEST_F(TestWorker, CheckPoint) {
             engine_elem.partition_manager, engine_elem.namenode,
 engine_elem.port,
             engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(qid, engine_elem.executor,
+  auto writer = std::make_shared<WriterWrapper>(qid, engine_elem.executor,
 engine_elem.partition_manager, []() {
-return std::make_shared<HdfsWriter>("proj10", 9000); });
+return std::make_shared<FakeWrtier>(); });
   Worker worker(qid, engine_elem, loader, writer);
   auto* q = worker.GetWorkQueue();
 
@@ -283,9 +282,9 @@ TEST_F(TestWorker, Wait) {
       qid, engine_elem.executor, engine_elem.partition_manager,
       engine_elem.namenode, engine_elem.port, engine_elem.node,
       []() { return std::make_shared<FakeReader>(); });
-  auto writer = std::make_shared<Writer>(
+  auto writer = std::make_shared<WriterWrapper>(
       qid, engine_elem.executor, engine_elem.partition_manager,
-      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+      []() { return std::make_shared<FakeWriter>(); });
   Worker worker(qid, engine_elem, loader, writer);
   auto *q = worker.GetWorkQueue();
 

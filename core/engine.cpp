@@ -50,9 +50,9 @@ void Engine::Start() {
       []() { return std::make_shared<HdfsReader>(); });
 
   // set hdfs writer
-  const std::string namenode = "proj10";
-  const int port = 9000;
-  auto writer = std::make_shared<Writer>(
+  const std::string namenode = engine_elem_.namenode;
+  const int port = engine_elem_.port;
+  auto writer = std::make_shared<WriterWrapper>(
       worker_id, engine_elem_.executor, engine_elem_.partition_manager, [namenode, port]() {
         return std::make_shared<HdfsWriter>(namenode, port);
       });
