@@ -1,43 +1,43 @@
 #include "glog/logging.h"
 #include "gtest/gtest.h"
 
-#include "io/loader.hpp"
+#include "io/reader_wrapper.hpp"
 
 #include "core/partition/seq_partition.hpp"
 #include "io/meta.hpp"
 
 #include "base/threadsafe_queue.hpp"
-#include "io/fake_reader.hpp"
+#include "io/fake_block_reader.hpp"
 
 #include <thread>
 
 namespace xyz {
 namespace {
 
-class TestLoader : public testing::Test {};
+class TestReaderWrapper : public testing::Test {};
 
-TEST_F(TestLoader, Create) {
+TEST_F(TestReaderWrapper, Create) {
   const int qid = 0;
   auto executor = std::make_shared<Executor>(4);
   auto partition_manager = std::make_shared<PartitionManager>();
   Node node;
   node.id = 2;
   node.hostname = "proj10";
-  auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, node,
-                reader_getter);
+  auto block_reader_getter = []() { return std::make_shared<FakeBlockReader>(); };
+  ReaderWrapper reader_wrapper(qid, executor, partition_manager, node,
+                block_reader_getter);
 }
 
-TEST_F(TestLoader, Load) {
+TEST_F(TestReaderWrapper, ReadBlock) {
   const int qid = 0;
   auto executor = std::make_shared<Executor>(4);
   auto partition_manager = std::make_shared<PartitionManager>();
   Node node;
   node.id = 2;
   node.hostname = "proj10";
-  auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, node,
-                reader_getter);
+  auto block_reader_getter = []() { return std::make_shared<FakeBlockReader>(); };
+  ReaderWrapper reader_wrapper(qid, executor, partition_manager, node,
+                block_reader_getter);
 
   const int block_id = 23;
   const int collection_id = 12;
@@ -45,7 +45,7 @@ TEST_F(TestLoader, Load) {
   const std::string url = "kdd";
   AssignedBlock block{url, offset, block_id, collection_id};
   ThreadsafeQueue<SArrayBinStream> q;
-  loader.Load(block, [&q](SArrayBinStream bin) { q.Push(bin); });
+  reader_wrapper.ReadBlock(block, [&q](SArrayBinStream bin) { q.Push(bin); });
   SArrayBinStream recv_bin;
   q.WaitAndPop(&recv_bin);
   FinishedBlock finished_block;

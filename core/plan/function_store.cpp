@@ -27,9 +27,9 @@ const FunctionStore::CreatePartFromBinFuncT& FunctionStore::GetCreatePartFromBin
   return create_part_from_bin_[id];
 }
 
-const FunctionStore::CreatePartFromReaderFuncT& FunctionStore::GetCreatePartFromReader(int id) {
-  CHECK(create_part_from_reader_.find(id) != create_part_from_reader_.end()) << id;
-  return create_part_from_reader_[id];
+const FunctionStore::CreatePartFromBlockReaderFuncT& FunctionStore::GetCreatePartFromBlockReader(int id) {
+  CHECK(create_part_from_block_reader_.find(id) != create_part_from_block_reader_.end()) << id;
+  return create_part_from_block_reader_[id];
 }
 
 void FunctionStore::AddPartToIntermediate(int id, PartToOutput map) {
@@ -106,8 +106,8 @@ void FunctionStore::AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func
   create_part_from_bin_.insert({id, func});
 }
 
-void FunctionStore::AddCreatePartFromReaderFunc(int id, CreatePartFromReaderFuncT func) {
-  create_part_from_reader_.insert({id, func});
+void FunctionStore::AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) {
+  create_part_from_block_reader_.insert({id, func});
 }
 
 }  // namespaca xyz

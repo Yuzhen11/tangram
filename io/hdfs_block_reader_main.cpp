@@ -1,4 +1,4 @@
-#include "io/hdfs_reader.hpp"
+#include "io/hdfs_block_reader.hpp"
 
 #include "glog/logging.h"
 
@@ -15,9 +15,9 @@ int main(int argc, char **argv) {
   // block api
   int c = 0;
   for (auto offset : offsets) {
-    HdfsReader reader(namenode, port);
-    reader.Init(url, offset);
-    auto a = reader.ReadBlock();
+    HdfsBlockReader block_reader(namenode, port);
+    block_reader.Init(url, offset);
+    auto a = block_reader.ReadBlock();
     c += a.size();
   }
   LOG(INFO) << c << " lines in total.";
@@ -25,12 +25,12 @@ int main(int argc, char **argv) {
   // iterator api
   c = 0;
   for (auto offset : offsets) {
-    HdfsReader reader(namenode, port);
-    reader.Init(url, offset);
-    while (reader.HasLine()) {
-      auto s = reader.GetLine();
+    HdfsBlockReader block_reader(namenode, port);
+    block_reader.Init(url, offset);
+    while (block_reader.HasLine()) {
+      auto s = block_reader.GetLine();
     }
-    c += reader.GetNumLineRead();
+    c += block_reader.GetNumLineRead();
   }
   LOG(INFO) << c << " lines in total.";
 }

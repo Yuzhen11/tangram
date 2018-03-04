@@ -1,9 +1,9 @@
-#include "io/hdfs_reader.hpp"
+#include "io/hdfs_block_reader.hpp"
 #include "glog/logging.h"
 
 namespace xyz {
 
-void HdfsReader::Init(std::string url, size_t offset) {
+void HdfsBlockReader::Init(std::string url, size_t offset) {
   InitHdfs(namenode_, port_, url);
 
   fn_ = url;
@@ -15,17 +15,17 @@ void HdfsReader::Init(std::string url, size_t offset) {
   bool success = fetch_new_block();
   CHECK(success);
 }
-bool HdfsReader::HasLine() { return next(tmp_line_); }
-std::string HdfsReader::GetLine() {
+bool HdfsBlockReader::HasLine() { return next(tmp_line_); }
+std::string HdfsBlockReader::GetLine() {
   tmp_line_count_ += 1;
   if (tmp_line_count_ % 10000 == 0) {
     LOG(INFO) << tmp_line_count_ << " lines read.";
   }
   return tmp_line_.to_string();
 }
-int HdfsReader::GetNumLineRead() { return tmp_line_count_; }
+int HdfsBlockReader::GetNumLineRead() { return tmp_line_count_; }
 
-std::vector<std::string> HdfsReader::ReadBlock() {
+std::vector<std::string> HdfsBlockReader::ReadBlock() {
   std::vector<std::string> ret;
   int c = 0;
   boost::string_ref line;
@@ -42,7 +42,7 @@ std::vector<std::string> HdfsReader::ReadBlock() {
   return ret;
 }
 
-void HdfsReader::InitHdfs(std::string hdfs_namenode, int hdfs_namenode_port,
+void HdfsBlockReader::InitHdfs(std::string hdfs_namenode, int hdfs_namenode_port,
                           std::string url) {
   struct hdfsBuilder *builder = hdfsNewBuilder();
   hdfsBuilderSetNameNode(builder, hdfs_namenode.c_str());
@@ -55,7 +55,7 @@ void HdfsReader::InitHdfs(std::string hdfs_namenode, int hdfs_namenode_port,
   data_ = new char[hdfs_block_size_];
 }
 
-void HdfsReader::InitBlocksize(hdfsFS fs, std::string url) {
+void HdfsBlockReader::InitBlocksize(hdfsFS fs, std::string url) {
   int num_files;
   hdfsFileInfo *file_info = hdfsListDirectory(fs, url.c_str(), &num_files);
   for (int i = 0; i < num_files; ++i) {
@@ -69,7 +69,7 @@ void HdfsReader::InitBlocksize(hdfsFS fs, std::string url) {
   LOG(ERROR) << "Block size init error. (File NOT exist or EMPTY directory)";
 }
 
-bool HdfsReader::next(boost::string_ref &ref) {
+bool HdfsBlockReader::next(boost::string_ref &ref) {
   if (buffer_.size() == 0) {
     return false;
   }
@@ -119,7 +119,7 @@ bool HdfsReader::next(boost::string_ref &ref) {
   }
 }
 
-size_t HdfsReader::find_next(boost::string_ref sref, size_t l, char c) {
+size_t HdfsBlockReader::find_next(boost::string_ref sref, size_t l, char c) {
   size_t r = l;
   while (r != sref.size() && sref[r] != c)
     r++;
@@ -128,7 +128,7 @@ size_t HdfsReader::find_next(boost::string_ref sref, size_t l, char c) {
   return r;
 }
 
-void HdfsReader::handle_next_block() {
+void HdfsBlockReader::handle_next_block() {
   while (true) {
     if (buffer_.empty())
       return;
@@ -149,7 +149,7 @@ void HdfsReader::handle_next_block() {
   }
 }
 
-bool HdfsReader::fetch_new_block() {
+bool HdfsBlockReader::fetch_new_block() {
   // fetch a new block
   int nbytes = 0;
   if (fn_.empty()) {
@@ -173,7 +173,7 @@ bool HdfsReader::fetch_new_block() {
   return true;
 }
 
-int HdfsReader::read_block(const std::string &fn) {
+int HdfsBlockReader::read_block(const std::string &fn) {
   file_ = hdfsOpenFile(fs_, fn.c_str(), O_RDONLY, 0, 0, 0);
   CHECK(file_ != NULL) << "Hadoop file ile open fails";
   hdfsSeek(fs_, file_, offset_);
@@ -189,7 +189,7 @@ int HdfsReader::read_block(const std::string &fn) {
   return start;
 }
 
-boost::string_ref HdfsReader::fetch_next() {
+boost::string_ref HdfsBlockReader::fetch_next() {
   int nbytes = hdfsRead(fs_, file_, data_, hdfs_block_size_);
   if (nbytes == 0)
     return "";

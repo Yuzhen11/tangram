@@ -1,12 +1,12 @@
 #pragma once
 
-#include "io/abstract_reader.hpp"
+#include "io/abstract_block_reader.hpp"
 #include <string>
 #include <vector>
 
 namespace xyz {
 
-struct FakeReader : public AbstractReader {
+struct FakeBlockReader : public AbstractBlockReader {
 public:
   virtual std::vector<std::string> ReadBlock() override {
     return {"a", "b", "c"};

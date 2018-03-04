@@ -1,17 +1,17 @@
 #pragma once
 
-#include "io/abstract_reader.hpp"
+#include "io/abstract_block_reader.hpp"
 
 #include "boost/utility/string_ref.hpp"
 #include "hdfs/hdfs.h"
 
 namespace xyz {
 
-class HdfsReader : public AbstractReader {
+class HdfsBlockReader : public AbstractBlockReader {
 public:
-  HdfsReader(std::string namenode, int port)
+  HdfsBlockReader(std::string namenode, int port)
       : namenode_(namenode), port_(port) {}
-  ~HdfsReader() { delete[] data_; }
+  ~HdfsBlockReader() { delete[] data_; }
   virtual std::vector<std::string> ReadBlock() override;
 
   virtual void Init(std::string url, size_t offset) override;

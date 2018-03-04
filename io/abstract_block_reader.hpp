@@ -5,9 +5,9 @@
 
 namespace xyz {
 
-class AbstractReader {
+class AbstractBlockReader {
 public:
-  virtual ~AbstractReader() {}
+  virtual ~AbstractBlockReader() {}
 
   // call Init before reading.
   virtual void Init(std::string url, size_t offset) = 0;
@@ -17,12 +17,12 @@ public:
 
   /*
    * Usage:
-   * HdfsReader reader(namenode, port);
-   * reader.Init(url, offset);
-   * while (reader.HasLine()) {
-   *   auto s = reader.GetLine();
+   * HdfsBlockReader block_reader(namenode, port);
+   * block_reader.Init(url, offset);
+   * while (block_reader.HasLine()) {
+   *   auto s = block_reader.GetLine();
    * }
-   * c += reader.GetNumLineRead();
+   * c += block_reader.GetNumLineRead();
    */
   // Iterator based api.
   virtual bool HasLine() = 0;

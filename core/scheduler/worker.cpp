@@ -104,8 +104,8 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   LOG(INFO) << "[Worker] LoadBlock";
   AssignedBlock block;
   bin >> block;
-  loader_->Load(block, 
-  engine_elem_.function_store->GetCreatePartFromReader(block.collection_id),
+  reader_wrapper_->ReadBlock(block, 
+  engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
   [this](SArrayBinStream bin) {
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);
   }

@@ -6,7 +6,7 @@
 #include "base/message.hpp"
 #include "base/node.hpp"
 #include "base/sarray_binstream.hpp"
-#include "io/abstract_reader.hpp"
+#include "io/abstract_block_reader.hpp"
 #include "io/meta.hpp"
 
 #include "core/executor/executor.hpp"
@@ -14,28 +14,28 @@
 
 namespace xyz {
 
-class Loader {
+class ReaderWrapper {
 public:
-  Loader(int qid, std::shared_ptr<Executor> executor,
+  ReaderWrapper(int qid, std::shared_ptr<Executor> executor,
          std::shared_ptr<PartitionManager> partition_manager,
          Node node,
-         std::function<std::shared_ptr<AbstractReader>()> reader_getter)
+         std::function<std::shared_ptr<AbstractBlockReader>()> block_reader_getter)
       : qid_(qid), executor_(executor), partition_manager_(partition_manager),
         node_(node),
-        reader_getter_(reader_getter) {}
+        block_reader_getter_(block_reader_getter) {}
 
-  ~Loader() {
+  ~ReaderWrapper() {
     std::unique_lock<std::mutex> lk(mu_);
     cond_.wait(lk, [this]() { return num_finished_ == num_added_; });
   }
 
-  void Load(AssignedBlock block,
+  void ReadBlock(AssignedBlock block,
             std::function<std::shared_ptr<AbstractPartition>(
-                std::shared_ptr<AbstractReader>)> reader,
+                std::shared_ptr<AbstractBlockReader>)> block_reader,
             std::function<void(SArrayBinStream bin)> finish_handle);
 
   // deprecated
-  void Load(AssignedBlock block,
+  void ReadBlock(AssignedBlock block,
             std::function<void(SArrayBinStream bin)> finish_handle);
 
 private:
@@ -49,7 +49,7 @@ private:
   int num_finished_ = 0;
   std::mutex mu_;
   std::condition_variable cond_;
-  std::function<std::shared_ptr<AbstractReader>()> reader_getter_;
+  std::function<std::shared_ptr<AbstractBlockReader>()> block_reader_getter_;
 };
 
 } // namespace xyz

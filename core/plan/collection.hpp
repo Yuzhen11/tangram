@@ -56,14 +56,14 @@ class Collection {
 
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
     if (source_ == CollectionSource::kLoad) {
-      RegisterCreatePartFromReader(function_store);
+      RegisterCreatePartFromBlockReader(function_store);
     } else {  // kDistribute and kOthers
       RegisterCreatePartFromBin(function_store);
     }
   }
 
-  void RegisterCreatePartFromReader(std::shared_ptr<AbstractFunctionStore> function_store) {
-    function_store->AddCreatePartFromReaderFunc(id_, [this](std::shared_ptr<AbstractReader> reader) {
+  void RegisterCreatePartFromBlockReader(std::shared_ptr<AbstractFunctionStore> function_store) {
+    function_store->AddCreatePartFromBlockReaderFunc(id_, [this](std::shared_ptr<AbstractBlockReader> reader) {
       auto part = std::make_shared<PartitionT>();
       while (reader->HasLine()) {
         auto s = reader->GetLine();

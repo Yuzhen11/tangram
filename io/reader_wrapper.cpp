@@ -1,4 +1,4 @@
-#include "io/loader.hpp"
+#include "io/reader_wrapper.hpp"
 
 #include "core/partition/seq_partition.hpp"
 
@@ -6,17 +6,17 @@
 
 namespace xyz {
 
-void Loader::Load(AssignedBlock block,
+void ReaderWrapper::ReadBlock(AssignedBlock block,
                   std::function<std::shared_ptr<AbstractPartition>(
-                    std::shared_ptr<AbstractReader>)> read_func, 
+                    std::shared_ptr<AbstractBlockReader>)> read_func, 
                   std::function<void(SArrayBinStream bin)> finish_handle) {
   num_added_ += 1;
   executor_->Add([this, block, read_func, finish_handle]() {
     // 1. read
-    CHECK(reader_getter_);
-    auto reader = reader_getter_();
-    reader->Init(block.url, block.offset);
-    auto part = read_func(reader);
+    CHECK(block_reader_getter_);
+    auto block_reader = block_reader_getter_();
+    block_reader->Init(block.url, block.offset);
+    auto part = read_func(block_reader);
     partition_manager_->Insert(block.collection_id, block.id, std::move(part));
 
     // 2. reply
@@ -33,10 +33,10 @@ void Loader::Load(AssignedBlock block,
   });
 }
 
-void Loader::Load(AssignedBlock block,
+void ReaderWrapper::ReadBlock(AssignedBlock block,
                   std::function<void(SArrayBinStream bin)> finish_handle) {
-  Load(block, [](std::shared_ptr<AbstractReader> reader) {
-    auto strs = reader->ReadBlock();
+  ReadBlock(block, [](std::shared_ptr<AbstractBlockReader> block_reader) {
+    auto strs = block_reader->ReadBlock();
     auto part = std::make_shared<SeqPartition<std::string>>();
     for (auto &s : strs) {
       part->Add(std::move(s));
