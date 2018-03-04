@@ -1,8 +1,8 @@
 #pragma once
 
-#include <vector>
-#include <string>
 #include <sstream>
+#include <string>
+#include <vector>
 
 namespace xyz {
 
@@ -21,11 +21,10 @@ struct BlockInfo {
 };
 
 class AbstractBrowser {
- public:
+public:
   virtual ~AbstractBrowser() {}
 
   virtual std::vector<BlockInfo> Browse(std::string url) = 0;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

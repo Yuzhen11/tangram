@@ -1,10 +1,10 @@
-#include "gtest/gtest.h"
 #include "glog/logging.h"
+#include "gtest/gtest.h"
 
-#include "io/assigner.hpp"
-#include "io/abstract_browser.hpp"
-#include "io/meta.hpp"
 #include "comm/simple_sender.hpp"
+#include "io/abstract_browser.hpp"
+#include "io/assigner.hpp"
+#include "io/meta.hpp"
 
 namespace xyz {
 namespace {
@@ -13,17 +13,11 @@ class TestAssigner : public testing::Test {};
 
 struct FakeBrowser : public AbstractBrowser {
   virtual std::vector<BlockInfo> Browse(std::string url) override {
-    std::vector<BlockInfo> v {
-      {"file0", 0, "node0"},
-      {"file0", 0, "node1"},
-      {"file0", 0, "node2"},
-      {"file0", 100, "node2"},
-      {"file0", 100, "node3"},
-      {"file0", 100, "node0"},
-      {"file1", 0, "node3"},
-      {"file1", 0, "node0"},
-      {"file1", 0, "node1"}
-    };
+    std::vector<BlockInfo> v{{"file0", 0, "node0"},   {"file0", 0, "node1"},
+                             {"file0", 0, "node2"},   {"file0", 100, "node2"},
+                             {"file0", 100, "node3"}, {"file0", 100, "node0"},
+                             {"file1", 0, "node3"},   {"file1", 0, "node0"},
+                             {"file1", 0, "node1"}};
     return v;
   }
 };
@@ -58,6 +52,5 @@ TEST_F(TestAssigner, Load) {
   EXPECT_EQ(assigner.FinishBlock(b2), true);
 }
 
-}  // namespace
-}  // namespace xyz
-
+} // namespace
+} // namespace xyz

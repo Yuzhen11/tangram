@@ -6,7 +6,7 @@
 
 using namespace xyz;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
 
   const int qid = 0;
@@ -21,7 +21,7 @@ int main(int argc, char** argv) {
   int num_blocks = assigner.Load(collection_id, url, {{"proj5", 0}}, 1);
   LOG(INFO) << "blocks number: " << num_blocks;
 
-  for (int i = 0; i < num_blocks; ++ i) {
+  for (int i = 0; i < num_blocks; ++i) {
     // recv
     auto recv_msg = sender->Get();
     SArrayBinStream recv_bin;
@@ -39,4 +39,3 @@ int main(int argc, char** argv) {
   CHECK_EQ(assigner.Done(), true);
   LOG(INFO) << assigner.DebugStringFinishedBlocks();
 }
-

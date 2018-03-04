@@ -1,17 +1,17 @@
 #pragma once
 
-#include <future>
 #include <atomic>
+#include <future>
 
 #include "base/actor.hpp"
-#include "base/sarray_binstream.hpp"
 #include "base/node.hpp"
-#include "core/scheduler/control.hpp"
-#include "core/program_context.hpp"
+#include "base/sarray_binstream.hpp"
 #include "comm/abstract_sender.hpp"
-
-#include "core/scheduler/collection_view.hpp"
 #include "core/program_context.hpp"
+#include "core/scheduler/control.hpp"
+
+#include "core/program_context.hpp"
+#include "core/scheduler/collection_view.hpp"
 
 #include "io/assigner.hpp"
 #include "io/meta.hpp"
@@ -21,10 +21,10 @@
 namespace xyz {
 
 class Scheduler : public Actor {
- public:
-  Scheduler(int qid, std::shared_ptr<AbstractSender> sender, std::shared_ptr<Assigner> assigner = nullptr): 
-      Actor(qid), sender_(sender), assigner_(assigner) {
-  }
+public:
+  Scheduler(int qid, std::shared_ptr<AbstractSender> sender,
+            std::shared_ptr<Assigner> assigner = nullptr)
+      : Actor(qid), sender_(sender), assigner_(assigner) {}
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
       scheduler_thread_.join();
@@ -44,7 +44,8 @@ class Scheduler : public Actor {
   void Wait();
 
   void Run() {
-    // TODO do we need to lock some functions as two threads may work on the same data.
+    // TODO do we need to lock some functions as two threads may work on the
+    // same data.
     prepare_collection_count_ = -1;
     PrepareNextCollection();
     prepare_collection_promise_.get_future().get();
@@ -87,18 +88,22 @@ class Scheduler : public Actor {
   void RunSpeculativeMap();
 
   void StartScheduling();
-  
+
   void SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin);
 
   void FinishBlock(SArrayBinStream bin);
   void FinishDistribute(SArrayBinStream bin);
+  void CheckPoint();
+  void FinishCheckPoint(SArrayBinStream bin);
   void FinishJoin(SArrayBinStream bin);
- private:
+
+private:
   void Load(CollectionSpec);
   void Distribute(CollectionSpec);
   void TryRunPlan();
   void PrepareNextCollection();
- private:
+
+private:
   std::shared_ptr<AbstractSender> sender_;
 
   int register_program_count_ = 0;
@@ -132,5 +137,4 @@ class Scheduler : public Actor {
   int program_num_plans_finished_ = 0;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

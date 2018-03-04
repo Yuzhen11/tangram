@@ -1,39 +1,39 @@
 #pragma once
 
-#include <future>
-#include <chrono>
-#include <thread>
 #include <atomic>
+#include <chrono>
+#include <future>
+#include <thread>
 
 #include "base/actor.hpp"
 #include "base/sarray_binstream.hpp"
-#include "core/scheduler/control.hpp"
-#include "core/plan/plan_spec.hpp"
 #include "comm/abstract_sender.hpp"
-#include "core/plan/function_store.hpp"
-#include "core/partition/partition_tracker.hpp"
-#include "core/index/simple_part_to_node_mapper.hpp"
 #include "core/engine_elem.hpp"
+#include "core/index/simple_part_to_node_mapper.hpp"
+#include "core/partition/partition_tracker.hpp"
+#include "core/plan/function_store.hpp"
+#include "core/plan/plan_spec.hpp"
+#include "core/scheduler/control.hpp"
 
 #include "core/program_context.hpp"
 
-#include "io/loader.hpp"
-
 #include "glog/logging.h"
+#include "io/loader.hpp"
+#include "io/writer.hpp"
 
 namespace xyz {
 
 class Worker : public Actor {
- public:
-  Worker(int qid, EngineElem engine_elem, std::shared_ptr<Loader> loader): 
-      Actor(qid), engine_elem_(engine_elem), loader_(loader) {
+public:
+  Worker(int qid, EngineElem engine_elem, std::shared_ptr<Loader> loader,
+         std::shared_ptr<Writer> writer)
+      : Actor(qid), engine_elem_(engine_elem), loader_(loader),
+        writer_(writer) {
     Start();
   }
-  virtual ~Worker() override {
-    Stop();
-  }
+  virtual ~Worker() override { Stop(); }
 
-  // public api: 
+  // public api:
   // SetProgram should be called before kStart is recevied.
   void SetProgram(ProgramContext program) {
     program_ = program;
@@ -67,15 +67,18 @@ class Worker : public Actor {
 
   void LoadBlock(SArrayBinStream bin);
   void Distribute(SArrayBinStream bin);
-  
+  void CheckPoint(SArrayBinStream bin);
+
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
 
   void Exit();
   void MapFinish();
   void JoinFinish();
- private:
+
+private:
   EngineElem engine_elem_;
   std::shared_ptr<Loader> loader_;
+  std::shared_ptr<Writer> writer_;
 
   // store the mapping from partition to node.
   std::unordered_map<int, PlanSpec> plan_map_;
@@ -88,5 +91,4 @@ class Worker : public Actor {
   bool ready_ = false;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

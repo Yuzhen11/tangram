@@ -1,14 +1,28 @@
-#include "gtest/gtest.h"
 #include "glog/logging.h"
+#include "gtest/gtest.h"
 
-#include "worker.hpp"
 #include "comm/simple_sender.hpp"
 #include "io/fake_reader.hpp"
+#include "io/hdfs_writer.hpp"
+#include "io/writer.hpp"
+#include "worker.hpp"
+
+#include "core/partition/seq_partition.hpp"
 
 namespace xyz {
 namespace {
 
 class TestWorker : public testing::Test {};
+
+class TestWriter : public testing::Test {};
+
+struct ObjT {
+  using KeyT = int;
+  using ValT = int;
+  int key;
+  int val;
+  KeyT Key() const { return key; }
+};
 
 EngineElem GetEngineElem() {
   const int num_threads = 1;
@@ -21,12 +35,13 @@ EngineElem GetEngineElem() {
   engine_elem.executor = std::make_shared<Executor>(num_threads);
   engine_elem.partition_manager = std::make_shared<PartitionManager>();
   engine_elem.collection_map = std::make_shared<CollectionMap>();
-  engine_elem.function_store = std::make_shared<FunctionStore>(engine_elem.collection_map);
+  engine_elem.function_store =
+      std::make_shared<FunctionStore>(engine_elem.collection_map);
   engine_elem.intermediate_store = std::make_shared<SimpleIntermediateStore>();
   engine_elem.sender = std::make_shared<SimpleSender>();
   engine_elem.partition_tracker = std::make_shared<PartitionTracker>(
-          node.id, engine_elem.partition_manager, engine_elem.executor, 
-          engine_elem.sender, engine_elem.collection_map);
+      node.id, engine_elem.partition_manager, engine_elem.executor,
+      engine_elem.sender, engine_elem.collection_map);
   engine_elem.namenode = namenode;
   engine_elem.port = port;
   return engine_elem;
@@ -53,10 +68,14 @@ AssignedBlock GetAssignedBlock() {
 TEST_F(TestWorker, Create) {
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
-            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
-            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  Worker worker(qid, engine_elem, loader);
+  auto loader = std::make_shared<Loader>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      engine_elem.namenode, engine_elem.port, engine_elem.node,
+      []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(
+      1, engine_elem.executor, engine_elem.partition_manager,
+      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+  Worker worker(qid, engine_elem, loader, writer);
 }
 
 TEST_F(TestWorker, RegisterProgram) {
@@ -76,25 +95,29 @@ TEST_F(TestWorker, RegisterProgram) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
-            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
-            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  Worker worker(qid, engine_elem, loader);
+  auto loader = std::make_shared<Loader>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      engine_elem.namenode, engine_elem.port, engine_elem.node,
+      []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+  Worker worker(qid, engine_elem, loader, writer);
   worker.SetProgram(program);
   worker.RegisterProgram();
 
-  Message msg = static_cast<SimpleSender*>(engine_elem.sender.get())->Get();
+  Message msg = static_cast<SimpleSender *>(engine_elem.sender.get())->Get();
   ASSERT_EQ(msg.data.size(), 2);
   ProgramContext p;
   SArrayBinStream bin;
   bin.FromSArray(msg.data[1]);
   bin >> p;
   VLOG(3) << p.DebugString();
-  ASSERT_EQ(p.plans.size(), 1); 
+  ASSERT_EQ(p.plans.size(), 1);
   EXPECT_EQ(p.plans[0].plan_id, pid);
   EXPECT_EQ(p.plans[0].map_collection_id, mid);
   EXPECT_EQ(p.plans[0].join_collection_id, jid);
-  ASSERT_EQ(p.collections.size(), 2); 
+  ASSERT_EQ(p.collections.size(), 2);
   EXPECT_EQ(p.collections[0].collection_id, mid);
   EXPECT_EQ(p.collections[0].num_partition, num_parts);
   EXPECT_EQ(p.collections[1].collection_id, jid);
@@ -110,16 +133,21 @@ TEST_F(TestWorker, InitWorkers) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
-            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
-            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  Worker worker(qid, engine_elem, loader);
-  auto* q = worker.GetWorkQueue();
+  auto loader = std::make_shared<Loader>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      engine_elem.namenode, engine_elem.port, engine_elem.node,
+      []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+  Worker worker(qid, engine_elem, loader, writer);
+  auto *q = worker.GetWorkQueue();
 
   // send request
   {
     SArrayBinStream bin;
-    std::unordered_map<int, CollectionView> collection_map_ = GetCollectionMap();
+    std::unordered_map<int, CollectionView> collection_map_ =
+        GetCollectionMap();
     bin << collection_map_;
     SArrayBinStream ctrl_bin;
     ctrl_bin << ScheduleFlag::kInitWorkers;
@@ -132,7 +160,7 @@ TEST_F(TestWorker, InitWorkers) {
     q->Push(msg);
   }
 
-  auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
+  auto *sender = static_cast<SimpleSender *>(engine_elem.sender.get());
 
   {
     auto msg = sender->Get();
@@ -152,11 +180,16 @@ TEST_F(TestWorker, LoadBlock) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
-            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
-            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  Worker worker(qid, engine_elem, loader);
-  auto* q = worker.GetWorkQueue();
+  auto loader = std::make_shared<Loader>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      engine_elem.namenode, engine_elem.port, engine_elem.node,
+      []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(qid, engine_elem.executor,
+engine_elem.partition_manager, []() {
+    return std::make_shared<HdfsWriter>("proj10", 9000);
+  });
+  Worker worker(qid, engine_elem, loader, writer);
+  auto *q = worker.GetWorkQueue();
 
   // send request
   {
@@ -172,7 +205,7 @@ TEST_F(TestWorker, LoadBlock) {
     q->Push(msg);
   }
 
-  auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
+  auto *sender = static_cast<SimpleSender *>(engine_elem.sender.get());
 
   {
     auto msg = sender->Get();
@@ -189,15 +222,72 @@ TEST_F(TestWorker, LoadBlock) {
 }
 */
 
+/*
+TEST_F(TestWorker, CheckPoint) {
+  // Worker
+  const int qid = 0;
+  EngineElem engine_elem = GetEngineElem();
+  auto loader =  std::make_shared<Loader>(qid, engine_elem.executor,
+            engine_elem.partition_manager, engine_elem.namenode,
+engine_elem.port,
+            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(qid, engine_elem.executor,
+engine_elem.partition_manager, []() {
+return std::make_shared<HdfsWriter>("proj10", 9000); });
+  Worker worker(qid, engine_elem, loader, writer);
+  auto* q = worker.GetWorkQueue();
+
+  // send request
+  {
+  int collection_id = 0, part_id = 0;
+  std::string dest_url = "/tmp/tmp/b.txt";
+
+  auto part = std::make_shared<SeqPartition<ObjT>>();
+  part->Add(ObjT{1, 2});
+  engine_elem.partition_manager->Insert(collection_id, part_id,
+std::move(part));
+
+  SArrayBinStream ctrl_bin, bin;
+  ScheduleFlag flag = ScheduleFlag::kCheckPoint;
+  ctrl_bin << flag;
+  bin << collection_id << part_id << dest_url;
+  Message msg;
+  msg.meta.flag = Flag::kOthers;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  q->Push(msg);
+  }
+
+  auto* sender = static_cast<SimpleSender*>(engine_elem.sender.get());
+
+  {
+    auto msg = sender->Get();
+    EXPECT_EQ(msg.meta.sender, qid);
+    EXPECT_EQ(msg.meta.recver, 0);
+    ASSERT_EQ(msg.data.size(), 2);
+    SArrayBinStream ctrl_bin;
+    ctrl_bin.FromSArray(msg.data[0]);
+    ScheduleFlag flag;
+    ctrl_bin >> flag;
+    EXPECT_EQ(flag, ScheduleFlag::kFinishCheckPoint);
+  }
+  ASSERT_EQ(sender->msgs.Size(), 0);
+}
+*/
+
 TEST_F(TestWorker, Wait) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto loader = std::make_shared<Loader>(qid, engine_elem.executor,
-            engine_elem.partition_manager, engine_elem.namenode, engine_elem.port,
-            engine_elem.node, []() { return std::make_shared<FakeReader>(); });
-  Worker worker(qid, engine_elem, loader);
-  auto* q = worker.GetWorkQueue();
+  auto loader = std::make_shared<Loader>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      engine_elem.namenode, engine_elem.port, engine_elem.node,
+      []() { return std::make_shared<FakeReader>(); });
+  auto writer = std::make_shared<Writer>(
+      qid, engine_elem.executor, engine_elem.partition_manager,
+      []() { return std::make_shared<HdfsWriter>("proj10", 9000); });
+  Worker worker(qid, engine_elem, loader, writer);
+  auto *q = worker.GetWorkQueue();
 
   std::thread th([=]() {
     SArrayBinStream ctrl_bin, bin;
@@ -216,6 +306,5 @@ TEST_F(TestWorker, Wait) {
   th.join();
 }
 
-}  // namespace
-}  // namespace xyz
-
+} // namespace
+} // namespace xyz

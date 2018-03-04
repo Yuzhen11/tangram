@@ -1,9 +1,9 @@
-#include "gtest/gtest.h"
 #include "glog/logging.h"
+#include "gtest/gtest.h"
 
-#include "scheduler.hpp"
 #include "comm/simple_sender.hpp"
 #include "core/queue_node_map.hpp"
+#include "scheduler.hpp"
 
 namespace xyz {
 namespace {
@@ -30,7 +30,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   auto sender = std::make_shared<SimpleSender>();
   Scheduler scheduler(qid, sender);
   scheduler.Ready(nodes);
-  auto* q = scheduler.GetWorkQueue();
+  auto *q = scheduler.GetWorkQueue();
 
   // program
   ProgramContext program;
@@ -56,7 +56,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   msg.AddData(bin.ToSArray());
   q->Push(msg);
 
-  q->Push(msg);  // register another time
+  q->Push(msg); // register another time
 
   {
     // recv kDistribute
@@ -69,7 +69,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
     EXPECT_EQ(flag, ScheduleFlag::kDistribute);
   }
   {
-    // send 
+    // send
     Message msg;
     msg.meta.sender = GetWorkerQid(1);
     msg.meta.recver = 0;
@@ -114,10 +114,28 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
     q->Push(msg);
 
     msg.meta.sender = GetWorkerQid(2);
-    q->Push(msg);  // register another time
+    q->Push(msg); // register another time
   }
 }
 
-}  // namespace
-}  // namespace xyz
+/*
+TEST_F(TestScheduler, CheckPoint) {
+  const int qid = 0;
+  auto nodes = GetNodes();
+  auto sender = std::make_shared<SimpleSender>();
+  Scheduler scheduler(qid, sender);
+  scheduler.Ready(nodes);
+  scheduler.CheckPoint();
 
+  auto msg = sender->Get();
+  ASSERT_EQ(msg.data.size(), 2);
+  SArrayBinStream ctrl_bin;
+  ctrl_bin.FromSArray(msg.data[0]);
+  ScheduleFlag flag;
+  ctrl_bin >> flag;
+  EXPECT_EQ(flag, ScheduleFlag::kCheckPoint);
+}
+*/
+
+} // namespace
+} // namespace xyz

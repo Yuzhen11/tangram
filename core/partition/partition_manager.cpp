@@ -33,6 +33,17 @@ std::shared_ptr<VersionedPartition> PartitionManager::Get(int collection_id, int
   return partitions_[collection_id][partition_id];
 }
 
+// For test
+bool PartitionManager::Has(int collection_id, int partition_id) {
+  std::lock_guard<std::mutex> lk(mu_);
+  if (partitions_.find(collection_id) == partitions_.end()
+          || partitions_[collection_id].find(partition_id) == partitions_[collection_id].end()) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
 bool PartitionManager::Has(int collection_id, int partition_id, int version) {
   std::lock_guard<std::mutex> lk(mu_);
   if (partitions_.find(collection_id) == partitions_.end()

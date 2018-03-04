@@ -1,7 +1,7 @@
 #include "io/assigner.hpp"
 
-#include "core/scheduler/control.hpp"
 #include "core/queue_node_map.hpp"
+#include "core/scheduler/control.hpp"
 
 namespace xyz {
 
@@ -23,9 +23,7 @@ bool Assigner::FinishBlock(FinishedBlock block) {
   }
 }
 
-bool Assigner::Done() {
-  return num_finished_ == expected_num_finished_;
-}
+bool Assigner::Done() { return num_finished_ == expected_num_finished_; }
 
 void Assigner::InitBlocks(std::string url) {
   CHECK_NOTNULL(browser_);
@@ -44,7 +42,9 @@ int Assigner::GetNumBlocks() {
 }
 
 // return num of blocks
-int Assigner::Load(int collection_id, std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots) {
+int Assigner::Load(int collection_id, std::string url,
+                   std::vector<std::pair<std::string, int>> slaves,
+                   int num_slots) {
   InitBlocks(url);
   num_finished_ = 0;
   num_assigned_ = 0;
@@ -52,10 +52,10 @@ int Assigner::Load(int collection_id, std::string url, std::vector<std::pair<std
   // Need to ensure that there is no message coming before Load().
 
   LOG(INFO) << "Assigning " << blocks_.size() << " paritition to "
-      << slaves.size() << " slaves";
+            << slaves.size() << " slaves";
   // TODO: use more scheduling sophisticatic algorithm
-  for (auto slave: slaves) {
-    for (int i = 0; i < num_slots; ++ i) {
+  for (auto slave : slaves) {
+    for (int i = 0; i < num_slots; ++i) {
       Assign(collection_id, slave);
     }
   }
@@ -69,8 +69,8 @@ void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
 
   std::pair<std::string, size_t> block;
   // find block according to locality if any
-  if (locality_map_.find(slave.first) != locality_map_.end()
-          && !locality_map_[slave.first].empty()) {
+  if (locality_map_.find(slave.first) != locality_map_.end() &&
+      !locality_map_[slave.first].empty()) {
     block = *locality_map_[slave.first].begin();
   } else {
     block = blocks_.begin()->first;
@@ -83,7 +83,7 @@ void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   AssignedBlock assigned_block;
   assigned_block.url = block.first;
   assigned_block.offset = block.second;
-  assigned_block.id = block_id_ ++;
+  assigned_block.id = block_id_++;
   assigned_block.collection_id = collection_id;
   bin << assigned_block;
   Message msg;
@@ -110,7 +110,7 @@ void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
 
 std::string Assigner::DebugStringLocalityMap() {
   std::stringstream ss;
-  for (auto& kv : locality_map_) {
+  for (auto &kv : locality_map_) {
     ss << "hostname: " << kv.first;
     ss << "\n{";
     for (auto p : kv.second) {
@@ -123,9 +123,9 @@ std::string Assigner::DebugStringLocalityMap() {
 
 std::string Assigner::DebugStringBlocks() {
   std::stringstream ss;
-  for (auto& kv : blocks_) {
+  for (auto &kv : blocks_) {
     ss << "block: <" << kv.first.first << ", " << kv.first.second << ">: ";
-    for (auto& h : kv.second) {
+    for (auto &h : kv.second) {
       ss << h << ", ";
     }
     ss << "\n";
@@ -136,7 +136,7 @@ std::string Assigner::DebugStringBlocks() {
 std::string Assigner::DebugStringFinishedBlocks() {
   std::stringstream ss;
   ss << "finished block:\n";
-  for (auto& kv : finished_blocks_) {
+  for (auto &kv : finished_blocks_) {
     ss << "block id: " << kv.first;
     ss << " " << kv.second.DebugString();
     ss << "\n";
@@ -144,5 +144,4 @@ std::string Assigner::DebugStringFinishedBlocks() {
   return ss.str();
 }
 
-}  // namespace xyz
-
+} // namespace xyz

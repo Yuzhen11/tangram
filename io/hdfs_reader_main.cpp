@@ -4,7 +4,7 @@
 
 using namespace xyz;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
 
   const std::string namenode = "proj10";

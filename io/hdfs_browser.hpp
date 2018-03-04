@@ -7,13 +7,14 @@
 namespace xyz {
 
 class HDFSBrowser : public AbstractBrowser {
- public:
+public:
   HDFSBrowser(std::string hdfs_namenode, int port);
   virtual ~HDFSBrowser() {}
   virtual std::vector<BlockInfo> Browse(std::string url) override;
 
   bool InitHDFS(std::string hdfs_namenode, int port);
- private:
+
+private:
   std::string hdfs_namenode_;
   int hdfs_namenode_port_;
   std::string url_;
@@ -21,6 +22,4 @@ class HDFSBrowser : public AbstractBrowser {
   hdfsFS fs_ = NULL;
 };
 
-
-}  // namespace xyz
-
+} // namespace xyz

@@ -1,7 +1,7 @@
 #pragma once
 
-#include <mutex>
 #include <condition_variable>
+#include <mutex>
 
 #include "base/message.hpp"
 #include "base/node.hpp"
@@ -15,16 +15,14 @@
 namespace xyz {
 
 class Loader {
- public:
+public:
   Loader(int qid, std::shared_ptr<Executor> executor,
-          std::shared_ptr<PartitionManager> partition_manager,
-          std::string namenode, int port,
-          Node node, 
-          std::function<std::shared_ptr<AbstractReader>()> reader_getter)
-      : qid_(qid), executor_(executor),
-        partition_manager_(partition_manager), namenode_(namenode), port_(port),
-        node_(node), reader_getter_(reader_getter) {
-  }
+         std::shared_ptr<PartitionManager> partition_manager,
+         std::string namenode, int port, Node node,
+         std::function<std::shared_ptr<AbstractReader>()> reader_getter)
+      : qid_(qid), executor_(executor), partition_manager_(partition_manager),
+        namenode_(namenode), port_(port), node_(node),
+        reader_getter_(reader_getter) {}
 
   ~Loader() {
     std::unique_lock<std::mutex> lk(mu_);
@@ -37,8 +35,11 @@ class Loader {
 
   void Load(AssignedBlock block,
             std::function<void(SArrayBinStream bin)> finish_handle,
-            std::function<std::shared_ptr<AbstractPartition>(std::shared_ptr<AbstractReader>)> reader);
- private:
+            std::function<std::shared_ptr<AbstractPartition>(
+                std::shared_ptr<AbstractReader>)>
+                reader);
+
+private:
   std::shared_ptr<Executor> executor_;
   std::shared_ptr<PartitionManager> partition_manager_;
 
@@ -55,5 +56,4 @@ class Loader {
   std::function<std::shared_ptr<AbstractReader>()> reader_getter_;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

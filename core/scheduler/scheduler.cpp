@@ -1,40 +1,45 @@
 #include <algorithm>
 
-#include "core/scheduler/scheduler.hpp"
 #include "comm/simple_sender.hpp"
 #include "core/queue_node_map.hpp"
+#include "core/scheduler/scheduler.hpp"
 
 namespace xyz {
 
 void Scheduler::Process(Message msg) {
-  CHECK_EQ(msg.data.size(), 2);  // cmd, content
+  CHECK_EQ(msg.data.size(), 2); // cmd, content
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
   bin.FromSArray(msg.data[1]);
   ScheduleFlag flag;
   ctrl_bin >> flag;
   switch (flag) {
-    case ScheduleFlag::kRegisterProgram: {
-      RegisterProgram(bin);
-      break;
-    }
-    case ScheduleFlag::kInitWorkersReply: {
-      InitWorkersReply(bin);
-      break;
-    }
-    case ScheduleFlag::kFinishBlock: {
-      FinishBlock(bin);
-      break;
-    }
-    case ScheduleFlag::kFinishDistribute: {
-      FinishDistribute(bin);
-      break;
-    }
-    case ScheduleFlag::kJoinFinish: {
-      FinishJoin(bin);
-      break;
-    }
-    default: CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
+  case ScheduleFlag::kRegisterProgram: {
+    RegisterProgram(bin);
+    break;
+  }
+  case ScheduleFlag::kInitWorkersReply: {
+    InitWorkersReply(bin);
+    break;
+  }
+  case ScheduleFlag::kFinishBlock: {
+    FinishBlock(bin);
+    break;
+  }
+  case ScheduleFlag::kFinishDistribute: {
+    FinishDistribute(bin);
+    break;
+  }
+  case ScheduleFlag::kFinishCheckPoint: {
+    FinishCheckPoint(bin);
+    break;
+  }
+  case ScheduleFlag::kJoinFinish: {
+    FinishJoin(bin);
+    break;
+  }
+  default:
+    CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }
 }
 
@@ -47,14 +52,15 @@ void Scheduler::RegisterProgram(SArrayBinStream bin) {
   register_program_count_ += 1;
   if (register_program_count_ == nodes_.size()) {
     // spawn the scheduler thread
-    LOG(INFO) << "[Scheduler] all workers registerred, start the scheduling thread";
+    LOG(INFO)
+        << "[Scheduler] all workers registerred, start the scheduling thread";
     scheduler_thread_ = std::thread([this]() { Run(); });
   }
 }
 
 void Scheduler::InitWorkers() {
   // init the partitions
-  for (auto kv: collection_map_) {
+  for (auto kv : collection_map_) {
     LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
 
@@ -75,8 +81,8 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
 
 void Scheduler::StartScheduling() {
   // TODO
-  //RunDummy();
-  //Exit();
+  // RunDummy();
+  // Exit();
   TryRunPlan();
 }
 
@@ -100,8 +106,8 @@ void Scheduler::RunDummy() {
 
 void Scheduler::RunMap(PlanSpec plan) {
   SArrayBinStream bin;
-  //CHECK_EQ(program_.plans.size(), 1);
-  //bin << program_.plans[0].plan_id;
+  // CHECK_EQ(program_.plans.size(), 1);
+  // bin << program_.plans[0].plan_id;
   bin << plan.plan_id;
   SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
@@ -117,7 +123,8 @@ void Scheduler::PrepareNextCollection() {
     if (c.source == CollectionSource::kLoad) {
       LOG(INFO) << "[Scheduler] Loading collection: " << c.collection_id;
       Load(c);
-    } else if (c.source == CollectionSource::kDistribute || c.source == CollectionSource::kOthers) {
+    } else if (c.source == CollectionSource::kDistribute ||
+               c.source == CollectionSource::kOthers) {
       LOG(INFO) << "[Scheduler] Distributing collection: " << c.collection_id;
       Distribute(c);
     } else {
@@ -136,7 +143,7 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
     stored_blocks_[block.collection_id] = blocks;
     // construct the collection view
     std::vector<int> part_to_node(blocks.size());
-    for (int i = 0; i < part_to_node.size(); ++ i) {
+    for (int i = 0; i < part_to_node.size(); ++i) {
       CHECK(blocks.find(i) != blocks.end()) << "unknown block id " << i;
       part_to_node[i] = blocks[i].node_id;
     }
@@ -153,12 +160,11 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
 void Scheduler::Load(CollectionSpec c) {
   std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
   std::transform(
-    nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
-    [] (Node const& node){
-    return std::make_pair(node.hostname, node.id);
-    });  
+      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
+      [](Node const &node) { return std::make_pair(node.hostname, node.id); });
   CHECK(assigner_);
-  int num_blocks = assigner_->Load(c.collection_id, c.load_url, assigned_nodes, 1);
+  int num_blocks =
+      assigner_->Load(c.collection_id, c.load_url, assigned_nodes, 1);
 }
 
 void Scheduler::FinishDistribute(SArrayBinStream bin) {
@@ -169,8 +175,9 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
   if (distribute_map_[collection_id].size() == distribute_part_expected_) {
     // construct the collection view
     std::vector<int> part_to_node(distribute_part_expected_);
-    for (int i = 0; i < part_to_node.size(); ++ i) {
-      CHECK(distribute_map_[collection_id].find(i) != distribute_map_[collection_id].end());
+    for (int i = 0; i < part_to_node.size(); ++i) {
+      CHECK(distribute_map_[collection_id].find(i) !=
+            distribute_map_[collection_id].end());
       part_to_node[i] = distribute_map_[collection_id][i];
     }
     CollectionView cv;
@@ -187,7 +194,7 @@ void Scheduler::Distribute(CollectionSpec c) {
   distribute_part_expected_ = c.num_partition;
   // round-robin
   int node_index = 0;
-  for (int i = 0; i < c.num_partition; ++ i) {
+  for (int i = 0; i < c.num_partition; ++i) {
     Message msg;
     msg.meta.sender = 0;
     msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
@@ -204,19 +211,38 @@ void Scheduler::Distribute(CollectionSpec c) {
   }
 }
 
+void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
+  // TODO
+}
+
+void Scheduler::CheckPoint() {
+  // TODO: Check point proper collection, partition to proper dest_rul
+  const int collection_id = 1;
+  const int part_id = 1;
+  const std::string dest_url = "/tmp/tmp/c.txt";
+
+  SArrayBinStream bin;
+  bin << collection_id << part_id << dest_url;
+  SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
+}
+
 void Scheduler::FinishJoin(SArrayBinStream bin) {
-  //LOG(INFO) << "[Scheduler] FinishJoin:"
-  // << " num_workers_finish_a_plan_iteration_ (" << num_workers_finish_a_plan_iteration_ << ", " << nodes_.size() << ")"
-  //  << " num_plan_iteration_finished_ (" << num_plan_iteration_finished_ << ", " << program_.plans[program_num_plans_finished_].num_iter << ")"
-  //  << " program_num_plans_finished_ (" << program_num_plans_finished_ << ", " << program_.plans.size() << ")";
+  // LOG(INFO) << "[Scheduler] FinishJoin:"
+  // << " num_workers_finish_a_plan_iteration_ (" <<
+  // num_workers_finish_a_plan_iteration_ << ", " << nodes_.size() << ")"
+  //  << " num_plan_iteration_finished_ (" << num_plan_iteration_finished_ << ",
+  //  " << program_.plans[program_num_plans_finished_].num_iter << ")"
+  //  << " program_num_plans_finished_ (" << program_num_plans_finished_ << ", "
+  //  << program_.plans.size() << ")";
 
   num_workers_finish_a_plan_iteration_ += 1;
-  
+
   if (num_workers_finish_a_plan_iteration_ == nodes_.size()) {
     num_workers_finish_a_plan_iteration_ = 0;
     num_plan_iteration_finished_ += 1;
 
-    if (num_plan_iteration_finished_ == program_.plans[program_num_plans_finished_].num_iter){
+    if (num_plan_iteration_finished_ ==
+        program_.plans[program_num_plans_finished_].num_iter) {
       num_plan_iteration_finished_ = 0;
       program_num_plans_finished_ += 1;
     }
@@ -226,16 +252,16 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
 }
 
 void Scheduler::TryRunPlan() {
-  if (program_num_plans_finished_  == program_.plans.size()) {
+  if (program_num_plans_finished_ == program_.plans.size()) {
     LOG(INFO) << "[Scheduler] Finish all plans";
     Exit();
   } else {
-    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_ << "/" << program_.plans.size() << ")";
+    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_
+              << "/" << program_.plans.size() << ")";
     auto plan = program_.plans[program_num_plans_finished_];
     RunMap(plan);
   }
 }
-
 
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;
@@ -251,5 +277,4 @@ void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   }
 }
 
-}  // namespace xyz
-
+} // namespace xyz

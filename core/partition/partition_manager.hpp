@@ -17,6 +17,7 @@ class PartitionManager {
   PartitionManager() = default;
   ~PartitionManager();
 
+  bool Has(int collection_id, int partition_id);
   std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id);
 
   bool Has(int collection_id, int partition_id, int version);

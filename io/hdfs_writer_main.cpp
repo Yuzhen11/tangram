@@ -6,7 +6,7 @@
 
 using namespace xyz;
 
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
 
   const std::string namenode = "proj10";
@@ -17,4 +17,3 @@ int main(int argc, char** argv) {
   bool rc = writer.Write(dest_url, content.c_str(), content.size());
   CHECK_EQ(rc, 0);
 }
-

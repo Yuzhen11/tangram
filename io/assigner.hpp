@@ -1,31 +1,31 @@
 #pragma once
 
+#include <condition_variable>
 #include <map>
-#include <vector>
+#include <memory>
 #include <set>
 #include <sstream>
-#include <memory>
-#include <condition_variable>
+#include <vector>
 
 #include "glog/logging.h"
 
+#include "base/message.hpp"
 #include "comm/abstract_sender.hpp"
 #include "io/abstract_browser.hpp"
-#include "base/message.hpp"
 #include "io/meta.hpp"
 
 namespace xyz {
 
 class Assigner {
- public:
-  Assigner(std::shared_ptr<AbstractSender> sender, 
-          std::shared_ptr<AbstractBrowser> browser)
-      :sender_(sender), browser_(browser) {
-  }
+public:
+  Assigner(std::shared_ptr<AbstractSender> sender,
+           std::shared_ptr<AbstractBrowser> browser)
+      : sender_(sender), browser_(browser) {}
   ~Assigner() = default;
 
   // public api:
-  int Load(int collection_id, std::string url, std::vector<std::pair<std::string, int>> slaves, int num_slots);
+  int Load(int collection_id, std::string url,
+           std::vector<std::pair<std::string, int>> slaves, int num_slots);
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
   bool Done();
@@ -39,7 +39,8 @@ class Assigner {
   std::string DebugStringBlocks();
   std::string DebugStringFinishedBlocks();
   int GetNumBlocks();
- private:
+
+private:
   std::shared_ptr<AbstractBrowser> browser_;
   std::shared_ptr<AbstractSender> sender_;
 
@@ -51,7 +52,7 @@ class Assigner {
 
   // assigned blocks
   std::map<int, std::pair<std::string, size_t>> assigned_blocks_;
-  
+
   // finished blocks
   // part_id/block_id: <url, offset, node_id>
   std::map<int, StoredBlock> finished_blocks_;
@@ -63,5 +64,4 @@ class Assigner {
   int expected_num_finished_ = 0;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

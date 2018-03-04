@@ -1,13 +1,13 @@
-#include "gtest/gtest.h"
 #include "glog/logging.h"
+#include "gtest/gtest.h"
 
 #include "io/loader.hpp"
 
-#include "io/meta.hpp"
 #include "core/partition/seq_partition.hpp"
+#include "io/meta.hpp"
 
-#include "io/fake_reader.hpp"
 #include "base/threadsafe_queue.hpp"
+#include "io/fake_reader.hpp"
 
 #include <thread>
 
@@ -26,8 +26,8 @@ TEST_F(TestLoader, Create) {
   node.id = 2;
   node.hostname = "proj10";
   auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, 
-          namenode, port, node, reader_getter);
+  Loader loader(qid, executor, partition_manager, namenode, port, node,
+                reader_getter);
 }
 
 TEST_F(TestLoader, Load) {
@@ -40,18 +40,16 @@ TEST_F(TestLoader, Load) {
   node.id = 2;
   node.hostname = "proj10";
   auto reader_getter = []() { return std::make_shared<FakeReader>(); };
-  Loader loader(qid, executor, partition_manager, 
-          namenode, port, node, reader_getter);
+  Loader loader(qid, executor, partition_manager, namenode, port, node,
+                reader_getter);
 
   const int block_id = 23;
-  const int collection_id = 12; 
+  const int collection_id = 12;
   const size_t offset = 2342342;
   const std::string url = "kdd";
   AssignedBlock block{url, offset, block_id, collection_id};
   ThreadsafeQueue<SArrayBinStream> q;
-  loader.Load(block, [&q](SArrayBinStream bin) {
-    q.Push(bin);
-  });
+  loader.Load(block, [&q](SArrayBinStream bin) { q.Push(bin); });
   SArrayBinStream recv_bin;
   q.WaitAndPop(&recv_bin);
   FinishedBlock finished_block;
@@ -64,7 +62,7 @@ TEST_F(TestLoader, Load) {
   EXPECT_EQ(finished_block.collection_id, collection_id);
 
   auto part = partition_manager->Get(collection_id, block_id)->partition;
-  auto* p = static_cast<SeqPartition<std::string>*>(part.get());
+  auto *p = static_cast<SeqPartition<std::string> *>(part.get());
   auto v = p->GetStorage();
   ASSERT_EQ(v.size(), 3);
   EXPECT_EQ(v[0], "a");
@@ -72,6 +70,5 @@ TEST_F(TestLoader, Load) {
   EXPECT_EQ(v[2], "c");
 }
 
-}  // namespace
-}  // namespace xyz
-
+} // namespace
+} // namespace xyz

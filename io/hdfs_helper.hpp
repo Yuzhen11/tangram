@@ -1,14 +1,14 @@
 #pragma once
 
-#include "hdfs/hdfs.h"
 #include "glog/logging.h"
+#include "hdfs/hdfs.h"
 
 namespace xyz {
-namespace  {
+namespace {
 
 hdfsFS GetFS(std::string hdfs_namenode, int hdfs_namenode_port) {
   hdfsFS fs;
-  struct hdfsBuilder* builder = hdfsNewBuilder();
+  struct hdfsBuilder *builder = hdfsNewBuilder();
   hdfsBuilderSetNameNode(builder, hdfs_namenode.c_str());
   hdfsBuilderSetNameNodePort(builder, hdfs_namenode_port);
   fs = hdfsBuilderConnect(builder);
@@ -17,7 +17,5 @@ hdfsFS GetFS(std::string hdfs_namenode, int hdfs_namenode_port) {
   return fs;
 }
 
-}  // namespace
-}  // namespace xyz
-
-
+} // namespace
+} // namespace xyz

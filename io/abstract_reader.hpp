@@ -1,17 +1,17 @@
 #pragma once
 
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace xyz {
 
 class AbstractReader {
- public:
+public:
   virtual ~AbstractReader() {}
 
   // call Init before reading.
-  virtual void Init(std::string namenode, int port, 
-          std::string url, size_t offset) = 0;
+  virtual void Init(std::string namenode, int port, std::string url,
+                    size_t offset) = 0;
 
   // read block api.
   virtual std::vector<std::string> ReadBlock() = 0;
@@ -31,5 +31,4 @@ class AbstractReader {
   virtual int GetNumLineRead() = 0;
 };
 
-}  // namespace xyz
-
+} // namespace xyz

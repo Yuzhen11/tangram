@@ -34,11 +34,13 @@ struct AssignedBlock {
     return ss.str();
   }
 
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const AssignedBlock& b) {
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const AssignedBlock &b) {
     stream << b.url << b.offset << b.id << b.collection_id;
     return stream;
   }
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, AssignedBlock& b) {
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
+                                     AssignedBlock &b) {
     stream >> b.url >> b.offset >> b.id >> b.collection_id;
     return stream;
   }
@@ -61,15 +63,16 @@ struct FinishedBlock {
     return ss.str();
   }
 
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const FinishedBlock& b) {
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const FinishedBlock &b) {
     stream << b.block_id << b.node_id << b.qid << b.hostname << b.collection_id;
     return stream;
   }
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, FinishedBlock& b) {
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
+                                     FinishedBlock &b) {
     stream >> b.block_id >> b.node_id >> b.qid >> b.hostname >> b.collection_id;
     return stream;
   }
 };
 
-}  // namespace xyz
-
+} // namespace xyz
