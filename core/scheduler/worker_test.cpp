@@ -43,6 +43,7 @@ EngineElem GetEngineElem() {
       engine_elem.sender, engine_elem.collection_map);
   engine_elem.namenode = namenode;
   engine_elem.port = port;
+  engine_elem.num_local_threads = 1;
   return engine_elem;
 }
 
@@ -108,9 +109,11 @@ TEST_F(TestWorker, RegisterProgram) {
   Message msg = static_cast<SimpleSender *>(engine_elem.sender.get())->Get();
   ASSERT_EQ(msg.data.size(), 2);
   ProgramContext p;
+  WorkerInfo info;
   SArrayBinStream bin;
   bin.FromSArray(msg.data[1]);
-  bin >> p;
+  bin >> info >> p;
+  EXPECT_EQ(info.num_local_threads, 1);
   VLOG(3) << p.DebugString();
   ASSERT_EQ(p.plans.size(), 1);
   EXPECT_EQ(p.plans[0].plan_id, pid);

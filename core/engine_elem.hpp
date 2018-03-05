@@ -25,6 +25,8 @@ struct EngineElem {
 
   std::string namenode;
   int port;
+
+  int num_local_threads;
 };
 
 }  // namespace xyz

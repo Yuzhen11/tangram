@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
 
   Assigner assigner(sender, browser);
   int collection_id = 0;
-  int num_blocks = assigner.Load(collection_id, url, {{"proj5", 0}}, 1);
+  int num_blocks = assigner.Load(collection_id, url, {{"proj5", 0}}, {1});
   LOG(INFO) << "blocks number: " << num_blocks;
 
   for (int i = 0; i < num_blocks; ++i) {

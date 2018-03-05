@@ -6,8 +6,22 @@
 
 namespace xyz {
 
+// make the scheduler ready and start receiving RegisterProgram
+void Scheduler::Ready(std::vector<Node> nodes) {
+  LOG(INFO) << "[Scheduler] Ready";
+  for (auto& node : nodes) {
+    CHECK(nodes_.find(node.id) == nodes_.end());
+    NodeInfo n;
+    n.node = node;
+    nodes_[node.id] = n;
+  }
+  Start();
+  start_ = true;
+}
+
 void Scheduler::Process(Message msg) {
   CHECK_EQ(msg.data.size(), 2); // cmd, content
+  int node_id = GetNodeId(msg.meta.sender);
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
   bin.FromSArray(msg.data[1]);
@@ -15,7 +29,7 @@ void Scheduler::Process(Message msg) {
   ctrl_bin >> flag;
   switch (flag) {
   case ScheduleFlag::kRegisterProgram: {
-    RegisterProgram(bin);
+    RegisterProgram(node_id, bin);
     break;
   }
   case ScheduleFlag::kInitWorkersReply: {
@@ -47,7 +61,11 @@ void Scheduler::Process(Message msg) {
   }
 }
 
-void Scheduler::RegisterProgram(SArrayBinStream bin) {
+void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
+  WorkerInfo info;
+  bin >> info;
+  CHECK(nodes_.find(node_id) != nodes_.end());
+  nodes_[node_id].num_local_threads = info.num_local_threads;
   if (!init_program_) {
     init_program_ = true;
     bin >> program_;
@@ -161,13 +179,15 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
 }
 
 void Scheduler::Load(CollectionSpec c) {
-  std::vector<std::pair<std::string, int>> assigned_nodes(nodes_.size());
-  std::transform(
-      nodes_.begin(), nodes_.end(), assigned_nodes.begin(),
-      [](Node const &node) { return std::make_pair(node.hostname, node.id); });
+  std::vector<std::pair<std::string, int>> assigned_nodes;
+  std::vector<int> num_local_threads;
+  for (auto& kv: nodes_) {
+    assigned_nodes.push_back({kv.second.node.hostname, kv.second.node.id});
+    num_local_threads.push_back(kv.second.num_local_threads);
+  }
   CHECK(assigner_);
   int num_blocks =
-      assigner_->Load(c.collection_id, c.load_url, assigned_nodes, 1);
+      assigner_->Load(c.collection_id, c.load_url, assigned_nodes, num_local_threads);
 }
 
 void Scheduler::FinishDistribute(SArrayBinStream bin) {
@@ -196,11 +216,12 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
 void Scheduler::Distribute(CollectionSpec c) {
   distribute_part_expected_ = c.num_partition;
   // round-robin
-  int node_index = 0;
+  auto node_iter = nodes_.begin();
   for (int i = 0; i < c.num_partition; ++i) {
+    CHECK(node_iter != nodes_.end());
     Message msg;
     msg.meta.sender = 0;
-    msg.meta.recver = GetWorkerQid(nodes_[node_index].id);
+    msg.meta.recver = GetWorkerQid(node_iter->second.node.id);
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, bin;
     ctrl_bin << ScheduleFlag::kDistribute;
@@ -209,8 +230,10 @@ void Scheduler::Distribute(CollectionSpec c) {
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));
 
-    node_index += 1;
-    node_index %= nodes_.size();
+    node_iter ++;
+    if (node_iter == nodes_.end()) {
+      node_iter = nodes_.begin();
+    }
   }
 }
 
@@ -280,10 +303,10 @@ void Scheduler::TryRunPlan() {
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;
   ctrl_bin << flag;
-  for (auto node : nodes_) {
+  for (auto& node : nodes_) {
     Message msg;
     msg.meta.sender = 0;
-    msg.meta.recver = GetWorkerQid(node.id);
+    msg.meta.recver = GetWorkerQid(node.second.node.id);
     msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());

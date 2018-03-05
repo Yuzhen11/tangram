@@ -14,6 +14,7 @@ void Engine::Init(Engine::Config config) {
       std::make_shared<FunctionStore>(engine_elem_.collection_map);
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
+  engine_elem_.num_local_threads = config.num_threads;
   config_ = config;
 }
 

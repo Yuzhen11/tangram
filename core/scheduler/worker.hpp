@@ -78,7 +78,7 @@ public:
 
 private:
   int Id() { return engine_elem_.node.id; }
-  std::string WorkerInfo() { 
+  std::string WorkerId() { 
     std::stringstream ss;
     ss << "[Worker " << Id() << "]: ";
     return ss.str();

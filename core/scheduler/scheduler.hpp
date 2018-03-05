@@ -34,14 +34,10 @@ public:
     }
   }
 
-  // make the scheduler ready and start receiving RegisterProgram
-  void Ready(std::vector<Node> nodes) {
-    LOG(INFO) << "[Scheduler] Ready";
-    nodes_ = nodes;
-    Start();
-    start_ = true;
-  }
   void Wait();
+
+  // make the scheduler ready and start receiving RegisterProgram
+  void Ready(std::vector<Node> nodes);
 
   void Run() {
     // TODO do we need to lock some functions as two threads may work on the
@@ -70,7 +66,7 @@ public:
   virtual void Process(Message msg) override;
 
   // One worker register the program to scheduler
-  void RegisterProgram(SArrayBinStream bin);
+  void RegisterProgram(int, SArrayBinStream bin);
 
   // Initialize all workers by sending the PartToNodeMap
   // and wait for replies.
@@ -116,7 +112,13 @@ private:
   std::unordered_map<int, CollectionView> collection_map_;
 
   std::shared_ptr<Assigner> assigner_;
-  std::vector<Node> nodes_;
+  // std::vector<Node> nodes_;
+  // std::vector<int> num_local_threads_;
+  struct NodeInfo {
+    Node node;
+    int num_local_threads;
+  };
+  std::map<int, NodeInfo> nodes_;
 
   std::promise<void> exit_promise_;
 

@@ -38,4 +38,9 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kFinishWritePartition"
 };
 
+// currently workerinfo only has one field.
+struct WorkerInfo {
+  int num_local_threads;
+};
+
 } // namespace xyz

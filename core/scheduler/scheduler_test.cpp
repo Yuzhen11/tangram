@@ -45,9 +45,11 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   program.collections.push_back(c1);
   // program.collections.push_back(c2);
 
+  WorkerInfo info;
+  info.num_local_threads = 1;
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin << ScheduleFlag::kRegisterProgram;
-  bin << program;
+  bin << info << program;
   Message msg;
   msg.meta.sender = GetWorkerQid(1);
   msg.meta.recver = 0;

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-from launch_utils import launch_util
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"

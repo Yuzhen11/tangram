@@ -3,6 +3,8 @@
 #include "core/queue_node_map.hpp"
 #include "core/scheduler/control.hpp"
 
+#include <numeric>
+
 namespace xyz {
 
 bool Assigner::FinishBlock(FinishedBlock block) {
@@ -44,7 +46,8 @@ int Assigner::GetNumBlocks() {
 // return num of blocks
 int Assigner::Load(int collection_id, std::string url,
                    std::vector<std::pair<std::string, int>> slaves,
-                   int num_slots) {
+                   std::vector<int> num_local_threads) {
+  CHECK_EQ(slaves.size(), num_local_threads.size());
   InitBlocks(url);
   num_finished_ = 0;
   num_assigned_ = 0;
@@ -56,17 +59,25 @@ int Assigner::Load(int collection_id, std::string url,
             << ", assigning " << blocks_.size() 
             << " parititions to " << slaves.size() << " slaves";
   // TODO: use more scheduling sophisticatic algorithm
-  for (auto slave : slaves) {
-    for (int i = 0; i < num_slots; ++i) {
-      Assign(collection_id, slave);
+  int index = 0;
+  int num_total_slots = std::accumulate(num_local_threads.begin(), num_local_threads.end(), 0);
+  int to_assign = std::min(int(blocks_.size()), num_total_slots);
+  while (to_assign > 0) {
+    if (num_local_threads[index] > 0) {
+      bool suc = Assign(collection_id, slaves[index]);
+      CHECK_EQ(suc, true);
+      num_local_threads[index] -= 1;
+      to_assign --;
     }
+    index += 1;
+    index %= num_local_threads.size();
   }
   return expected_num_finished_;
 }
 
-void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
+bool Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   if (blocks_.empty()) {
-    return;
+    return false;
   }
 
   std::pair<std::string, size_t> block;
@@ -108,6 +119,7 @@ void Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   blocks_.erase(block);
   num_assigned_ += 1;
   assigned_blocks_.insert({assigned_block.id, block});
+  return true;
 }
 
 std::string Assigner::DebugStringLocalityMap() {

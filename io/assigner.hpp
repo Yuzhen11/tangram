@@ -24,8 +24,11 @@ public:
   ~Assigner() = default;
 
   // public api:
+  // non threadsafe
   int Load(int collection_id, std::string url,
-           std::vector<std::pair<std::string, int>> slaves, int num_slots);
+           std::vector<std::pair<std::string, int>> slaves, 
+           std::vector<int> num_local_threads);
+
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
   bool Done();
@@ -34,7 +37,7 @@ public:
   }
 
   void InitBlocks(std::string url);
-  void Assign(int collection_id, std::pair<std::string, int> slave);
+  bool Assign(int collection_id, std::pair<std::string, int> slave);
   std::string DebugStringLocalityMap();
   std::string DebugStringBlocks();
   std::string DebugStringFinishedBlocks();

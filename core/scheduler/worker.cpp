@@ -11,11 +11,14 @@ void Worker::Wait() {
 }
 
 void Worker::RegisterProgram() {
-  LOG(INFO) << WorkerInfo() << "RegisterProgram";
+  LOG(INFO) << WorkerId() << "RegisterProgram";
   CHECK(is_program_set_);
   ready_ = true;
 
   SArrayBinStream bin;
+  WorkerInfo info;
+  info.num_local_threads = engine_elem_.num_local_threads;
+  bin << info;
   bin << program_;
   SendMsgToScheduler(ScheduleFlag::kRegisterProgram, bin);
 }
@@ -89,10 +92,10 @@ void Worker::InitWorkers(SArrayBinStream bin) {
   SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
 }
 
-void Worker::RunDummy() { LOG(INFO) << WorkerInfo() << "RunDummy"; }
+void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }
 
 void Worker::RunMap(SArrayBinStream bin) {
-  LOG(INFO) << WorkerInfo() << "RunMap";
+  LOG(INFO) << WorkerId() << "RunMap";
   int plan_id;
   bin >> plan_id;
   auto func = engine_elem_.function_store->GetMap(plan_id);
@@ -109,7 +112,7 @@ void Worker::RunMap(SArrayBinStream bin) {
 void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
-  LOG(INFO) << WorkerInfo() << "LoadBlock: " << block.DebugString();
+  LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
   reader_wrapper_->ReadBlock(block, 
   engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
   [this](SArrayBinStream bin) {
@@ -119,7 +122,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 }
 
 void Worker::Distribute(SArrayBinStream bin) {
-  // LOG(INFO) << WorkerInfo() << "[Worker] Distribute";
+  // LOG(INFO) << WorkerId() << "[Worker] Distribute";
   int part_id;
   CollectionSpec spec;
   bin >> part_id >> spec;
@@ -163,14 +166,14 @@ void Worker::WritePartition(SArrayBinStream bin) {
 }
 
 void Worker::Exit() { 
-  LOG(INFO) << WorkerInfo() << "Exit";
+  LOG(INFO) << WorkerId() << "Exit";
   exit_promise_.set_value(); 
 }
 void Worker::MapFinish() {
-  LOG(INFO) << WorkerInfo() << "MapFinish";
+  LOG(INFO) << WorkerId() << "MapFinish";
 }
 void Worker::JoinFinish() {
-  LOG(INFO) << WorkerInfo() << "JoinFinish";
+  LOG(INFO) << WorkerId() << "JoinFinish";
   SArrayBinStream bin;
   SendMsgToScheduler(ScheduleFlag::kJoinFinish, bin);
 }

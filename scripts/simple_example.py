@@ -1,19 +1,15 @@
 #!/usr/bin/env python
 
 import sys
-from launch_utils import launch_util
+from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
 progfile = "debug/SimpleExample"
 schedulerfile = "debug/SchedulerMain"
 
 common_params = {
-    #"hdfs_namenode" : "proj10",
-    #"hdfs_namenode_port" : 9000,
-    #"input" : "hdfs:///jasper/kdd12",
     "scheduler" : "proj10",
     "scheduler_port" : "33254",
-    #"url" : "/datasets/classification/kdd12-5blocks",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }
@@ -36,5 +32,8 @@ env_params = (
   )
 
 dump_core = False
-launch_util(schedulerfile, progfile, hostfile, env_params, 
-        common_params, scheduler_params, program_params, sys.argv, dump_core)
+l = Launcher(schedulerfile, progfile, hostfile,
+             common_params, scheduler_params, program_params, env_params,
+             dump_core)
+
+l.Launch(sys.argv)
