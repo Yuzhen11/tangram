@@ -43,10 +43,12 @@ TEST_F(TestWriterWrapper, Write) {
 
   ThreadsafeQueue<SArrayBinStream> q;
   writer.Write(0, 0, "/tmp/tmp/d.txt",
-               [](std::shared_ptr<AbstractPartition> p) { 
-                  SArrayBinStream bin;
-                  p->ToBin(bin);
-                  return bin;
+               [](std::shared_ptr<AbstractPartition> p, 
+                 std::shared_ptr<AbstractWriter> writer, std::string url) { 
+                 SArrayBinStream bin;
+                 p->ToBin(bin);
+                 bool rc = writer->Write(url, bin.GetPtr(), bin.Size());
+                 CHECK_EQ(rc, 0);
                },
                [&q](SArrayBinStream bin) { q.Push(bin); }
                );

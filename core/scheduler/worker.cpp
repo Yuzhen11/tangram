@@ -133,10 +133,11 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   bin >> collection_id >> part_id >> dest_url;
 
   writer_->Write(collection_id, part_id, dest_url, 
-    [](std::shared_ptr<AbstractPartition> p) { 
-       SArrayBinStream bin;
-       p->ToBin(bin);
-       return bin;
+    [](std::shared_ptr<AbstractPartition> p, std::shared_ptr<AbstractWriter> writer, std::string url) { 
+      SArrayBinStream bin;
+      p->ToBin(bin);
+      bool rc = writer->Write(url, bin.GetPtr(), bin.Size());
+      CHECK_EQ(rc, 0);
     }, 
     [this](SArrayBinStream bin) {
       SendMsgToScheduler(ScheduleFlag::kFinishCheckPoint, bin);
