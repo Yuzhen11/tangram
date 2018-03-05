@@ -32,6 +32,11 @@ const FunctionStore::CreatePartFromBlockReaderFuncT& FunctionStore::GetCreatePar
   return create_part_from_block_reader_[id];
 }
 
+const FunctionStore::WritePartFuncT& FunctionStore::GetWritePartFunc(int id) {
+  CHECK(write_part_.find(id) != write_part_.end()) << id;
+  return write_part_[id];
+}
+
 void FunctionStore::AddPartToIntermediate(int id, PartToOutput map) {
   auto ret = [this, map](ShuffleMeta meta, std::shared_ptr<AbstractPartition> partition, 
                std::shared_ptr<AbstractIntermediateStore> intermediate_store,
@@ -108,6 +113,10 @@ void FunctionStore::AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func
 
 void FunctionStore::AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) {
   create_part_from_block_reader_.insert({id, func});
+}
+
+void FunctionStore::AddWritePart(int id, WritePartFuncT func) {
+  write_part_.insert({id, func});
 }
 
 }  // namespaca xyz

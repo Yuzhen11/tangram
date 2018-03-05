@@ -68,6 +68,7 @@ public:
   void LoadBlock(SArrayBinStream bin);
   void Distribute(SArrayBinStream bin);
   void CheckPoint(SArrayBinStream bin);
+  void WritePartition(SArrayBinStream bin);
 
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
 

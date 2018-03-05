@@ -16,6 +16,8 @@ enum class ScheduleFlag : char {
   kFinishDistribute,
   kCheckPoint,
   kFinishCheckPoint,
+  kWritePartition,
+  kFinishWritePartition,
 };
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kInitWorker",
@@ -31,6 +33,9 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kDistribute",
                                          "kFinishDistribute",
                                          "kCheckPoint",
-                                         "kFinishCheckPoint"};
+                                         "kFinishCheckPoint",
+                                         "kWritePartition",
+                                         "kFinishWritePartition"
+};
 
 } // namespace xyz

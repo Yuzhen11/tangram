@@ -66,6 +66,10 @@ void Worker::Process(Message msg) {
     CheckPoint(bin);
     break;
   }
+  case ScheduleFlag::kWritePartition: {
+    WritePartition(bin);
+    break;
+  }
   default:
     CHECK(false);
   }
@@ -141,6 +145,19 @@ void Worker::CheckPoint(SArrayBinStream bin) {
     }, 
     [this](SArrayBinStream bin) {
       SendMsgToScheduler(ScheduleFlag::kFinishCheckPoint, bin);
+    }
+  );
+}
+
+void Worker::WritePartition(SArrayBinStream bin) {
+  int collection_id, part_id;
+  std::string dest_url;
+  bin >> collection_id >> part_id >> dest_url;
+
+  writer_->Write(collection_id, part_id, dest_url, 
+    engine_elem_.function_store->GetWritePartFunc(collection_id),  // get the write_part_func from function_store
+    [this](SArrayBinStream bin) {
+      SendMsgToScheduler(ScheduleFlag::kFinishWritePartition, bin);
     }
   );
 }

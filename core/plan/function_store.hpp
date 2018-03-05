@@ -23,7 +23,7 @@ class FunctionStore : public AbstractFunctionStore {
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
   using MapWith = AbstractFunctionStore::MapWith;
   using CreatePartFromBinFuncT = AbstractFunctionStore::CreatePartFromBinFuncT;
-  using CreatePartFromBlockReaderFuncT = AbstractFunctionStore::CreatePartFromBlockReaderFuncT;
+  using WritePartFuncT = AbstractFunctionStore::WritePartFuncT;
 
   // void AddPlanItem(PlanItem plan);
   // Partition -> MapOutputManager
@@ -51,6 +51,7 @@ class FunctionStore : public AbstractFunctionStore {
   const JoinFuncT& GetJoin(int id);
   const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
   const CreatePartFromBlockReaderFuncT& GetCreatePartFromBlockReader(int id);
+  const WritePartFuncT& GetWritePartFunc(int id);
 
   // Used by plan to register function.
   virtual void AddPartToIntermediate(int id, PartToOutput func) override;
@@ -60,6 +61,7 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddMapWith(int id, MapWith func) override;
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) override;
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) override;
+  virtual void AddWritePart(int id, WritePartFuncT func) override;
 
  private:
   std::map<int, PartToOutputManager> part_to_output_manager_;
@@ -70,6 +72,7 @@ class FunctionStore : public AbstractFunctionStore {
 
   std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;
   std::map<int, CreatePartFromBlockReaderFuncT> create_part_from_block_reader_;
+  std::map<int, WritePartFuncT> write_part_;
 
   std::shared_ptr<AbstractCollectionMap> collection_map_;
 };

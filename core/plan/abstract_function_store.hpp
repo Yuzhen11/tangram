@@ -9,6 +9,7 @@
 #include "core/cache/abstract_partition_cache.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
 #include "io/abstract_block_reader.hpp"
+#include "io/abstract_writer.hpp"
 
 namespace xyz { 
 
@@ -27,6 +28,7 @@ class AbstractFunctionStore {
           SArrayBinStream bin, int part_id, int num_part)>;
   using CreatePartFromBlockReaderFuncT = std::function<std::shared_ptr<AbstractPartition>(
           std::shared_ptr<AbstractBlockReader>)>;
+  using WritePartFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractWriter>, std::string)>;
 
   ~AbstractFunctionStore(){}
   virtual void AddPartToIntermediate(int id, PartToOutput func) = 0;
@@ -37,6 +39,7 @@ class AbstractFunctionStore {
 
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) = 0;
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) = 0;
+  virtual void AddWritePart(int id, WritePartFuncT func) = 0;
 };
 
 }  // namespaca xyz

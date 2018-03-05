@@ -34,6 +34,10 @@ void Scheduler::Process(Message msg) {
     FinishCheckPoint(bin);
     break;
   }
+  case ScheduleFlag::kFinishWritePartition: {
+    FinishWritePartition(bin);
+    break;
+  }
   case ScheduleFlag::kJoinFinish: {
     FinishJoin(bin);
     break;
@@ -212,6 +216,12 @@ void Scheduler::Distribute(CollectionSpec c) {
 
 void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
   // TODO
+  CHECK(false);
+}
+
+void Scheduler::FinishWritePartition(SArrayBinStream bin) {
+  // TODO
+  CHECK(false);
 }
 
 void Scheduler::CheckPoint() {
@@ -223,6 +233,11 @@ void Scheduler::CheckPoint() {
   SArrayBinStream bin;
   bin << collection_id << part_id << dest_url;
   SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
+}
+
+void Scheduler::WritePartition() {
+  // TODO
+  CHECK(false);
 }
 
 void Scheduler::FinishJoin(SArrayBinStream bin) {

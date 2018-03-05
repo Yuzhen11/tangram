@@ -95,6 +95,8 @@ public:
   void FinishDistribute(SArrayBinStream bin);
   void CheckPoint();
   void FinishCheckPoint(SArrayBinStream bin);
+  void WritePartition();
+  void FinishWritePartition(SArrayBinStream bin);
   void FinishJoin(SArrayBinStream bin);
 
 private:
