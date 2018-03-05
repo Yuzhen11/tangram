@@ -2,8 +2,6 @@
 
 #include <vector>
 
-namespace nova {
-
 template <typename Base> class Store {
 public:
   template <typename O = Base, typename... ArgT> O *make(ArgT... args) {
@@ -40,4 +38,3 @@ private:
   std::vector<Base *> instances;
 };
 
-} // namespace nova
