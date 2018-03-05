@@ -2,6 +2,7 @@
 
 import sys
 from launch_utils import launch_util
+from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
 progfile = "debug/LoadExample"
@@ -15,9 +16,9 @@ common_params = {
 }
 
 program_params = {
-    "url" : "/datasets/classification/kdd12-5blocks",
+    # "url" : "/datasets/classification/kdd12-5blocks",
     "num_local_threads" : 2,
-    # "url" : "/datasets/classification/url_combined",
+    "url" : "/datasets/classification/url_combined",
 }
 
 scheduler_params = {
@@ -34,6 +35,10 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-dump_core = False
-launch_util(schedulerfile, progfile, hostfile, env_params, 
-        common_params, scheduler_params, program_params, sys.argv, dump_core)
+l = Launcher(schedulerfile, progfile, hostfile,
+             common_params, scheduler_params, program_params, env_params,
+             dump_core=False)
+
+l.Launch(sys.argv)
+# l.DebugString()
+
