@@ -20,7 +20,7 @@ template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT
 struct MapJoin;
 
 template<typename MsgT, typename C1, typename C2>
-MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoin(int plan_id, C1 c1, C2 c2) {
+MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoin(int plan_id, C1* c1, C2* c2) {
   MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> plan(plan_id, c1, c2);
   return plan;
 }
@@ -33,7 +33,7 @@ struct MapJoin : public MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>{
   using MapFuncT = std::function<std::pair<typename ObjT2::KeyT, MsgT>(const ObjT1&)>;
   using MapVecFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(const ObjT1&)>;
 
-  MapJoin(int plan_id, C1 map_collection, C2 join_collection)
+  MapJoin(int plan_id, C1* map_collection, C2* join_collection)
       : MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>(plan_id, map_collection, join_collection) {
   }
 

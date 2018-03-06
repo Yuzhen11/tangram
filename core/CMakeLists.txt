@@ -10,6 +10,7 @@ file(GLOB core-src-files
     map_output/map_output_storage.cpp
     scheduler/worker.cpp
     scheduler/scheduler.cpp
+    plan/context.cpp
   )
 
 # TODO now we let engine and worker depends on HDFS
@@ -22,5 +23,5 @@ if(LIBHDFS3_FOUND)
 endif(LIBHDFS3_FOUND)
 
 add_library(core-objs OBJECT ${core-src-files})
-set_property(TARGET core-objs PROPERTY CXX_STANDARD 11)
+set_property(TARGET core-objs PROPERTY CXX_STANDARD 14)
 add_dependencies(core-objs ${external_project_dependencies})

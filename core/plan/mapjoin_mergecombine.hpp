@@ -10,7 +10,7 @@ template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT
 struct MapJoinMergeCombine;
 
 template<typename MsgT, typename C1, typename C2>
-MapJoinMergeCombine<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoinMergeCombine(int plan_id, C1 c1, C2 c2) {
+MapJoinMergeCombine<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoinMergeCombine(int plan_id, C1* c1, C2* c2) {
   MapJoinMergeCombine<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> plan(plan_id, c1, c2);
   return plan;
 }
@@ -21,8 +21,8 @@ template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT
 struct MapJoinMergeCombine : MapJoin<C1, C2, ObjT1, ObjT2, MsgT> {
 
   MapJoinMergeCombine(int _plan_id, 
-          C1 _map_collection, 
-          C2 _join_collection)
+          C1* _map_collection, 
+          C2* _join_collection)
       : MapJoin<C1,C2,ObjT1,ObjT2,MsgT>(_plan_id, _map_collection, _join_collection) {}
 
   void RegisterMergeCombine(std::shared_ptr<AbstractFunctionStore> function_store) {

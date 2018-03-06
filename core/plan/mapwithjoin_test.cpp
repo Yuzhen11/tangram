@@ -9,6 +9,7 @@ namespace {
 struct ObjT {
   using KeyT = int;
   using ValT = int;
+  ObjT() = default;
   ObjT(KeyT _a):a(_a) {}
   KeyT Key() const { return a; }
   int a;

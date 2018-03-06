@@ -14,8 +14,13 @@
 
 namespace xyz {
 
+struct CollectionBase {
+  virtual ~CollectionBase() = default;
+  virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) = 0;
+};
+
 template<typename T, typename PartitionT = IndexedSeqPartition<T>>
-class Collection {
+class Collection : public CollectionBase {
  public:
   using ObjT = T;
   Collection(int id): Collection(id, 1) {}
@@ -59,7 +64,7 @@ class Collection {
     return s;
   }
 
-  void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
+  virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     if (source_ == CollectionSource::kLoad) {
       RegisterCreatePartFromBlockReader(function_store);
     } else {  // kDistribute and kOthers

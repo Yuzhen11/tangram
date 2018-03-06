@@ -40,7 +40,7 @@ void Run() {
   c1.Load(FLAGS_url, [](std::string& s) { return s; });
 
   Collection<ObjT> c2{2};
-  auto plan = GetMapJoin<int>(plan_id, c1, c2);
+  auto plan = GetMapJoin<int>(plan_id, &c1, &c2);
   plan.map = [](const std::string& a) {
     return std::pair<std::string, int>(a, 1);
   };

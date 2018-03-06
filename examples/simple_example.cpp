@@ -51,7 +51,7 @@ void Run() {
 
   int plan_id = 0;
   // MapJoin<std::string, ObjT, int> plan(plan_id, c1, c2);
-  auto plan = GetMapJoin<int>(plan_id, c1, c2);
+  auto plan = GetMapJoin<int>(plan_id, &c1, &c2);
   plan.map = [](std::string word) {
     return std::pair<std::string, int>(word, 1);
   };
