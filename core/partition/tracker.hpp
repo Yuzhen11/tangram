@@ -16,7 +16,7 @@ enum class TaskStatus {
 
 struct TaskTracker {
   TaskTracker(): status(TaskStatus::Pending) {}
-  void Run() { 
+  void Run() {
     CHECK(status == TaskStatus::Pending);
     timer.Run(); 
     status = TaskStatus::Running;
@@ -28,6 +28,14 @@ struct TaskTracker {
   }
   TaskTimer timer;
   TaskStatus status;
+
+  std::string DebugString() const {
+    std::stringstream ss;
+    if (status == TaskStatus::Pending) ss << "{TaskStatus: Pending} ";
+    if (status == TaskStatus::Running) ss << "{TaskStatus: Running} ";
+    if (status == TaskStatus::Finished) ss << "{TaskStatus: Finished} ";
+    return ss.str();
+  }
 };
 
 // A partition should have multiple tasks (the number of map tasks)
@@ -39,7 +47,7 @@ struct JoinPartTracker {
     tracker.insert({up_id, TaskTracker()});
   }
   void Run(int up_id) {
-    CHECK(tracker.find(up_id) != tracker.end());
+    CHECK(tracker.find(up_id) != tracker.end()) << up_id;
     tracker[up_id].Run();
     running.insert(up_id);
   }
@@ -53,7 +61,9 @@ struct JoinPartTracker {
     std::stringstream ss;
     ss << "{ finished: " << finished.size();
     ss << ", running: " << running.size();
-    ss << " }";
+    ss << ", TaskStatus: ";
+    //for (auto task_tracker: tracker) ss << "<" << task_tracker.second.DebugString() << ">"; 
+    //ss << " >}";
     return ss.str();
   }
   std::map<int, TaskTracker> tracker;  // upstream_part_id -> tracker
@@ -86,9 +96,13 @@ class JoinTracker {
     CHECK(tracker.find(part_id) != tracker.end());
     tracker[part_id].Finish(up_id);
   }
+  void Clear() {
+    std::lock_guard<std::mutex> lk(mu);
+    tracker.clear();
+  }
   bool FinishAll() {
     std::lock_guard<std::mutex> lk(mu);
-    // LOG(INFO) << DebugString();
+    //LOG(INFO) << DebugString();
     if (tracker.size() < num_local_part_) {
       return false;
     }
@@ -97,6 +111,7 @@ class JoinTracker {
         return false;
       }
     }
+    // LOG(INFO) << DebugString();
     return true;
   }
   std::string DebugString() const {
@@ -178,6 +193,12 @@ class MapTracker {
     std::lock_guard<std::mutex> lk(mu_);
     CHECK(tracker.find(part_id) != tracker.end());
     return tracker[part_id];
+  }
+  void Clear() {
+    std::lock_guard<std::mutex> lk(mu_);
+    LOG(INFO) << "[MapTracker] finish all map, clear tracker";
+    tracker.clear();
+    map_count = 0;
   }
 
  private:

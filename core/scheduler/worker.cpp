@@ -96,17 +96,16 @@ void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }
 
 void Worker::RunMap(SArrayBinStream bin) {
   LOG(INFO) << WorkerId() << "RunMap";
-  int plan_id;
-  bin >> plan_id;
-  auto func = engine_elem_.function_store->GetMap(plan_id);
-  PlanSpec plan = plan_map_[plan_id];
-  engine_elem_.partition_tracker->SetPlan(
-      plan); // set plan before run partition tracker
+  PlanSpec plan;
+  bin >> plan;
+  auto func = engine_elem_.function_store->GetMap(plan.plan_id);
+  //LOG(INFO) << engine_elem_.partition_tracker->DebugString();
+  engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
   engine_elem_.partition_tracker->RunAllMap(
       [func, this](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
                    std::shared_ptr<AbstractMapProgressTracker> pt) {
         func(meta, p, engine_elem_.intermediate_store, pt);
-      });
+  });
 }
 
 void Worker::LoadBlock(SArrayBinStream bin) {

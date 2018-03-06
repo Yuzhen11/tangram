@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <condition_variable>
+#include <sstream>
 
 #include "core/plan/plan_spec.hpp"
 #include "core/partition/abstract_partition.hpp"
@@ -51,6 +52,10 @@ class PartitionTracker {
     return join_tracker_;
   }
   bool FinishAllJoin();
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "plan_set_ : " << plan_set_;
+  }
  private:
   void StartMap(int part_id);
   void FinishMap(int part_id, std::shared_ptr<VersionedPartition> part);

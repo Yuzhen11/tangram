@@ -129,7 +129,7 @@ void Scheduler::RunMap(PlanSpec plan) {
   SArrayBinStream bin;
   // CHECK_EQ(program_.plans.size(), 1);
   // bin << program_.plans[0].plan_id;
-  bin << plan.plan_id;
+  bin << plan;
   SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
@@ -294,8 +294,11 @@ void Scheduler::TryRunPlan() {
     Exit();
   } else {
     LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_
-              << "/" << program_.plans.size() << ")";
+              << "/" << program_.plans.size() << ")"
+              << " Plan Iteration (" << num_plan_iteration_finished_
+              << "/" << program_.plans[program_num_plans_finished_].num_iter << ")";
     auto plan = program_.plans[program_num_plans_finished_];
+    plan.cur_iter = num_plan_iteration_finished_;
     RunMap(plan);
   }
 }

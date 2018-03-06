@@ -18,17 +18,20 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
 
   // if no map partition
   if (parts.empty()) {
+    LOG(INFO) << "[SetPlan] no map partition and send map finish";
     SendMapFinish();
   }
   // if no join partition
   if (num_local_part == 0) {
+    LOG(INFO) << "[SetPlan] no join partition and send join finish";
     SendJoinFinish();
   }
 
   // set the map/join tracker
   map_tracker_.reset(new MapTracker);
   join_tracker_.reset(new JoinTracker(num_local_part, num_upstream_part));
-
+  //LOG(INFO) << "create join_tracker: " << num_local_part << " " << num_upstream_part;
+  CHECK_EQ(plan_set_, false);
   plan_set_ = true;
   cond_.notify_one();
 }
@@ -73,7 +76,9 @@ void PartitionTracker::StartMap(int part_id) {
 void PartitionTracker::FinishMap(int part_id, std::shared_ptr<VersionedPartition> part) {
   std::lock_guard<std::mutex> lk(mu_);
   unfinished_map_parts_.erase(part_id);
+  map_tracker_->Finish(part_id);
   if (unfinished_map_parts_.empty()) {
+    map_tracker_->Clear();
     SendMapFinish();
   }
   if (pending_join_.find(part_id) != pending_join_.end()) {
@@ -89,6 +94,7 @@ void PartitionTracker::FinishMap(int part_id, std::shared_ptr<VersionedPartition
         FinishJoin(work.part_id, work.upstream_part_id);
       });
     }
+    pending_join_.erase(part_id);
   }
 }
 
@@ -107,6 +113,7 @@ void PartitionTracker::RunJoin(JoinMeta join_meta) {
   } else {
     join_tracker_->Add(part_id, upstream_part_id);
   }
+  // LOG(INFO) << "joining " << part_id << " " << upstream_part_id;
 
   // the map and join are working on the same collection.
   if (plan_.join_collection_id == plan_.map_collection_id 
@@ -137,6 +144,9 @@ void PartitionTracker::FinishJoin(int part_id, int upstream_part_id) {
   std::lock_guard<std::mutex> lk(mu_);
   join_tracker_->Finish(part_id, upstream_part_id);
   if (join_tracker_->FinishAll()) {
+    LOG(INFO) << "[FinishJoin] join tracker finish all, clear and send join finish";
+    join_tracker_->Clear();
+    plan_set_ = false;
     SendJoinFinish();
   }
 }

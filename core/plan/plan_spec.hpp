@@ -10,6 +10,7 @@ struct PlanSpec {
   int plan_id;
   int map_collection_id;
   int join_collection_id;
+  int cur_iter = 0;
   int num_iter = 1;
 
   int with_collection_id = -1;
