@@ -28,12 +28,12 @@ struct ObjT {
 
 
 int main(int argc, char** argv) {
-  auto c1 = Context::collection<Collection<std::string, SeqPartition<std::string>>>();
-  c1->Distribute(
-          std::vector<std::string>{"b", "a", "n", "a", "n", "a"});
+  auto c1 = Context::distribute(std::vector<std::string>{"b", "a", "n", "a", "n", "a"}, 1);
 
-  auto c2 = Context::collection<Collection<ObjT>>(10);
-  c2->SetMapper(std::make_shared<HashKeyToPartMapper<ObjT::KeyT>>(10));
+  // std::string s;
+  // auto c3 = Context::load(s, [](const std::string&) { return ObjT(); });
+
+  auto c2 = Context::placeholder<ObjT>(10);
 
   auto p = Context::mapjoin(c1, c2, 
     [](std::string word) {

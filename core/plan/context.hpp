@@ -28,6 +28,28 @@ class Context {
     return collections_.make<C>(args...);
   }
 
+  template<typename D>
+  static auto* distribute(std::vector<D>&& data, int num_parts = 1) {
+    auto* c = collections_.make<Collection<D, SeqPartition<D>>>(num_parts);
+    c->Distribute(data);
+    return c;
+  }
+
+  template<typename Parse>
+  static auto* load(std::string url, Parse parse) {
+    using D = decltype(parse(*(std::string*)nullptr));
+    auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
+    c->Load(url, parse);
+    return c;
+  }
+
+  template<typename D>
+  static auto* placeholder(int num_parts = 1) {
+    auto* c = collections_.make<Collection<D>>(num_parts);
+    c->SetMapper(std::make_shared<HashKeyToPartMapper<typename D::KeyT>>(num_parts));
+    return c;
+  }
+
   template<typename C1, typename C2, typename M, typename J>
   static auto* mapjoin(C1* c1, C2* c2, M m, J j) {
     using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::second_type;
