@@ -102,7 +102,6 @@ class JoinTracker {
   }
   bool FinishAll() {
     std::lock_guard<std::mutex> lk(mu);
-    //LOG(INFO) << DebugString();
     if (tracker.size() < num_local_part_) {
       return false;
     }
@@ -111,7 +110,6 @@ class JoinTracker {
         return false;
       }
     }
-    // LOG(INFO) << DebugString();
     return true;
   }
   std::string DebugString() const {

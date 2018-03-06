@@ -42,7 +42,7 @@ struct MapPartWithJoin : public PlanBase {
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
           C2* _join_collection, C3* _with_collection)
-      :plan_id(_plan_id), map_collection(_map_collection), 
+      : PlanBase(_plan_id), map_collection(_map_collection), 
        join_collection(_join_collection), with_collection(_with_collection) {
   }
 
@@ -92,11 +92,10 @@ struct MapPartWithJoin : public PlanBase {
     };
   }
 
-  int plan_id;
   C1* map_collection;
   C2* join_collection;
   C3* with_collection;
-  int num_iter = 1;
+  //int num_iter = 1;
 
   MapPartWithFuncT mappartwith;
   JoinFuncT join;

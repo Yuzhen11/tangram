@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 import sys
-from launch_utils import launch_util
+from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
 progfile = "debug/PageRank"
@@ -34,5 +34,8 @@ env_params = (
   )
 
 dump_core = False
-launch_util(schedulerfile, progfile, hostfile, env_params, 
-        common_params, scheduler_params, program_params, sys.argv, dump_core)
+l = Launcher(schedulerfile, progfile, hostfile,
+             common_params, scheduler_params, program_params, env_params,
+             dump_core)
+
+l.Launch(sys.argv)

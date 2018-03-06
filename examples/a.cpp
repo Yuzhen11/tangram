@@ -44,5 +44,5 @@ int main(int argc, char** argv) {
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
     });
 
-  Runner::Run(argc, argv);
+  Runner::Run();
 }

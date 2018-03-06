@@ -18,9 +18,11 @@ namespace xyz {
 
 class Runner {
  public:
-  static void Run(int argc, char** argv) {
+  static void Init(int argc, char** argv) {
     google::InitGoogleLogging(argv[0]);
     gflags::ParseCommandLineFlags(&argc, &argv, true);
+  }
+  static void Run() {
 
     CHECK(!FLAGS_scheduler.empty());
 

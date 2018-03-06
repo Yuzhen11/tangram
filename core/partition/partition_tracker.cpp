@@ -30,7 +30,6 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
   // set the map/join tracker
   map_tracker_.reset(new MapTracker);
   join_tracker_.reset(new JoinTracker(num_local_part, num_upstream_part));
-  //LOG(INFO) << "create join_tracker: " << num_local_part << " " << num_upstream_part;
   CHECK_EQ(plan_set_, false);
   plan_set_ = true;
   cond_.notify_one();
@@ -113,7 +112,6 @@ void PartitionTracker::RunJoin(JoinMeta join_meta) {
   } else {
     join_tracker_->Add(part_id, upstream_part_id);
   }
-  // LOG(INFO) << "joining " << part_id << " " << upstream_part_id;
 
   // the map and join are working on the same collection.
   if (plan_.join_collection_id == plan_.map_collection_id 

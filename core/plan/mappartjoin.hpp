@@ -32,8 +32,7 @@ struct MapPartJoin : public PlanBase {
           std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapProgressTracker>)>;
 
   MapPartJoin(int _plan_id, C1* _map_collection, C2* _join_collection)
-      :plan_id(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {
-  }
+      : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {}
 
   virtual PlanSpec GetPlanSpec() override {
     PlanSpec plan;
@@ -74,10 +73,9 @@ struct MapPartJoin : public PlanBase {
     };
   }
 
-  int plan_id;
   C1* map_collection;
   C2* join_collection;
-  int num_iter = 1;
+  //int num_iter = 1;
 
   MapPartFuncT mappart;
   JoinFuncT join;
