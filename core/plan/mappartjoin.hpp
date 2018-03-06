@@ -21,7 +21,7 @@ MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapPartJoin(i
 }
 
 template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT>
-struct MapPartJoin : PlanBase{
+struct MapPartJoin : public PlanBase {
   using MapPartFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
           TypedPartition<ObjT1>* p, AbstractMapProgressTracker* t)>;
   using JoinFuncT = std::function<void(ObjT2*, const MsgT&)>;
@@ -35,7 +35,7 @@ struct MapPartJoin : PlanBase{
       :plan_id(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {
   }
 
-  PlanSpec GetPlanSpec() {
+  virtual PlanSpec GetPlanSpec() override {
     PlanSpec plan;
     plan.plan_id = plan_id;
     plan.map_collection_id = map_collection->Id();
@@ -44,7 +44,7 @@ struct MapPartJoin : PlanBase{
     return plan;
   }
 
-  void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
+  virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     auto map_part = GetMapPartFunc();
     function_store->AddPartToIntermediate(plan_id, [this, map_part](
                 std::shared_ptr<AbstractPartition> partition,

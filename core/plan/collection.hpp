@@ -16,6 +16,7 @@ namespace xyz {
 
 struct CollectionBase {
   virtual ~CollectionBase() = default;
+  virtual CollectionSpec GetSpec() = 0;
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) = 0;
 };
 
@@ -54,7 +55,7 @@ class Collection : public CollectionBase {
     return mapper_;
   }
 
-  CollectionSpec GetSpec() {
+  virtual CollectionSpec GetSpec() override {
     CollectionSpec s;
     s.collection_id = id_;
     s.num_partition = num_partition_;

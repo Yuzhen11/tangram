@@ -16,6 +16,7 @@ public:
     instances.push_back(oper);
     return oper;
   }
+  auto all() { return instances; }
 private:
   std::vector<Base *> instances;
 };
@@ -36,6 +37,12 @@ class Context {
     return p;
   }
   
+  static auto get_allplans() {
+    return plans_.all();
+  }
+  static auto get_allcollections() {
+    return collections_.all();
+  }
  private:
   static Store<CollectionBase> collections_;
   static Store<PlanBase> plans_;

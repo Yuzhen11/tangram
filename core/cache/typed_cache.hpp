@@ -1,7 +1,7 @@
 #pragma once
 
 #include "core/cache/abstract_cache.hpp"
-#include "core/index/key_to_part_mappers.hpp"
+#include "core/index/abstract_key_to_part_mapper.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
 #include "core/partition/indexed_seq_partition.hpp"
 
@@ -11,15 +11,13 @@ template <typename ObjT>
 class TypedCache : public AbstractCache {
  public:
   TypedCache(std::shared_ptr<AbstractPartitionCache> partition_cache,
-             std::shared_ptr<KeyToPartMappers> mappers,
+             std::shared_ptr<AbstractKeyToPartMapper> mapper,
              int collection_id, int version)
-    :partition_cache_(partition_cache), mappers_(mappers), collection_id_(collection_id),
+    :partition_cache_(partition_cache), mapper_(mapper), collection_id_(collection_id),
      version_(version){}
 
   ObjT Get(typename ObjT::KeyT key) {
-    CHECK(mappers_->Has(collection_id_));
-    auto mapper = mappers_->Get(collection_id_);
-    int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*>(mapper.get())->Get(key);
+    int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*>(mapper_.get())->Get(key);
 
     auto part = partition_cache_->GetPartition(collection_id_, partition_id, version_);
     auto obj = static_cast<IndexedSeqPartition<ObjT>*>(part->partition.get())->Get(key);
@@ -28,7 +26,7 @@ class TypedCache : public AbstractCache {
 
  private:
   std::shared_ptr<AbstractPartitionCache> partition_cache_;
-  std::shared_ptr<KeyToPartMappers> mappers_;
+  std::shared_ptr<AbstractKeyToPartMapper> mapper_;
   int collection_id_;
   // TODO: the system should decide the version.
   int version_;

@@ -4,7 +4,7 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
-progfile = "debug/SimpleExample"
+progfile = "debug/A"
 schedulerfile = "debug/SchedulerMain"
 
 common_params = {

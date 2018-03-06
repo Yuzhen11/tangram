@@ -59,6 +59,11 @@ class Engine {
     plan.Register(engine_elem_.function_store);
   }
 
+  template <typename Plan>
+  void AddFunc(Plan* plan) {
+    plan->Register(engine_elem_.function_store);
+  }
+
  private:
   ProgramContext program_;
   EngineElem engine_elem_;
