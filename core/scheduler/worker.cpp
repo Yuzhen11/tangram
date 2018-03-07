@@ -3,6 +3,8 @@
 #include "core/queue_node_map.hpp"
 #include "core/shuffle_meta.hpp"
 
+#include "core/plan/spec_wrapper.hpp"
+
 namespace xyz {
 
 void Worker::Wait() {
@@ -90,8 +92,15 @@ void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }
 
 void Worker::RunMap(SArrayBinStream bin) {
   LOG(INFO) << WorkerId() << "RunMap";
+  // PlanSpec plan;
+  SpecWrapper spec;
+  bin >> spec;
+  auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   PlanSpec plan;
-  bin >> plan;
+  plan.plan_id = spec.id;
+  plan.map_collection_id = p->map_collection_id;
+  plan.join_collection_id = p->join_collection_id;
+  LOG(INFO) << plan.DebugString();
   auto func = engine_elem_.function_store->GetMap(plan.plan_id);
   engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
   engine_elem_.partition_tracker->RunAllMap(
@@ -116,11 +125,13 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 void Worker::Distribute(SArrayBinStream bin) {
   // LOG(INFO) << WorkerId() << "[Worker] Distribute";
   int part_id;
-  CollectionSpec spec;
-  bin >> part_id >> spec;
+  DistributeSpec spec;
+  bin >> part_id;
+  spec.FromBin(bin);
   auto func = engine_elem_.function_store->GetCreatePartFromBin(spec.collection_id);
   auto part = func(spec.data, part_id, spec.num_partition);
   engine_elem_.partition_manager->Insert(spec.collection_id, part_id, std::move(part));
+  LOG(INFO) << "cid: " << spec.collection_id << " local parts: " << engine_elem_.partition_manager->GetNumLocalParts(spec.collection_id);
   SArrayBinStream reply_bin;
   reply_bin << spec.collection_id << part_id << engine_elem_.node.id;
   SendMsgToScheduler(ScheduleFlag::kFinishDistribute, reply_bin);

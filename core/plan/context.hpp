@@ -4,8 +4,8 @@
 #include "core/plan/plan_base.hpp"
 
 #include "core/plan/mapjoin.hpp"
-
-
+#include "core/plan/distribute.hpp"
+#include "core/plan/load.hpp"
 
 namespace xyz {
 
@@ -44,7 +44,9 @@ class Context {
   template<typename D>
   static auto* distribute(std::vector<D>&& data, int num_parts = 1) {
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>(num_parts);
-    c->Distribute(data);
+    auto* p = plans_.make<Distribute<D>>(c->Id(), num_parts);
+    p->data = std::move(data);
+
     return c;
   }
 
@@ -52,7 +54,7 @@ class Context {
   static auto* load(std::string url, Parse parse) {
     using D = decltype(parse(*(std::string*)nullptr));
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
-    c->Load(url, parse);
+    auto* p = plans_.make<Load<D>>(c->Id(), url, parse);
     return c;
   }
 
@@ -60,6 +62,7 @@ class Context {
   static auto* placeholder(int num_parts = 1) {
     auto* c = collections_.make<Collection<D>>(num_parts);
     c->SetMapper(std::make_shared<HashKeyToPartMapper<typename D::KeyT>>(num_parts));
+    auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), num_parts);
     return c;
   }
 

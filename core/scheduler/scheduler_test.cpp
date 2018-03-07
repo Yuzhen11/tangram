@@ -24,6 +24,7 @@ TEST_F(TestScheduler, Create) {
   Scheduler scheduler(qid, sender);
 }
 
+/*
 TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   const int qid = 0;
   auto nodes = GetNodes();
@@ -39,11 +40,13 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
   // const int jid = 2;
   const int num_parts = 1;
   // PlanSpec plan{pid, mid, jid};
-  CollectionSpec c1{0, num_parts};
+  // CollectionSpec c1{0, num_parts};
   // CollectionSpec c2{jid, num_parts};
   // program.plans.push_back(plan);
-  program.collections.push_back(c1);
+  // program.collections.push_back(c1);
   // program.collections.push_back(c2);
+  Distribute<>
+  program.specs.push_back();
 
   WorkerInfo info;
   info.num_local_threads = 1;
@@ -119,6 +122,7 @@ TEST_F(TestScheduler, RegisterProgramAndInitWorker) {
     q->Push(msg); // register another time
   }
 }
+*/
 
 /*
 TEST_F(TestScheduler, CheckPoint) {

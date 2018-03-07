@@ -25,7 +25,7 @@ add_dependencies(SimpleExample ${external_project_dependencies})
 add_executable(LoadExample load_example.cpp)
 target_link_libraries(LoadExample xyz)
 target_link_libraries(LoadExample ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET LoadExample PROPERTY CXX_STANDARD 11)
+set_property(TARGET LoadExample PROPERTY CXX_STANDARD 14)
 add_dependencies(LoadExample ${external_project_dependencies})
 
 # PageRank

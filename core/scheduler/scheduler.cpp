@@ -82,6 +82,7 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
 
 void Scheduler::InitWorkers() {
   // init the partitions
+  init_reply_count_ = 0;
   for (auto kv : collection_map_) {
     LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
   }
@@ -96,7 +97,9 @@ void Scheduler::InitWorkers() {
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
   init_reply_count_ += 1;
   if (init_reply_count_ == nodes_.size()) {
-    init_worker_reply_promise_.set_value();
+    // init_worker_reply_promise_.set_value();
+    LOG(INFO) << "[Scheduler] Initworker Done, RunNextSpec";
+    RunNextSpec();
   }
 }
 
@@ -104,7 +107,7 @@ void Scheduler::StartScheduling() {
   // TODO
   // RunDummy();
   // Exit();
-  TryRunPlan();
+  // TryRunPlan();
 }
 
 void Scheduler::Exit() {
@@ -125,14 +128,42 @@ void Scheduler::RunDummy() {
   SendToAllWorkers(ScheduleFlag::kDummy, bin);
 }
 
-void Scheduler::RunMap(PlanSpec plan) {
+void Scheduler::RunMap(SpecWrapper spec) {
   SArrayBinStream bin;
   // CHECK_EQ(program_.plans.size(), 1);
   // bin << program_.plans[0].plan_id;
-  bin << plan;
+  bin << spec;
   SendToAllWorkers(ScheduleFlag::kRunMap, bin);
 }
 
+void Scheduler::RunNextSpec() {
+  spec_count_ += 1;
+  if (spec_count_ == program_.specs.size()) {
+    Exit();
+  } else {
+    auto spec = program_.specs[spec_count_];
+    if (spec.type == SpecWrapper::Type::kDistribute) {
+      LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
+      Distribute(static_cast<DistributeSpec*>(spec.spec.get()));
+    } else if (spec.type == SpecWrapper::Type::kLoad) {
+      LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
+      Load(static_cast<LoadSpec*>(spec.spec.get()));
+    } else if (spec.type == SpecWrapper::Type::kMapJoin) {
+      LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
+                << "/" << program_.specs.size() << ")"
+                << " Plan Iteration (" << num_plan_iteration_finished_;
+                // << "/" << program_.specs[spec_count_].num_iter << ")";
+      auto spec = program_.specs[spec_count_];
+      // spec.cur_iter = num_plan_iteration_finished_;
+      RunMap(spec);
+  
+    } else {
+      CHECK(false) << spec.DebugString();
+    }
+  }
+}
+
+/*
 void Scheduler::PrepareNextCollection() {
   // find next collection that needs to load/distribute
   prepare_collection_count_ += 1;
@@ -153,6 +184,7 @@ void Scheduler::PrepareNextCollection() {
     }
   }
 }
+*/
 
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
@@ -174,11 +206,13 @@ void Scheduler::FinishBlock(SArrayBinStream bin) {
     cv.num_partition = cv.mapper.GetNumParts();
     collection_map_[cv.collection_id] = cv;
 
-    PrepareNextCollection();
+    // PrepareNextCollection();
+    // RunNextSpec();
+    InitWorkers();
   }
 }
 
-void Scheduler::Load(CollectionSpec c) {
+void Scheduler::Load(LoadSpec* spec) {
   std::vector<std::pair<std::string, int>> assigned_nodes;
   std::vector<int> num_local_threads;
   for (auto& kv: nodes_) {
@@ -187,7 +221,7 @@ void Scheduler::Load(CollectionSpec c) {
   }
   CHECK(assigner_);
   int num_blocks =
-      assigner_->Load(c.collection_id, c.load_url, assigned_nodes, num_local_threads);
+      assigner_->Load(spec->collection_id, spec->url, assigned_nodes, num_local_threads);
 }
 
 void Scheduler::FinishDistribute(SArrayBinStream bin) {
@@ -209,15 +243,17 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
     cv.num_partition = cv.mapper.GetNumParts();
     collection_map_[collection_id] = cv;
 
-    PrepareNextCollection();
+    // PrepareNextCollection();
+    InitWorkers();
+    // RunNextSpec();
   }
 }
 
-void Scheduler::Distribute(CollectionSpec c) {
-  distribute_part_expected_ = c.num_partition;
+void Scheduler::Distribute(DistributeSpec* spec) {
+  distribute_part_expected_ = spec->num_partition;
   // round-robin
   auto node_iter = nodes_.begin();
-  for (int i = 0; i < c.num_partition; ++i) {
+  for (int i = 0; i < spec->num_partition; ++i) {
     CHECK(node_iter != nodes_.end());
     Message msg;
     msg.meta.sender = 0;
@@ -225,7 +261,8 @@ void Scheduler::Distribute(CollectionSpec c) {
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, bin;
     ctrl_bin << ScheduleFlag::kDistribute;
-    bin << i << c;
+    bin << i;
+    spec->ToBin(bin);
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));
@@ -275,6 +312,7 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
   num_workers_finish_a_plan_iteration_ += 1;
 
   if (num_workers_finish_a_plan_iteration_ == nodes_.size()) {
+      /*
     num_workers_finish_a_plan_iteration_ = 0;
     num_plan_iteration_finished_ += 1;
 
@@ -283,11 +321,14 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
       num_plan_iteration_finished_ = 0;
       program_num_plans_finished_ += 1;
     }
+    */
 
-    TryRunPlan();
+    // TryRunPlan();
+    RunNextSpec();
   }
 }
 
+/*
 void Scheduler::TryRunPlan() {
   if (program_num_plans_finished_ == program_.plans.size()) {
     LOG(INFO) << "[Scheduler] Finish all plans";
@@ -302,6 +343,7 @@ void Scheduler::TryRunPlan() {
     RunMap(plan);
   }
 }
+*/
 
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;

@@ -1,9 +1,4 @@
-#include "core/program_context.hpp"
-#include "core/plan/mapjoin.hpp"
-#include "core/engine.hpp"
-
-#include "gflags/gflags.h"
-#include "glog/logging.h"
+#include "core/plan/runner.hpp"
 
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
@@ -13,7 +8,7 @@ DEFINE_int32(num_local_threads, 1, "# local_threads");
 
 DEFINE_string(url, "", "The url for hdfs file");
 
-namespace xyz {
+using namespace xyz;
 
 struct ObjT {
   using KeyT = std::string;
@@ -33,57 +28,21 @@ struct ObjT {
   }
 };
 
-void Run() {
-  // 1. construct the plan
-  int plan_id = 0;
-  Collection<std::string, SeqPartition<std::string>> c1{1};
-  c1.Load(FLAGS_url, [](std::string& s) { return s; });
-
-  Collection<ObjT> c2{2};
-  auto plan = GetMapJoin<int>(plan_id, &c1, &c2);
-  plan.map = [](const std::string& a) {
-    return std::pair<std::string, int>(a, 1);
-  };
-  plan.join = [](ObjT* obj, int m) {
-    obj->b += m;
-  };
-  ProgramContext program;
-  // program.plans.push_back(plan.GetPlanSpec());
-  program.collections.push_back(c1.GetSpec());
-  program.collections.push_back(c2.GetSpec());
-
-  // 2. create engine and register the plan
-  Engine::Config config;
-  config.scheduler = FLAGS_scheduler;
-  config.scheduler_port = FLAGS_scheduler_port;
-  config.num_threads = FLAGS_num_local_threads;
-  config.namenode = FLAGS_hdfs_namenode;
-  config.port = FLAGS_hdfs_port;
-
-  Engine engine;
-  // initialize the components and actors,
-  // especially the function_store, to be registed by the plan
-  engine.Init(config);
-  // register program containing plan and collection info
-  engine.RegisterProgram(program);
-  // add related functions
-  engine.AddFunc(plan);
-  engine.AddFunc(c1);
-  engine.AddFunc(c2);
-
-  // start the mailbox and start to receive messages
-  engine.Start();
-  // stop the mailbox and actors
-  engine.Stop();
-}
-
-}  // namespace xyz
 
 int main(int argc, char** argv) {
-  google::InitGoogleLogging(argv[0]);
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  Runner::Init(argc, argv);
 
-  CHECK(!FLAGS_scheduler.empty());
+  auto c1 = Context::load(FLAGS_url, [](std::string& s) { return s; });
+  auto c2 = Context::placeholder<ObjT>(10);
 
-  xyz::Run();
+  // auto p = Context::mapjoin(c1, c2, 
+  //   [](std::string word) {
+  //     return std::pair<std::string, int>(word, 1);
+  //   },
+  //   [](ObjT* obj, int m) {
+  //     obj->b += m;
+  //     LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+  //   });
+
+  Runner::Run();
 }

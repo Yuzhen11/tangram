@@ -29,11 +29,11 @@ class Runner {
     auto plans = Context::get_allplans();
     auto collections = Context::get_allcollections();
     ProgramContext program;
-    for (auto* c : collections) {
-      program.collections.push_back(c->GetSpec());
-    }
+    // for (auto* c : collections) {
+    //   program.collections.push_back(c->GetSpec());
+    // }
     for (auto* p : plans) {
-      program.plans.push_back(p->GetPlanSpec());
+      program.specs.push_back(p->GetSpec());
     }
 
     Engine::Config config;
@@ -50,9 +50,9 @@ class Runner {
     // register program containing plan and collection info
     engine.RegisterProgram(program);
     // add related functions
-    for (auto* c : collections) {
-      engine.AddFunc(c);
-    }
+    // for (auto* c : collections) {
+    //   engine.AddFunc(c);
+    // }
     for (auto* p : plans) {
       engine.AddFunc(p);
     }

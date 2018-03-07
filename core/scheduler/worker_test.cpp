@@ -78,6 +78,7 @@ TEST_F(TestWorker, Create) {
   Worker worker(qid, engine_elem, reader_wrapper, writer);
 }
 
+/*
 TEST_F(TestWorker, RegisterProgram) {
   // program
   ProgramContext program;
@@ -126,6 +127,7 @@ TEST_F(TestWorker, RegisterProgram) {
   EXPECT_EQ(p.collections[1].num_partition, num_parts);
   EXPECT_EQ(p.plans[0].map_collection_id, mid);
 }
+*/
 
 TEST_F(TestWorker, RunMap) {
   // TODO

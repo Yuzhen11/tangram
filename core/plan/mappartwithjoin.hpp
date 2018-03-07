@@ -46,14 +46,12 @@ struct MapPartWithJoin : public PlanBase {
        join_collection(_join_collection), with_collection(_with_collection) {
   }
 
-  virtual PlanSpec GetPlanSpec() override {
-    PlanSpec plan;
-    plan.plan_id = plan_id;
-    plan.map_collection_id = map_collection->Id();
-    plan.join_collection_id = join_collection->Id();
-    plan.with_collection_id = with_collection->Id();
-    plan.num_iter = num_iter;
-    return plan;
+  virtual SpecWrapper GetSpec() override {
+    // TODO the with collection
+    SpecWrapper w;
+    w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin, 
+            map_collection->Id(), join_collection->Id(), num_iter);
+    return w;
   }
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {

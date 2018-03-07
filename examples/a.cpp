@@ -28,6 +28,7 @@ struct ObjT {
 
 
 int main(int argc, char** argv) {
+  Runner::Init(argc, argv);
   auto c1 = Context::distribute(std::vector<std::string>{"b", "a", "n", "a", "n", "a"}, 1);
 
   // std::string s;

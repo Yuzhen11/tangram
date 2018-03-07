@@ -34,13 +34,11 @@ struct MapPartJoin : public PlanBase {
   MapPartJoin(int _plan_id, C1* _map_collection, C2* _join_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {}
 
-  virtual PlanSpec GetPlanSpec() override {
-    PlanSpec plan;
-    plan.plan_id = plan_id;
-    plan.map_collection_id = map_collection->Id();
-    plan.join_collection_id = join_collection->Id();
-    plan.num_iter = num_iter;
-    return plan;
+  virtual SpecWrapper GetSpec() override {
+    SpecWrapper w;
+    w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin, 
+            map_collection->Id(), join_collection->Id(), num_iter);
+    return w;
   }
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
