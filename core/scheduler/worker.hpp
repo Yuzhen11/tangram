@@ -18,16 +18,16 @@
 #include "core/program_context.hpp"
 
 #include "glog/logging.h"
-#include "io/reader_wrapper.hpp"
+#include "io/block_reader_wrapper.hpp"
 #include "io/writer_wrapper.hpp"
 
 namespace xyz {
 
 class Worker : public Actor {
 public:
-  Worker(int qid, EngineElem engine_elem, std::shared_ptr<ReaderWrapper> reader_wrapper,
+  Worker(int qid, EngineElem engine_elem, std::shared_ptr<BlockReaderWrapper> block_reader_wrapper,
          std::shared_ptr<WriterWrapper> writer)
-      : Actor(qid), engine_elem_(engine_elem), reader_wrapper_(reader_wrapper),
+      : Actor(qid), engine_elem_(engine_elem), block_reader_wrapper_(block_reader_wrapper),
         writer_(writer) {
     Start();
   }
@@ -81,7 +81,7 @@ private:
     return ss.str();
   }
   EngineElem engine_elem_;
-  std::shared_ptr<ReaderWrapper> reader_wrapper_;
+  std::shared_ptr<BlockReaderWrapper> block_reader_wrapper_;
   std::shared_ptr<WriterWrapper> writer_;
 
   std::promise<void> exit_promise_;

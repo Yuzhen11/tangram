@@ -6,43 +6,34 @@
 
 namespace xyz {
 
-void ReaderWrapper::ReadBlock(AssignedBlock block,
-                  std::function<std::shared_ptr<AbstractPartition>(
-                    std::shared_ptr<AbstractBlockReader>)> read_func, 
-                  std::function<void(SArrayBinStream bin)> finish_handle) {
-  num_added_ += 1;
-  executor_->Add([this, block, read_func, finish_handle]() {
+void ReaderWrapper::Read(int collection_id, int part_id, std::string url,
+                   std::function<void(SArrayBinStream bin)> finish_handle) {
+  executor_->Add([this, collection_id, part_id, url, finish_handle]() {
     // 1. read
-    CHECK(block_reader_getter_);
-    auto block_reader = block_reader_getter_();
-    block_reader->Init(block.url, block.offset);
-    auto part = read_func(block_reader);
-    partition_manager_->Insert(block.collection_id, block.id, std::move(part));
+    CHECK(reader_getter_);
+    auto reader = reader_getter_();
+    reader->Init(url);
+    file_size_ = reader->GetFileSize();
+    CHECK_NE(file_size_, 0);
+    LOG(INFO) << "file_size_: " << std::to_string(file_size_);
+    char *data = new char[file_size_];
+    reader->Read(data, file_size_);
+    LOG(INFO) << "data: " << data;
 
-    // 2. reply
+    // 2. put readed data into partition_manager
+    std::shared_ptr<AbstractPartition> p;
     SArrayBinStream bin;
-    FinishedBlock b{block.id, node_.id, qid_, node_.hostname,
-                    block.collection_id};
-    bin << b;
-    finish_handle(bin);
-    VLOG(1) << "Finish block: " << b.DebugString();
+    bin.AddBin(data, file_size_);
+    delete [] data;
+    LOG(INFO) << "bin: " << bin.GetPtr(); 
+    p->FromBin(bin);
+    // partition_manager_->Insert(collection_id, part_id, std::move(p));
 
-    std::unique_lock<std::mutex> lk(mu_);
-    num_finished_ += 1;
-    cond_.notify_one();
+    // 3. reply
+    SArrayBinStream reply_bin;
+    reply_bin << qid_;
+    finish_handle(reply_bin);
   });
-}
-
-void ReaderWrapper::ReadBlock(AssignedBlock block,
-                  std::function<void(SArrayBinStream bin)> finish_handle) {
-  ReadBlock(block, [](std::shared_ptr<AbstractBlockReader> block_reader) {
-    auto strs = block_reader->ReadBlock();
-    auto part = std::make_shared<SeqPartition<std::string>>();
-    for (auto &s : strs) {
-      part->Add(std::move(s));
-    } // TODO: make it more efficient
-    return part;
-  }, finish_handle);
 }
 
 } // namespace xyz

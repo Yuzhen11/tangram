@@ -47,7 +47,7 @@ void Engine::Start() {
   const std::string namenode = engine_elem_.namenode;
   const int port = engine_elem_.port;
   // set hdfs reader_wrapper
-  auto reader_wrapper = std::make_shared<ReaderWrapper>(
+  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
       worker_id, engine_elem_.executor, engine_elem_.partition_manager,
       engine_elem_.node,
       [namenode, port]() { return std::make_shared<HdfsBlockReader>(namenode, port); });
@@ -59,7 +59,7 @@ void Engine::Start() {
       });
 
   // create worker
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, reader_wrapper, writer_wrapper);
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, writer_wrapper);
   worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
 

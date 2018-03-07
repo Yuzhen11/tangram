@@ -113,7 +113,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
-  reader_wrapper_->ReadBlock(block, 
+  block_reader_wrapper_->ReadBlock(block, 
   engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
   [this](SArrayBinStream bin) {
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);

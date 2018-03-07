@@ -14,6 +14,6 @@ int main(int argc, char **argv) {
   HdfsWriter writer(namenode, port);
   std::string content = "hello world";
   const std::string dest_url = "/tmp/tmp/a.txt";
-  bool rc = writer.Write(dest_url, content.c_str(), content.size());
+  int rc = writer.Write(dest_url, content.c_str(), content.size());
   CHECK_EQ(rc, 0);
 }
