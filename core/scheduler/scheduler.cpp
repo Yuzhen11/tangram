@@ -141,14 +141,17 @@ void Scheduler::RunNextSpec() {
       LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
       Load(static_cast<LoadSpec*>(spec.spec.get()));
     } else if (spec.type == SpecWrapper::Type::kMapJoin) {
-      currnet_spec_ = program_.specs[spec_count_];
+      currnet_spec_ = spec;
       int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
       LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
                 << "/" << program_.specs.size() << ")"
                 << " Plan Iteration (" << cur_iters_
                 << "/" << expected_num_iters << ")";
       RunMap();
-  
+    } else if (spec.type == SpecWrapper::Type::kWrite) {
+      LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
+      LOG(INFO) << "[Scheduler] Write not imlemeneted. ";
+      RunNextSpec();
     } else {
       CHECK(false) << spec.DebugString();
     }
@@ -264,7 +267,8 @@ void Scheduler::CheckPoint() {
   SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
 }
 
-void Scheduler::WritePartition() {
+void Scheduler::Write() {
+  LOG(INFO) << "[Scheduler] write not implemented";
   // TODO
   CHECK(false);
 }

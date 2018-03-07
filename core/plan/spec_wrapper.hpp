@@ -35,6 +35,25 @@ struct MapJoinSpec : public Spec {
   }
 };
 
+struct WriteSpec : public Spec {
+  int collection_id;
+  std::string url;
+  WriteSpec() = default;
+  WriteSpec(int cid, std::string _url):collection_id(cid), url(_url) {}
+  virtual void ToBin(SArrayBinStream& bin) override {
+    bin << collection_id << url;
+  }
+  virtual void FromBin(SArrayBinStream& bin) override {
+    bin >> collection_id >> url;
+  }
+  virtual std::string DebugString() const {
+    std:: stringstream ss;
+    ss << "collection_id: " << collection_id;
+    ss << ", url: " << url;
+    return ss.str();
+  }
+};
+
 struct LoadSpec : public Spec {
   int collection_id;
   std::string url;
@@ -78,13 +97,14 @@ struct DistributeSpec: public Spec {
 
 struct SpecWrapper {
   enum class Type : char {
-    kDistribute, kLoad, kInit, kMapJoin
+    kDistribute, kLoad, kInit, kMapJoin, kWrite
   };
   static constexpr const char* TypeName[] = {
     "kDistribute", 
     "kLoad", 
     "kInit", 
-    "kMapJoin"
+    "kMapJoin",
+    "kWrite"
   };
   Type type;
   int id;
@@ -121,6 +141,9 @@ struct SpecWrapper {
       s.spec->FromBin(stream);
     } else if (s.type == Type::kLoad){
       s.spec = std::make_shared<LoadSpec>();
+      s.spec->FromBin(stream);
+    } else if (s.type == Type::kWrite){
+      s.spec = std::make_shared<WriteSpec>();
       s.spec->FromBin(stream);
     } else {
       CHECK(false);

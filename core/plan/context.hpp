@@ -6,6 +6,7 @@
 #include "core/plan/mapjoin.hpp"
 #include "core/plan/distribute.hpp"
 #include "core/plan/load.hpp"
+#include "core/plan/write.hpp"
 
 namespace xyz {
 
@@ -56,6 +57,11 @@ class Context {
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
     auto* p = plans_.make<Load<D>>(c->Id(), url, parse);
     return c;
+  }
+
+  template<typename C, typename F>
+  static void write(C* c, std::string url, F write) {
+    plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);
   }
 
   template<typename D>
