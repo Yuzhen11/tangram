@@ -40,20 +40,6 @@ public:
   void Ready(std::vector<Node> nodes);
 
   void Run() {
-    // TODO do we need to lock some functions as two threads may work on the
-    // same data.
-    /*
-    prepare_collection_count_ = -1;
-    PrepareNextCollection();
-    prepare_collection_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish collections preparation";
-
-    InitWorkers();
-    init_worker_reply_promise_.get_future().get();
-    LOG(INFO) << "[Scheduler] Finish initiating workers, start scheduling.";
-    StartScheduling();
-    */
-
     spec_count_ = -1;
     RunNextSpec();
   }
@@ -81,7 +67,7 @@ public:
 
   void RunDummy();
 
-  void RunMap(SpecWrapper spec);
+  void RunMap();
 
   void Exit();
 
@@ -107,6 +93,7 @@ private:
   void PrepareNextCollection();
 
   void RunNextSpec();
+  void RunNextIteration();
 private:
   std::shared_ptr<AbstractSender> sender_;
 
@@ -131,10 +118,7 @@ private:
   bool start_ = false;
 
   std::thread scheduler_thread_;
-  std::promise<void> init_worker_reply_promise_;
 
-  int prepare_collection_count_ = 0;
-  std::promise<void> prepare_collection_promise_;
   int distribute_part_expected_ = 0;
 
   // collection_id, part_id, node_id
@@ -143,10 +127,10 @@ private:
   std::map<int, std::map<int, StoredBlock>> stored_blocks_;
 
   int num_workers_finish_a_plan_iteration_ = 0;
-  int num_plan_iteration_finished_ = 0;
-  int program_num_plans_finished_ = 0;
+  int cur_iters_ = 0;
 
   int spec_count_ = -1;
+  SpecWrapper currnet_spec_;
 };
 
 } // namespace xyz

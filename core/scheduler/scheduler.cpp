@@ -128,14 +128,6 @@ void Scheduler::RunDummy() {
   SendToAllWorkers(ScheduleFlag::kDummy, bin);
 }
 
-void Scheduler::RunMap(SpecWrapper spec) {
-  SArrayBinStream bin;
-  // CHECK_EQ(program_.plans.size(), 1);
-  // bin << program_.plans[0].plan_id;
-  bin << spec;
-  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
-}
-
 void Scheduler::RunNextSpec() {
   spec_count_ += 1;
   if (spec_count_ == program_.specs.size()) {
@@ -149,42 +141,19 @@ void Scheduler::RunNextSpec() {
       LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
       Load(static_cast<LoadSpec*>(spec.spec.get()));
     } else if (spec.type == SpecWrapper::Type::kMapJoin) {
+      currnet_spec_ = program_.specs[spec_count_];
+      int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
       LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
                 << "/" << program_.specs.size() << ")"
-                << " Plan Iteration (" << num_plan_iteration_finished_;
-                // << "/" << program_.specs[spec_count_].num_iter << ")";
-      auto spec = program_.specs[spec_count_];
-      // spec.cur_iter = num_plan_iteration_finished_;
-      RunMap(spec);
+                << " Plan Iteration (" << cur_iters_
+                << "/" << expected_num_iters << ")";
+      RunMap();
   
     } else {
       CHECK(false) << spec.DebugString();
     }
   }
 }
-
-/*
-void Scheduler::PrepareNextCollection() {
-  // find next collection that needs to load/distribute
-  prepare_collection_count_ += 1;
-  if (prepare_collection_count_ == program_.collections.size()) {
-    prepare_collection_promise_.set_value();
-    return;
-  } else {
-    auto c = program_.collections[prepare_collection_count_];
-    if (c.source == CollectionSource::kLoad) {
-      LOG(INFO) << "[Scheduler] Loading collection: " << c.collection_id;
-      Load(c);
-    } else if (c.source == CollectionSource::kDistribute ||
-               c.source == CollectionSource::kOthers) {
-      LOG(INFO) << "[Scheduler] Distributing collection: " << c.collection_id;
-      Distribute(c);
-    } else {
-      CHECK(false) << c.DebugString();
-    }
-  }
-}
-*/
 
 void Scheduler::FinishBlock(SArrayBinStream bin) {
   FinishedBlock block;
@@ -300,50 +269,35 @@ void Scheduler::WritePartition() {
   CHECK(false);
 }
 
-void Scheduler::FinishJoin(SArrayBinStream bin) {
-  // LOG(INFO) << "[Scheduler] FinishJoin:"
-  // << " num_workers_finish_a_plan_iteration_ (" <<
-  // num_workers_finish_a_plan_iteration_ << ", " << nodes_.size() << ")"
-  //  << " num_plan_iteration_finished_ (" << num_plan_iteration_finished_ << ",
-  //  " << program_.plans[program_num_plans_finished_].num_iter << ")"
-  //  << " program_num_plans_finished_ (" << program_num_plans_finished_ << ", "
-  //  << program_.plans.size() << ")";
+void Scheduler::RunMap() {
+  SArrayBinStream bin;
+  bin << currnet_spec_;
+  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
+}
 
+void Scheduler::RunNextIteration() {
+  SArrayBinStream bin;
+  bin << currnet_spec_;
+  SendToAllWorkers(ScheduleFlag::kRunMap, bin);
+}
+
+void Scheduler::FinishJoin(SArrayBinStream bin) {
   num_workers_finish_a_plan_iteration_ += 1;
 
   if (num_workers_finish_a_plan_iteration_ == nodes_.size()) {
-      /*
     num_workers_finish_a_plan_iteration_ = 0;
-    num_plan_iteration_finished_ += 1;
+    cur_iters_ += 1;
 
-    if (num_plan_iteration_finished_ ==
-        program_.plans[program_num_plans_finished_].num_iter) {
-      num_plan_iteration_finished_ = 0;
-      program_num_plans_finished_ += 1;
+    int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
+    if (cur_iters_ == expected_num_iters) {
+      cur_iters_ = 0;
+
+      RunNextSpec();
+      return;
     }
-    */
-
-    // TryRunPlan();
-    RunNextSpec();
+    RunNextIteration();
   }
 }
-
-/*
-void Scheduler::TryRunPlan() {
-  if (program_num_plans_finished_ == program_.plans.size()) {
-    LOG(INFO) << "[Scheduler] Finish all plans";
-    Exit();
-  } else {
-    LOG(INFO) << "[Scheduler] TryRunPlan (" << program_num_plans_finished_
-              << "/" << program_.plans.size() << ")"
-              << " Plan Iteration (" << num_plan_iteration_finished_
-              << "/" << program_.plans[program_num_plans_finished_].num_iter << ")";
-    auto plan = program_.plans[program_num_plans_finished_];
-    plan.cur_iter = num_plan_iteration_finished_;
-    RunMap(plan);
-  }
-}
-*/
 
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;
