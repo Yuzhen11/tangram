@@ -10,8 +10,7 @@ void Engine::Init(Engine::Config config) {
   engine_elem_.executor = std::make_shared<Executor>(config.num_threads);
   engine_elem_.partition_manager = std::make_shared<PartitionManager>();
   engine_elem_.collection_map = std::make_shared<CollectionMap>();
-  engine_elem_.function_store =
-      std::make_shared<FunctionStore>(engine_elem_.collection_map);
+  engine_elem_.function_store = std::make_shared<FunctionStore>();
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
   engine_elem_.num_local_threads = config.num_threads;

@@ -43,7 +43,7 @@ struct MapPartJoin : public PlanBase {
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     auto map_part = GetMapPartFunc();
-    function_store->AddPartToIntermediate(plan_id, [this, map_part](
+    function_store->AddMap(plan_id, [this, map_part](
                 std::shared_ptr<AbstractPartition> partition,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part(partition, tracker);
@@ -55,7 +55,7 @@ struct MapPartJoin : public PlanBase {
     });
 
     CHECK_NOTNULL(join);
-    function_store->AddJoinFunc(plan_id, GetJoinPartFunc<ObjT2, MsgT>(join));
+    function_store->AddJoin(plan_id, GetJoinPartFunc<ObjT2, MsgT>(join));
   }
 
   MapFuncTempT GetMapPartFunc() {

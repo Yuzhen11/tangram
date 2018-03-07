@@ -34,8 +34,7 @@ EngineElem GetEngineElem() {
   engine_elem.executor = std::make_shared<Executor>(num_threads);
   engine_elem.partition_manager = std::make_shared<PartitionManager>();
   engine_elem.collection_map = std::make_shared<CollectionMap>();
-  engine_elem.function_store =
-      std::make_shared<FunctionStore>(engine_elem.collection_map);
+  engine_elem.function_store = std::make_shared<FunctionStore>();
   engine_elem.intermediate_store = std::make_shared<SimpleIntermediateStore>();
   engine_elem.sender = std::make_shared<SimpleSender>();
   engine_elem.partition_tracker = std::make_shared<PartitionTracker>(

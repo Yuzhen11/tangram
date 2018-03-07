@@ -28,7 +28,7 @@ struct MapJoinMergeCombine : MapJoin<C1, C2, ObjT1, ObjT2, MsgT> {
   void RegisterMergeCombine(std::shared_ptr<AbstractFunctionStore> function_store) {
     auto map_part = this->GetMapPartFunc();
     // part -> mapoutput_manager
-    function_store->AddPartToOutputManager(this->plan_id, [this, map_part](
+    function_store->AddMap(this->plan_id, [this, map_part](
                 std::shared_ptr<AbstractPartition> partition,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part(partition, tracker);
@@ -38,7 +38,7 @@ struct MapJoinMergeCombine : MapJoin<C1, C2, ObjT1, ObjT2, MsgT> {
       return map_output;
     });
     // mapoutput_manager -> bin
-    function_store->AddOutputsToBin(this->plan_id, [](const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id) {
+    function_store->AddMergeCombine(this->plan_id, [](const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id) {
       return MergeCombineMultipleMapOutput<typename ObjT2::KeyT, MsgT>(map_outputs, part_id);
     });
   }

@@ -6,7 +6,6 @@
 
 #include "core/map_output/map_output_storage.hpp"
 #include "core/shuffle_meta.hpp"
-#include "core/abstract_collection_map.hpp"
 
 namespace xyz { 
 
@@ -15,66 +14,43 @@ namespace xyz {
  */
 class FunctionStore : public AbstractFunctionStore {
  public:
-  FunctionStore(std::shared_ptr<AbstractCollectionMap> collection_map) 
-      : collection_map_(collection_map) {}
+  FunctionStore() = default;
 
-  using PartToOutput = AbstractFunctionStore::PartToOutput;
-  using OutputsToBin = AbstractFunctionStore::OutputsToBin;
+  using MapFuncT = AbstractFunctionStore::MapFuncT;
+  using MergeCombineFuncT = AbstractFunctionStore::MergeCombineFuncT;
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
   using MapWith = AbstractFunctionStore::MapWith;
   using CreatePartFromBinFuncT = AbstractFunctionStore::CreatePartFromBinFuncT;
   using WritePartFuncT = AbstractFunctionStore::WritePartFuncT;
 
-  // void AddPlanItem(PlanItem plan);
-  // Partition -> MapOutputManager
-  using PartToOutputManager = std::function<void(std::shared_ptr<AbstractPartition>, 
-                                                 std::shared_ptr<MapOutputManager>,
-                                                 std::shared_ptr<AbstractMapProgressTracker>)>;
-  // MapOutput -> IntermediateStore
-  using MapOutputToIntermediate = std::function<void(const std::vector<std::shared_ptr<AbstractMapOutput>>&, 
-                                                               std::shared_ptr<AbstractIntermediateStore>,
-                                                               int part_id)>;
-  // Partition -> IntermediateStore
-  using PartToIntermediate = std::function<void(ShuffleMeta, std::shared_ptr<AbstractPartition>, 
-                                                std::shared_ptr<AbstractIntermediateStore>,
-                                                std::shared_ptr<AbstractMapProgressTracker>)>;
-
-  using PartWithToIntermediate = std::function<void(std::shared_ptr<AbstractPartition>,
-                                                    std::shared_ptr<AbstractPartitionCache>,
-                                                    std::shared_ptr<AbstractIntermediateStore>,
-                                                    std::shared_ptr<AbstractMapProgressTracker>)>;
-
   // Used by engine.
-  const PartToOutputManager& GetMapPart1(int id);
-  const MapOutputToIntermediate& GetMapPart2(int id);
-  const PartToIntermediate& GetMap(int id);
+  const MergeCombineFuncT& GetMergeCombine(int id);
+  const MapFuncT& GetMap(int id);
+  const MapWith& GetMapWith(int id);
   const JoinFuncT& GetJoin(int id);
   const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
   const CreatePartFromBlockReaderFuncT& GetCreatePartFromBlockReader(int id);
   const WritePartFuncT& GetWritePartFunc(int id);
 
   // Used by plan to register function.
-  virtual void AddPartToIntermediate(int id, PartToOutput func) override;
-  virtual void AddPartToOutputManager(int id, PartToOutput func) override;
-  virtual void AddOutputsToBin(int id, OutputsToBin func) override;
-  virtual void AddJoinFunc(int id, JoinFuncT func) override;
+  virtual void AddMap(int id, MapFuncT func) override;
+  virtual void AddMergeCombine(int id, MergeCombineFuncT func) override;
+  virtual void AddJoin(int id, JoinFuncT func) override;
   virtual void AddMapWith(int id, MapWith func) override;
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) override;
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) override;
   virtual void AddWritePart(int id, WritePartFuncT func) override;
 
  private:
-  std::map<int, PartToOutputManager> part_to_output_manager_;
-  std::map<int, PartToIntermediate> part_to_intermediate_;
-  std::map<int, MapOutputToIntermediate> mapoutput_to_intermediate_;
-  std::map<int, JoinFuncT> join_functions;
-  std::map<int, PartWithToIntermediate> partwith_to_intermediate_;
+  std::map<int, MapFuncT> maps_;
+  std::map<int, MergeCombineFuncT> merge_combines_;
+  std::map<int, JoinFuncT> joins_;
+  std::map<int, MapWith> mapwiths_;
 
   std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;
   std::map<int, CreatePartFromBlockReaderFuncT> create_part_from_block_reader_;
   std::map<int, WritePartFuncT> write_part_;
 
-  std::shared_ptr<AbstractCollectionMap> collection_map_;
 };
 
 }  // namespaca xyz

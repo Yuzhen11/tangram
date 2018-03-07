@@ -100,12 +100,30 @@ void Worker::RunMap(SArrayBinStream bin) {
   plan.map_collection_id = p->map_collection_id;
   plan.join_collection_id = p->join_collection_id;
   LOG(INFO) << WorkerId() << "RunMap: " << plan.DebugString();
-  auto func = engine_elem_.function_store->GetMap(plan.plan_id);
+  auto map = engine_elem_.function_store->GetMap(plan.plan_id);
   engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
   engine_elem_.partition_tracker->RunAllMap(
-      [func, this](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
+      [map, this](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
                    std::shared_ptr<AbstractMapProgressTracker> pt) {
-        func(meta, p, engine_elem_.intermediate_store, pt);
+        // func(meta, p, engine_elem_.intermediate_store, pt);
+        // 1. map
+        auto map_output = map(p, pt); 
+        // 2. serialize
+        auto bins = map_output->Serialize();
+        // 3. add to intermediate_store
+        for (int i = 0; i < bins.size(); ++ i) {
+          Message msg;
+          msg.meta.sender = 0;
+          CHECK(engine_elem_.collection_map);
+          msg.meta.recver = GetJoinActorQid(engine_elem_.collection_map->Lookup(meta.collection_id, i));
+          msg.meta.flag = Flag::kOthers;
+          SArrayBinStream ctrl_bin;
+          meta.part_id = i;  // set the part_id here
+          ctrl_bin << meta;
+          msg.AddData(ctrl_bin.ToSArray());
+          msg.AddData(bins[i].ToSArray());
+          engine_elem_.intermediate_store->Add(msg);
+        }
   });
 }
 
