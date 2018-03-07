@@ -12,9 +12,9 @@ int HdfsWriter::Write(std::string dest_url, const void *buffer, size_t len) {
   // LOG(INFO) << "url: " << dest_url;
   // LOG(INFO) << "dir: " << dir;
   int rc = hdfsCreateDirectory(fs, dir.c_str());
-  CHECK_EQ(rc, 0);
+  CHECK_EQ(rc, 0) << "cannot create directory: " << dir;
   hdfsFile file = hdfsOpenFile(fs, dest_url.c_str(), O_WRONLY, 0, 0, 0);
-  CHECK(hdfsFileIsOpenForWrite(file));
+  CHECK(hdfsFileIsOpenForWrite(file)) << "cannot open file: " << dest_url;
 
   if (len > 0) {
     int num_written = hdfsWrite(fs, file, buffer, len);

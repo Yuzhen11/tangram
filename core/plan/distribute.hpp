@@ -22,7 +22,6 @@ struct Distribute : public PlanBase {
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     function_store->AddCreatePartFromBinFunc(collection_id, [](SArrayBinStream bin, int part_id, int num_part) {
-      LOG(INFO) << "creating part: " << part_id <<  "/" << num_part;
       auto part = std::make_shared<PartitionT>();
       int i = 0;
       std::vector<C> vec;

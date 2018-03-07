@@ -81,10 +81,12 @@ public:
   void FinishBlock(SArrayBinStream bin);
   void FinishDistribute(SArrayBinStream bin);
   void CheckPoint();
-  void Write();
+  void Write(SpecWrapper s);
   void FinishCheckPoint(SArrayBinStream bin);
   void FinishWritePartition(SArrayBinStream bin);
   void FinishJoin(SArrayBinStream bin);
+
+  void SendTo(int node_id, ScheduleFlag flag, SArrayBinStream bin);
 
 private:
   void Load(LoadSpec* spec);
@@ -131,6 +133,9 @@ private:
 
   int spec_count_ = -1;
   SpecWrapper currnet_spec_;
+
+  int write_reply_count_ = 0;
+  int expected_write_reply_count_;
 };
 
 } // namespace xyz

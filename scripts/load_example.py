@@ -16,8 +16,9 @@ common_params = {
 
 program_params = {
     # "url" : "/datasets/classification/kdd12-5blocks",
+    "url" : "/tmp/tmp/banana.txt",
+    "output_url" : "/tmp/tmp/res/",
     "num_local_threads" : 2,
-    "url" : "/datasets/classification/url_combined",
 }
 
 scheduler_params = {

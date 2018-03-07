@@ -150,8 +150,7 @@ void Scheduler::RunNextSpec() {
       RunMap();
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
-      LOG(INFO) << "[Scheduler] Write not imlemeneted. ";
-      RunNextSpec();
+      Write(spec);
     } else {
       CHECK(false) << spec.DebugString();
     }
@@ -251,11 +250,6 @@ void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
   CHECK(false);
 }
 
-void Scheduler::FinishWritePartition(SArrayBinStream bin) {
-  // TODO
-  CHECK(false);
-}
-
 void Scheduler::CheckPoint() {
   // TODO: Check point proper collection, partition to proper dest_rul
   const int collection_id = 1;
@@ -267,11 +261,31 @@ void Scheduler::CheckPoint() {
   SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
 }
 
-void Scheduler::Write() {
-  LOG(INFO) << "[Scheduler] write not implemented";
-  // TODO
-  CHECK(false);
+void Scheduler::Write(SpecWrapper s) {
+  CHECK(s.type == SpecWrapper::Type::kWrite);
+  auto* write_spec = static_cast<WriteSpec*>(s.spec.get());
+  int id = write_spec->collection_id;
+  std::string url = write_spec->url;
+  auto& collection_view = collection_map_[id];
+  write_reply_count_ = 0;
+  expected_write_reply_count_ = collection_view.mapper.GetNumParts();
+  LOG(INFO) << "[Scheduler] writing to " << expected_write_reply_count_ << " partitions";
+  for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
+    int node_id = collection_view.mapper.Get(i);
+    SArrayBinStream bin;
+    std::string dest_url = url + "/part-" + std::to_string(i);
+    bin << id << i << dest_url;  // collection_id, partition_id, url
+    SendTo(node_id, ScheduleFlag::kWritePartition, bin);
+  }
 }
+
+void Scheduler::FinishWritePartition(SArrayBinStream bin) {
+  write_reply_count_ += 1;
+  if (write_reply_count_ == expected_write_reply_count_) {
+    RunNextSpec();
+  }
+}
+
 
 void Scheduler::RunMap() {
   SArrayBinStream bin;
@@ -315,6 +329,18 @@ void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
     msg.AddData(bin.ToSArray());
     sender_->Send(std::move(msg));
   }
+}
+
+void Scheduler::SendTo(int node_id, ScheduleFlag flag, SArrayBinStream bin) {
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << flag;
+  Message msg;
+  msg.meta.sender = 0;
+  msg.meta.recver = GetWorkerQid(node_id);
+  msg.meta.flag = Flag::kOthers;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  sender_->Send(std::move(msg));
 }
 
 } // namespace xyz

@@ -45,9 +45,9 @@ int main(int argc, char** argv) {
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
     });
 
-  Context::write(c2, "", [](const ObjT& obj, std::stringstream& ss) {
-    ss << obj.a << " " << obj.b << "\n";
-  });
+  // Context::write(c2, "", [](const ObjT& obj, std::stringstream& ss) {
+  //   ss << obj.a << " " << obj.b << "\n";
+  // });
 
   Runner::Run();
 }
