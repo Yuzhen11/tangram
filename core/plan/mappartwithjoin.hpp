@@ -37,7 +37,7 @@ struct MapPartWithJoin : public PlanBase {
   // for internal use
   using MapPartWithTempFuncT= 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractPartitionCache>,
+                                                       std::shared_ptr<Fetcher>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
@@ -58,9 +58,9 @@ struct MapPartWithJoin : public PlanBase {
     auto map_part_with = GetMapPartWithFunc();
     function_store->AddMapWith(this->plan_id, [this, map_part_with](
                 std::shared_ptr<AbstractPartition> partition,
-                std::shared_ptr<AbstractPartitionCache> partition_cache,
+                std::shared_ptr<Fetcher> fetcher,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      auto map_output = map_part_with(partition, partition_cache, tracker);
+      auto map_output = map_part_with(partition, fetcher, tracker);
       if (this->combine) {
         static_cast<TypedMapOutput<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
         map_output->Combine();
@@ -75,11 +75,11 @@ struct MapPartWithJoin : public PlanBase {
   MapPartWithTempFuncT GetMapPartWithFunc() {
     CHECK_NOTNULL(mappartwith);
     return [this](std::shared_ptr<AbstractPartition> partition, 
-              std::shared_ptr<AbstractPartitionCache> cache,
+              std::shared_ptr<Fetcher> fetcher,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;
-      TypedCache<ObjT2> typed_cache(cache, with_collection->GetMapper(), with_collection->Id(), version);
+      TypedCache<ObjT2> typed_cache(with_collection->Id(), fetcher);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(this->join_collection->GetMapper());
       auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection->GetMapper());

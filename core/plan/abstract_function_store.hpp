@@ -7,6 +7,7 @@
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/partition/abstract_partition.hpp"
 #include "core/cache/abstract_partition_cache.hpp"
+#include "core/cache/fetcher.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
 #include "io/abstract_block_reader.hpp"
 #include "io/abstract_writer.hpp"
@@ -22,7 +23,7 @@ class AbstractFunctionStore {
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
   using MapWith = 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractPartitionCache>,
+                                                       std::shared_ptr<Fetcher>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
   using CreatePartFromBinFuncT = std::function<std::shared_ptr<AbstractPartition>(
           SArrayBinStream bin, int part_id, int num_part)>;

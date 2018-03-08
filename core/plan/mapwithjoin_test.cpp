@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
+#include "core/partition/seq_partition.hpp"
 #include "core/plan/mapwithjoin.hpp"
 
 namespace xyz {

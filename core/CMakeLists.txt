@@ -2,7 +2,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
 file(GLOB core-src-files
     partition/partition_manager.cpp
-    partition/fetcher.cpp
+    cache/fetcher.cpp
     partition/partition_tracker.cpp
     executor/thread_pool.cpp
     executor/executor.cpp
