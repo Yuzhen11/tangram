@@ -9,7 +9,7 @@ namespace xyz {
 class HashPartToNodeMapper : public AbstractPartToNodeMapper {
  public:
   HashPartToNodeMapper(int num_nodes): num_nodes_(num_nodes) {}
-  virtual int Get(int part_id) {
+  virtual int Get(int part_id) const {
     return std::hash<int>()(part_id) % num_nodes_;
   }
 

@@ -10,10 +10,10 @@ namespace xyz {
 void Scheduler::Ready(std::vector<Node> nodes) {
   LOG(INFO) << "[Scheduler] Ready";
   for (auto& node : nodes) {
-    CHECK(nodes_.find(node.id) == nodes_.end());
+    CHECK(elem_->nodes.find(node.id) == elem_->nodes.end());
     NodeInfo n;
     n.node = node;
-    nodes_[node.id] = n;
+    elem_->nodes[node.id] = n;
   }
   Start();
   start_ = true;
@@ -32,12 +32,16 @@ void Scheduler::Process(Message msg) {
     RegisterProgram(node_id, bin);
     break;
   }
+  case ScheduleFlag::kInitWorkers: {
+    InitWorkers();
+    break;
+  }
   case ScheduleFlag::kInitWorkersReply: {
     InitWorkersReply(bin);
     break;
   }
   case ScheduleFlag::kFinishBlock: {
-    FinishBlock(bin);
+    block_manager_->FinishBlock(bin);
     break;
   }
   case ScheduleFlag::kFinishDistribute: {
@@ -64,15 +68,15 @@ void Scheduler::Process(Message msg) {
 void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
   WorkerInfo info;
   bin >> info;
-  CHECK(nodes_.find(node_id) != nodes_.end());
-  nodes_[node_id].num_local_threads = info.num_local_threads;
+  CHECK(elem_->nodes.find(node_id) != elem_->nodes.end());
+  elem_->nodes[node_id].num_local_threads = info.num_local_threads;
   if (!init_program_) {
     init_program_ = true;
     bin >> program_;
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
   }
   register_program_count_ += 1;
-  if (register_program_count_ == nodes_.size()) {
+  if (register_program_count_ == elem_->nodes.size()) {
     // spawn the scheduler thread
     LOG(INFO)
         << "[Scheduler] all workers registerred, start the scheduling thread";
@@ -83,20 +87,18 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
 void Scheduler::InitWorkers() {
   // init the partitions
   init_reply_count_ = 0;
-  for (auto kv : collection_map_) {
-    LOG(INFO) << "[Scheduler] collection: " << kv.second.DebugString();
-  }
+  LOG(INFO) << "[Scheduler] CollectionMap: " << elem_->collection_map->DebugString();
 
   LOG(INFO) << "[Scheduler] Initworker";
   // Send the collection_map_ to all workers.
   SArrayBinStream bin;
-  bin << collection_map_;
+  bin << *elem_->collection_map;
   SendToAllWorkers(ScheduleFlag::kInitWorkers, bin);
 }
 
 void Scheduler::InitWorkersReply(SArrayBinStream bin) {
   init_reply_count_ += 1;
-  if (init_reply_count_ == nodes_.size()) {
+  if (init_reply_count_ == elem_->nodes.size()) {
     // init_worker_reply_promise_.set_value();
     LOG(INFO) << "[Scheduler] Initworker Done, RunNextSpec";
     RunNextSpec();
@@ -139,7 +141,7 @@ void Scheduler::RunNextSpec() {
       Distribute(static_cast<DistributeSpec*>(spec.spec.get()));
     } else if (spec.type == SpecWrapper::Type::kLoad) {
       LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
-      Load(static_cast<LoadSpec*>(spec.spec.get()));
+      block_manager_->Load(static_cast<LoadSpec*>(spec.spec.get()));
     } else if (spec.type == SpecWrapper::Type::kMapJoin) {
       currnet_spec_ = spec;
       int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
@@ -157,43 +159,6 @@ void Scheduler::RunNextSpec() {
   }
 }
 
-void Scheduler::FinishBlock(SArrayBinStream bin) {
-  FinishedBlock block;
-  bin >> block;
-  LOG(INFO) << "[Scheduler] FinishBlock: " << block.DebugString();
-  bool done = assigner_->FinishBlock(block);
-  if (done) {
-    auto blocks = assigner_->GetFinishedBlocks();
-    stored_blocks_[block.collection_id] = blocks;
-    // construct the collection view
-    std::vector<int> part_to_node(blocks.size());
-    for (int i = 0; i < part_to_node.size(); ++i) {
-      CHECK(blocks.find(i) != blocks.end()) << "unknown block id " << i;
-      part_to_node[i] = blocks[i].node_id;
-    }
-    CollectionView cv;
-    cv.collection_id = block.collection_id;
-    cv.mapper = SimplePartToNodeMapper(part_to_node);
-    cv.num_partition = cv.mapper.GetNumParts();
-    collection_map_[cv.collection_id] = cv;
-
-    // PrepareNextCollection();
-    // RunNextSpec();
-    InitWorkers();
-  }
-}
-
-void Scheduler::Load(LoadSpec* spec) {
-  std::vector<std::pair<std::string, int>> assigned_nodes;
-  std::vector<int> num_local_threads;
-  for (auto& kv: nodes_) {
-    assigned_nodes.push_back({kv.second.node.hostname, kv.second.node.id});
-    num_local_threads.push_back(kv.second.num_local_threads);
-  }
-  CHECK(assigner_);
-  int num_blocks =
-      assigner_->Load(spec->collection_id, spec->url, assigned_nodes, num_local_threads);
-}
 
 void Scheduler::FinishDistribute(SArrayBinStream bin) {
   LOG(INFO) << "[Scheduler] FinishDistribute";
@@ -212,7 +177,7 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
     cv.collection_id = collection_id;
     cv.mapper = SimplePartToNodeMapper(part_to_node);
     cv.num_partition = cv.mapper.GetNumParts();
-    collection_map_[collection_id] = cv;
+    elem_->collection_map->Insert(cv);
 
     // PrepareNextCollection();
     InitWorkers();
@@ -223,9 +188,9 @@ void Scheduler::FinishDistribute(SArrayBinStream bin) {
 void Scheduler::Distribute(DistributeSpec* spec) {
   distribute_part_expected_ = spec->num_partition;
   // round-robin
-  auto node_iter = nodes_.begin();
+  auto node_iter = elem_->nodes.begin();
   for (int i = 0; i < spec->num_partition; ++i) {
-    CHECK(node_iter != nodes_.end());
+    CHECK(node_iter != elem_->nodes.end());
     Message msg;
     msg.meta.sender = 0;
     msg.meta.recver = GetWorkerQid(node_iter->second.node.id);
@@ -236,11 +201,11 @@ void Scheduler::Distribute(DistributeSpec* spec) {
     spec->ToBin(bin);
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
-    sender_->Send(std::move(msg));
+    elem_->sender->Send(std::move(msg));
 
     node_iter ++;
-    if (node_iter == nodes_.end()) {
-      node_iter = nodes_.begin();
+    if (node_iter == elem_->nodes.end()) {
+      node_iter = elem_->nodes.begin();
     }
   }
 }
@@ -266,7 +231,7 @@ void Scheduler::Write(SpecWrapper s) {
   auto* write_spec = static_cast<WriteSpec*>(s.spec.get());
   int id = write_spec->collection_id;
   std::string url = write_spec->url;
-  auto& collection_view = collection_map_[id];
+  auto& collection_view = elem_->collection_map->Get(id);
   write_reply_count_ = 0;
   expected_write_reply_count_ = collection_view.mapper.GetNumParts();
   LOG(INFO) << "[Scheduler] writing to " << expected_write_reply_count_ << " partitions";
@@ -302,7 +267,7 @@ void Scheduler::RunNextIteration() {
 void Scheduler::FinishJoin(SArrayBinStream bin) {
   num_workers_finish_a_plan_iteration_ += 1;
 
-  if (num_workers_finish_a_plan_iteration_ == nodes_.size()) {
+  if (num_workers_finish_a_plan_iteration_ == elem_->nodes.size()) {
     num_workers_finish_a_plan_iteration_ = 0;
     cur_iters_ += 1;
 
@@ -320,14 +285,14 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
 void Scheduler::SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin;
   ctrl_bin << flag;
-  for (auto& node : nodes_) {
+  for (auto& node : elem_->nodes) {
     Message msg;
     msg.meta.sender = 0;
     msg.meta.recver = GetWorkerQid(node.second.node.id);
     msg.meta.flag = Flag::kOthers;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(bin.ToSArray());
-    sender_->Send(std::move(msg));
+    elem_->sender->Send(std::move(msg));
   }
 }
 
@@ -340,7 +305,7 @@ void Scheduler::SendTo(int node_id, ScheduleFlag flag, SArrayBinStream bin) {
   msg.meta.flag = Flag::kOthers;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
-  sender_->Send(std::move(msg));
+  elem_->sender->Send(std::move(msg));
 }
 
 } // namespace xyz

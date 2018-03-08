@@ -3,6 +3,9 @@
 #include <atomic>
 #include <future>
 
+#include "core/scheduler/scheduler_elem.hpp"
+#include "core/scheduler/block_manager.hpp"
+
 #include "base/actor.hpp"
 #include "base/node.hpp"
 #include "base/sarray_binstream.hpp"
@@ -23,8 +26,15 @@ namespace xyz {
 class Scheduler : public Actor {
 public:
   Scheduler(int qid, std::shared_ptr<AbstractSender> sender,
-            std::shared_ptr<Assigner> assigner = nullptr)
-      : Actor(qid), sender_(sender), assigner_(assigner) {}
+            std::function<std::shared_ptr<Assigner>()> builder)
+      : Actor(qid) {
+    // setup elem_
+    elem_ = std::make_shared<SchedulerElem>();
+    elem_->sender = sender;
+    elem_->collection_map = std::make_shared<CollectionMap>();
+    // setup block_manager_
+    block_manager_ = std::make_shared<BlockManager>(elem_, builder);
+  }
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
       scheduler_thread_.join();
@@ -78,7 +88,7 @@ public:
 
   void SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin);
 
-  void FinishBlock(SArrayBinStream bin);
+  // void FinishBlock(SArrayBinStream bin);
   void FinishDistribute(SArrayBinStream bin);
   void CheckPoint();
   void Write(SpecWrapper s);
@@ -97,23 +107,21 @@ private:
   void RunNextSpec();
   void RunNextIteration();
 private:
-  std::shared_ptr<AbstractSender> sender_;
+  std::shared_ptr<SchedulerElem> elem_;
+
+  // std::shared_ptr<AbstractSender> sender_;
 
   int register_program_count_ = 0;
   int init_reply_count_ = 0;
 
   bool init_program_ = false;
   ProgramContext program_;
-  std::unordered_map<int, CollectionView> collection_map_;
+  // std::unordered_map<int, CollectionView> collection_map_;
 
-  std::shared_ptr<Assigner> assigner_;
+  // std::shared_ptr<Assigner> assigner_;
   // std::vector<Node> nodes_;
   // std::vector<int> num_local_threads_;
-  struct NodeInfo {
-    Node node;
-    int num_local_threads;
-  };
-  std::map<int, NodeInfo> nodes_;
+  // std::map<int, NodeInfo> nodes_;
 
   std::promise<void> exit_promise_;
 
@@ -125,8 +133,6 @@ private:
 
   // collection_id, part_id, node_id
   std::map<int, std::map<int, int>> distribute_map_;
-  // collection_id, part_id, <url, offset, node_id>
-  std::map<int, std::map<int, StoredBlock>> stored_blocks_;
 
   int num_workers_finish_a_plan_iteration_ = 0;
   int cur_iters_ = 0;
@@ -136,6 +142,8 @@ private:
 
   int write_reply_count_ = 0;
   int expected_write_reply_count_;
+
+  std::shared_ptr<BlockManager> block_manager_;
 };
 
 } // namespace xyz

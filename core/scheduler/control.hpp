@@ -1,3 +1,5 @@
+#pragma once
+
 namespace xyz {
 
 enum class ScheduleFlag : char {

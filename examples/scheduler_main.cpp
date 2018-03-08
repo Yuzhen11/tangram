@@ -24,9 +24,14 @@ void RunScheduler() {
 
   // create scheduler and register queue
   const int id = 0;
-  auto browser = std::make_shared<HDFSBrowser>(FLAGS_hdfs_namenode, FLAGS_hdfs_port);
-  auto assigner = std::make_shared<Assigner>(sender, browser);
-  Scheduler scheduler(id, sender, assigner);
+  const std::string namenode = FLAGS_hdfs_namenode;
+  const int port = FLAGS_hdfs_port;
+  auto assigner_builder = [sender, namenode, port]() {
+    auto browser = std::make_shared<HDFSBrowser>(namenode, port);
+    auto assigner = std::make_shared<Assigner>(sender, browser);
+    return assigner;
+  };
+  Scheduler scheduler(id, sender, assigner_builder);
   scheduler_mailbox->RegisterQueue(id, scheduler.GetWorkQueue());
 
   // start mailbox

@@ -10,6 +10,7 @@ file(GLOB core-src-files
     map_output/map_output_storage.cpp
     scheduler/worker.cpp
     scheduler/scheduler.cpp
+    scheduler/block_manager.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
   )

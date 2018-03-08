@@ -55,7 +55,7 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
     }
   }
 
-  virtual int Get(int part_id) {
+  virtual int Get(int part_id) const {
     CHECK_LT(part_id, v_.size());
     return v_[part_id];
   }

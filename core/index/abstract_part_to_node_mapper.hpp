@@ -9,7 +9,7 @@ class AbstractPartToNodeMapper {
   AbstractPartToNodeMapper() = default;
   ~AbstractPartToNodeMapper() = default;
 
-  virtual int Get(int part_id) = 0;
+  virtual int Get(int part_id) const = 0;
   virtual void FromBin(SArrayBinStream& bin) = 0;
   virtual void ToBin(SArrayBinStream& bin) const = 0;
 };
