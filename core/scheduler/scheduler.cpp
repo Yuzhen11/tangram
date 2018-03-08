@@ -153,6 +153,9 @@ void Scheduler::RunNextSpec() {
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
       Write(spec);
+    } else if (spec.type == SpecWrapper::Type::kMapWithJoin) {
+      LOG(INFO) << "[Scheduler] spec not implemented: " << spec.DebugString();
+      RunNextSpec();
     } else {
       CHECK(false) << spec.DebugString();
     }

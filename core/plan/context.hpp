@@ -4,6 +4,7 @@
 #include "core/plan/plan_base.hpp"
 
 #include "core/plan/mapjoin.hpp"
+#include "core/plan/mapwithjoin.hpp"
 #include "core/plan/distribute.hpp"
 #include "core/plan/load.hpp"
 #include "core/plan/write.hpp"
@@ -94,6 +95,30 @@ class Context {
     return p;
   }
   
+  template<typename C1, typename C2, typename M, typename J>
+  static auto* mappartjoin(C1* c1, C2* c2, M m, J j, int num_iter = 1) {
+    using MsgT = typename decltype(m((TypedPartition<typename C1::ObjT>*)nullptr, (AbstractMapProgressTracker*)nullptr))::value_type::second_type;
+    auto *p = plans_.make<MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
+    p->mappart = m;
+    p->join = j;
+    p->num_iter = num_iter;
+    return p;
+  }
+
+  template<typename C1, typename C2, typename C3, typename M, typename J>
+  static auto* mappartwithjoin(C1* c1, C2* c2, C3* c3, M m, J j, int num_iter = 1) {
+    using MsgT = typename decltype(
+            m((TypedPartition<typename C1::ObjT>*)nullptr, 
+              (TypedCache<typename C2::ObjT>*)nullptr, 
+              (AbstractMapProgressTracker*)nullptr)
+            )::value_type::second_type;
+    auto *p = plans_.make<MapPartWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT>>(c1, c2, c3);
+    p->mappartwith = m;
+    p->join = j;
+    p->num_iter = num_iter;
+    return p;
+  }
+
   static auto get_allplans() {
     return plans_.all();
   }

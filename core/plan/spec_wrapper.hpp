@@ -28,9 +28,30 @@ struct MapJoinSpec : public Spec {
   }
   virtual std::string DebugString() const {
     std::stringstream ss;
-    ss << ", map_collection_id: " << map_collection_id;
+    ss << "map_collection_id: " << map_collection_id;
     ss << ", join_collection_id: " << join_collection_id;
     ss << ", num_iter: " << num_iter;
+    return ss.str();
+  }
+};
+
+struct MapWithJoinSpec : public MapJoinSpec {
+  int with_collection_id;
+  MapWithJoinSpec() = default;
+  MapWithJoinSpec(int mid, int jid, int iter, int wid)
+      : MapJoinSpec(mid, jid, iter), with_collection_id(wid) {}
+  virtual void ToBin(SArrayBinStream& bin) override {
+    MapJoinSpec::ToBin(bin);
+    bin << with_collection_id;
+  }
+  virtual void FromBin(SArrayBinStream& bin) override {
+    MapJoinSpec::FromBin(bin);
+    bin >> with_collection_id;
+  }
+  virtual std::string DebugString() const {
+    std::stringstream ss;
+    ss << MapJoinSpec::DebugString();
+    ss << ", with_collection_id: " << with_collection_id;
     return ss.str();
   }
 };
@@ -97,13 +118,19 @@ struct DistributeSpec: public Spec {
 
 struct SpecWrapper {
   enum class Type : char {
-    kDistribute, kLoad, kInit, kMapJoin, kWrite
+    kDistribute, 
+    kLoad, 
+    kInit, 
+    kMapJoin, 
+    kMapWithJoin, 
+    kWrite
   };
   static constexpr const char* TypeName[] = {
     "kDistribute", 
     "kLoad", 
     "kInit", 
     "kMapJoin",
+    "kMapWithJoin",
     "kWrite"
   };
   Type type;
@@ -138,6 +165,9 @@ struct SpecWrapper {
       s.spec->FromBin(stream);
     } else if (s.type == Type::kMapJoin){
       s.spec = std::make_shared<MapJoinSpec>();
+      s.spec->FromBin(stream);
+    } else if (s.type == Type::kMapWithJoin){
+      s.spec = std::make_shared<MapWithJoinSpec>();
       s.spec->FromBin(stream);
     } else if (s.type == Type::kLoad){
       s.spec = std::make_shared<LoadSpec>();

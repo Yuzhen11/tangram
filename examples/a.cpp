@@ -36,9 +36,41 @@ int main(int argc, char** argv) {
 
   auto c2 = Context::placeholder<ObjT>(10);
 
-  auto p = Context::mapjoin(c1, c2, 
+  // mapjoin
+  Context::mapjoin(c1, c2, 
     [](std::string word) {
       return std::pair<std::string, int>(word, 1);
+    },
+    [](ObjT* obj, int m) {
+      obj->b += m;
+      LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+    });
+  
+  // mappartjoin
+  Context::mappartjoin(c1, c2, 
+    [](TypedPartition<std::string>* p, AbstractMapProgressTracker* t) {
+      std::vector<std::pair<std::string, int>> kvs;
+      for (auto& elem : *p) {
+        kvs.push_back({elem, 1});
+      }
+      return kvs;
+    },
+    [](ObjT* obj, int m) {
+      obj->b += m;
+      LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+    });
+
+  // mappartwithjoin
+  // map 1, with 2, join 3
+  Context::mappartwithjoin(c1, c2, c2,
+    [](TypedPartition<std::string>* p,
+       TypedCache<ObjT>* typed_cache, 
+       AbstractMapProgressTracker* t) {
+      std::vector<std::pair<std::string, int>> kvs;
+      for (auto& elem : *p) {
+        kvs.push_back({elem, 1});
+      }
+      return kvs;
     },
     [](ObjT* obj, int m) {
       obj->b += m;

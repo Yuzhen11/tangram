@@ -29,8 +29,8 @@ template<typename C1, typename C2, typename C3, typename ObjT1, typename ObjT2, 
 struct MapPartWithJoin : public PlanBase {
   using MapPartWithFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
           TypedPartition<ObjT1>* p, 
-          AbstractMapProgressTracker* t,
-          TypedCache<ObjT3>* c)>;
+          TypedCache<ObjT2>* c, 
+          AbstractMapProgressTracker* t)>;
   using JoinFuncT = std::function<void(ObjT2*, const MsgT&)>;
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
@@ -41,16 +41,16 @@ struct MapPartWithJoin : public PlanBase {
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
-          C2* _join_collection, C3* _with_collection)
+          C2* _with_collection, C3* _join_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), 
-       join_collection(_join_collection), with_collection(_with_collection) {
+       with_collection(_with_collection), join_collection(_join_collection) {
   }
 
   virtual SpecWrapper GetSpec() override {
     // TODO the with collection
     SpecWrapper w;
-    w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin, 
-            map_collection->Id(), join_collection->Id(), num_iter);
+    w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin, 
+            map_collection->Id(), join_collection->Id(), num_iter, with_collection->Id());
     return w;
   }
 
@@ -79,21 +79,21 @@ struct MapPartWithJoin : public PlanBase {
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;
-      TypedCache<ObjT3> typed_cache(cache, with_collection->GetMapper(), with_collection->Id(), version);
+      TypedCache<ObjT2> typed_cache(cache, with_collection->GetMapper(), with_collection->Id(), version);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(this->join_collection->GetMapper());
       auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection->GetMapper());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
-      output->Add(mappartwith(p, tracker.get(), &typed_cache));
+      output->Add(mappartwith(p, &typed_cache, tracker.get()));
       return output;
     };
   }
 
   C1* map_collection;
-  C2* join_collection;
-  C3* with_collection;
-  //int num_iter = 1;
+  C2* with_collection;
+  C3* join_collection;
+  int num_iter = 1;
 
   MapPartWithFuncT mappartwith;
   JoinFuncT join;
