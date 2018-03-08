@@ -18,14 +18,21 @@ class AbstractPartition {
 template <typename ObjT>
 class Indexable {
  public:
-  virtual ObjT Get(typename ObjT::KeyT) = 0;
+  virtual ~Indexable() = default;
+  virtual ObjT Get(typename ObjT::KeyT) {
+    CHECK(false);
+  }
   /*
    * The return pointer will be invalid when the storage size change.
    * You should assume the pointer is invalid once the partition changes.
    */
-  virtual ObjT* FindOrCreate(typename ObjT::KeyT) = 0;
+  virtual ObjT* FindOrCreate(typename ObjT::KeyT) {
+    CHECK(false);
+  }
 
-  virtual void Sort() = 0;
+  virtual void Sort() {
+    CHECK(false);
+  }
 };
 
 template <typename ObjT>
@@ -66,7 +73,9 @@ class TypedPartition : public AbstractPartition {
     return CreateIterator(false);
   }
 
-  virtual IterWrapper CreateIterator(bool) = 0;
+  virtual IterWrapper CreateIterator(bool) {
+    CHECK(false);
+  }
 
 };
 
