@@ -3,16 +3,27 @@
 namespace xyz {
 
 void Fetcher::FetchRemote(int collection_id, int partition_id, int version) {
-  // TODO: fill the meta.
+  Message fetch_msg;
+  Ctrl ctrl = Ctrl::kFetch;
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << ctrl;
+  fetch_msg.AddData(ctrl_bin.ToSArray());
+  
   SArrayBinStream bin;
   bin << collection_id << partition_id << version;
-  Message fetch_msg = bin.ToMsg();
+  fetch_msg.AddData(bin.ToSArray());
+
   sender_->Send(fetch_msg);
 }
 
+  
+
 void Fetcher::FetchLocal(Message msg) {
   Message reply_msg;
-  // TODO: fill the meta.
+  Ctrl ctrl = Ctrl::kFetchReply;
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << ctrl;
+  reply_msg.AddData(ctrl_bin.ToSArray());
   CHECK_EQ(msg.data.size(), 2);
   SArrayBinStream bin;
   bin.FromSArray(msg.data[1]);
@@ -27,25 +38,44 @@ void Fetcher::FetchLocal(Message msg) {
     SArrayBinStream new_bin;  // collection_id, partition_id, version, <partition>
     new_bin << collection_id << partition_id << part->version;
     {
-      boost::shared_lock<boost::shared_mutex> lk(part->mu);
-      part->partition->ToBin(new_bin);
+        boost::shared_lock<boost::shared_mutex> lk(part->mu);
+        part->partition->ToBin(new_bin);
     }
     reply_msg.AddData(new_bin.ToSArray());
   }
   sender_->Send(std::move(reply_msg));
 }
 
+
 void Fetcher::FetchReply(Message msg) {
   int collection_id;
   int partition_id;
   int version;
+   
   for (int i = 1; i < msg.data.size(); ++ i) {  // start from 1
     SArrayBinStream bin;
     bin.FromSArray(msg.data[i]);
     bin >> collection_id >> partition_id >> version;
     partition_cache_->UpdatePartition(collection_id, partition_id, version, bin);
-  }
+  }           
 }
+
+void Fetcher::FetchObjReply(Message msg) {
+  int app_thread_id;
+  int collection_id;
+  int partition_id;
+   
+  for (int i = 1; i < msg.data.size(); ++ i) {  // start from 1
+    SArrayBinStream bin;
+    bin.FromSArray(msg.data[i]);
+    bin >> app_thread_id >> collection_id >> partition_id;
+    recv_binstream_[app_thread_id][partition_id] = bin;
+    std::unique_lock<std::mutex> lk(m_);
+    recv_finished_[app_thread_id]++;
+    cv_.notify_all();
+  }           
+}
+
 
 void Fetcher::Process(Message msg) {
   CHECK_GE(msg.data.size(), 2);
@@ -56,8 +86,12 @@ void Fetcher::Process(Message msg) {
   ctrl_bin >> ctrl;
   if (ctrl == Ctrl::kFetch) {
     FetchLocal(msg);
+  } else if (ctrl == Ctrl::kFetchObj){
+    FetchLocalObj(msg);
   } else if (ctrl == Ctrl::kFetchReply){
     FetchReply(msg);
+  } else if (ctrl == Ctrl::kFetchObjReply){
+    FetchObjReply(msg);
   } else {
     CHECK(false);
   }

@@ -16,7 +16,7 @@ void Worker::RegisterProgram() {
   LOG(INFO) << WorkerId() << "RegisterProgram";
   CHECK(is_program_set_);
   ready_ = true;
-
+  
   SArrayBinStream bin;
   WorkerInfo info;
   info.num_local_threads = engine_elem_.num_local_threads;
