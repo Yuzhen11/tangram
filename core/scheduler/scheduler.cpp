@@ -136,26 +136,28 @@ void Scheduler::RunNextSpec() {
     Exit();
   } else {
     auto spec = program_.specs[spec_count_];
+    LOG(INFO) << "[Scheduler] Running: " << spec.DebugString();
     if (spec.type == SpecWrapper::Type::kDistribute) {
       LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
       Distribute(static_cast<DistributeSpec*>(spec.spec.get()));
     } else if (spec.type == SpecWrapper::Type::kLoad) {
       LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
       block_manager_->Load(static_cast<LoadSpec*>(spec.spec.get()));
-    } else if (spec.type == SpecWrapper::Type::kMapJoin) {
+    } else if (spec.type == SpecWrapper::Type::kMapJoin
+            || spec.type == SpecWrapper::Type::kMapWithJoin) {
       currnet_spec_ = spec;
       int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
       LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
                 << "/" << program_.specs.size() << ")"
                 << " Plan Iteration (" << cur_iters_
-                << "/" << expected_num_iters << ")";
+                << "/" << expected_num_iters << ") " << spec.DebugString();
       RunMap();
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
       Write(spec);
-    } else if (spec.type == SpecWrapper::Type::kMapWithJoin) {
-      LOG(INFO) << "[Scheduler] spec not implemented: " << spec.DebugString();
-      RunNextSpec();
+    // } else if (spec.type == SpecWrapper::Type::kMapWithJoin) {
+    //   LOG(INFO) << "[Scheduler] spec not implemented: " << spec.DebugString();
+    //   RunNextSpec();
     } else {
       CHECK(false) << spec.DebugString();
     }

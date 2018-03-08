@@ -30,6 +30,7 @@ class TypedCache : public AbstractCache {
   TypedCache(int collection_id, std::shared_ptr<Fetcher> fetcher, 
           std::shared_ptr<AbstractKeyToPartMapper> mapper)
       :collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
+    // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
   }
 
   ObjT Get(typename ObjT::KeyT key) {
@@ -39,7 +40,7 @@ class TypedCache : public AbstractCache {
 
   std::map<int, SArrayBinStream> Partition(const std::vector<typename ObjT::KeyT>& keys) {
     auto* typed_mapper = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*>(mapper_.get());
-    std::map<int, std::vector<typename ObjT::KeyT>> parts;
+    std::map<int, SArrayBinStream> parts;
     for (auto key : keys) {
       int partition_id = typed_mapper->Get(key);
       parts[partition_id] << key;
@@ -47,7 +48,7 @@ class TypedCache : public AbstractCache {
     return parts;
   }
 
-  std::vector<ObjT> Organzie(const std::vector<SArrayBinStream>& rets) {
+  std::vector<ObjT> Organzie(std::vector<SArrayBinStream>& rets) {
     // TODO, now use a naive algorithm
     std::vector<ObjT> objs;
     for (auto& bin : rets) {

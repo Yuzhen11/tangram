@@ -99,15 +99,25 @@ void Worker::RunMap(SArrayBinStream bin) {
   plan.plan_id = spec.id;
   plan.map_collection_id = p->map_collection_id;
   plan.join_collection_id = p->join_collection_id;
-  LOG(INFO) << WorkerId() << "RunMap: " << plan.DebugString();
-  auto map = engine_elem_.function_store->GetMap(plan.plan_id);
+  LOG(INFO) << WorkerId() << "RunMap: " << spec.DebugString();
   engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
+  auto type = spec.type;
+  int plan_id = spec.id;
   engine_elem_.partition_tracker->RunAllMap(
-      [map, this](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
+      [this, type, plan_id](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
                    std::shared_ptr<AbstractMapProgressTracker> pt) {
         // func(meta, p, engine_elem_.intermediate_store, pt);
         // 1. map
-        auto map_output = map(p, pt); 
+        std::shared_ptr<AbstractMapOutput> map_output;
+        if (type == SpecWrapper::Type::kMapJoin) {
+          auto& map = engine_elem_.function_store->GetMap(plan_id);
+          map_output = map(p, pt); 
+        } else if (type == SpecWrapper::Type::kMapWithJoin){
+          auto& mapwith = engine_elem_.function_store->GetMapWith(plan_id);
+          map_output = mapwith(p, engine_elem_.fetcher, pt); 
+        } else {
+          CHECK(false);
+        }
         // 2. serialize
         auto bins = map_output->Serialize();
         // 3. add to intermediate_store

@@ -83,17 +83,54 @@ void Fetcher::FetchObjReply(Message msg) {
   cv_.notify_all();
 }
 
+void Fetcher::Fetch(int app_thread_id, int collection_id, 
+        const std::map<int, SArrayBinStream>& part_to_keys,
+        std::vector<SArrayBinStream>* const rets) {
+
+  // 0. register rets
+  recv_binstream_[app_thread_id] = rets;
+      
+  // 1. send requests
+  for (auto const& pair : part_to_keys) {
+    Message msg;
+    msg.meta.sender = Qid();
+    msg.meta.recver = GetFetcherQid(collection_map_->Lookup(collection_id, pair.first));
+    msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, ctrl2_bin;
+    ctrl_bin << Ctrl::kFetchObj;
+    ctrl2_bin << app_thread_id << collection_id << pair.first;
+    auto& bin = pair.second;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(ctrl2_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    
+    sender_->Send(msg);
+  }
+  
+  // 2. wait requests
+  int recv_count = part_to_keys.size();
+  {
+    std::unique_lock<std::mutex> lk(m_);
+    cv_.wait(lk, [this, app_thread_id, recv_count] {
+      return recv_finished_[app_thread_id] == recv_count;
+    });
+    recv_binstream_.erase(app_thread_id);
+    recv_finished_.erase(app_thread_id);
+  }
+  return;
+}
+
 void Fetcher::FetchLocalObj(Message msg) {
   CHECK_EQ(msg.data.size(), 3);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[1]);
   bin.FromSArray(msg.data[2]);
-  int app_thread_id, collection_id, partition_id;  // TODO
+  int app_thread_id, collection_id, partition_id;
   ctrl2_bin >> app_thread_id >> collection_id >> partition_id;
 
   CHECK(func_.find(collection_id) != func_.end());
   auto& func = func_[collection_id];
-  CHECK(partition_manager_->Has(collection_id, partition_id));
+  CHECK(partition_manager_->Has(collection_id, partition_id)) << "cid: " << collection_id << ", pid: " << partition_id;
   auto part = partition_manager_->Get(collection_id, partition_id);
   SArrayBinStream reply_bin;
   {

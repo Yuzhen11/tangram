@@ -57,43 +57,10 @@ class Fetcher : public Actor {
    * Invoked by Process().
    */
 
+
   void Fetch(int app_thread_id, int collection_id, 
-          const std::map<int, SArrayBinStream>& part_to_keys,
-          std::vector<SArrayBinStream>* const rets) {
-
-    // 0. register rets
-    recv_binstream_[app_thread_id] = rets;
-        
-    // 1. send requests
-    for (auto const& pair : part_to_keys) {
-      Message msg;
-      msg.meta.sender = GetFetcherQid(collection_map_->Lookup(collection_id, pair.first));
-      msg.meta.recver = Qid();
-      msg.meta.flag = Flag::kOthers;
-      SArrayBinStream ctrl_bin, ctrl2_bin;
-      ctrl_bin << Ctrl::kFetchObj;
-      ctrl2_bin << app_thread_id << collection_id << pair.first;
-      auto& bin = pair.second;
-      msg.AddData(ctrl_bin.ToSArray());
-      msg.AddData(ctrl2_bin.ToSArray());
-      msg.AddData(bin.ToSArray());
-      
-      sender_->Send(msg);
-    }
-    
-    // 2. wait requests
-    int recv_count = part_to_keys.size();
-    {
-      std::unique_lock<std::mutex> lk(m_);
-      cv_.wait(lk, [this, app_thread_id, recv_count] {
-        return recv_finished_[app_thread_id] == recv_count;
-      });
-      recv_binstream_.erase(app_thread_id);
-      recv_finished_.erase(app_thread_id);
-    }
-    return;
-  }
-
+        const std::map<int, SArrayBinStream>& part_to_keys,
+        std::vector<SArrayBinStream>* const rets);
 
   void FetchLocalObj(Message msg);
 

@@ -66,6 +66,14 @@ int main(int argc, char** argv) {
     [](TypedPartition<std::string>* p,
        TypedCache<ObjT>* typed_cache, 
        AbstractMapProgressTracker* t) {
+      std::vector<std::string> keys{"a", "b", "c", "n"};
+      auto ret = typed_cache->Get(keys);
+      CHECK_EQ(ret.size(), keys.size());
+      std::stringstream ss;
+      for (int i = 0; i < keys.size(); ++ i) {
+        ss << keys[i] << ":" << ret[i].b << ", ";
+      }
+      LOG(INFO) << ss.str();
       std::vector<std::pair<std::string, int>> kvs;
       for (auto& elem : *p) {
         kvs.push_back({elem, 1});
