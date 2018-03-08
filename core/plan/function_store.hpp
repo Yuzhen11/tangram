@@ -22,6 +22,7 @@ class FunctionStore : public AbstractFunctionStore {
   using MapWith = AbstractFunctionStore::MapWith;
   using CreatePartFromBinFuncT = AbstractFunctionStore::CreatePartFromBinFuncT;
   using WritePartFuncT = AbstractFunctionStore::WritePartFuncT;
+  using GetterFuncT = AbstractFunctionStore::GetterFuncT;
 
   // Used by engine.
   const MergeCombineFuncT& GetMergeCombine(int id);
@@ -31,6 +32,7 @@ class FunctionStore : public AbstractFunctionStore {
   const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
   const CreatePartFromBlockReaderFuncT& GetCreatePartFromBlockReader(int id);
   const WritePartFuncT& GetWritePartFunc(int id);
+  const std::map<int, GetterFuncT>& GetGetter();
 
   // Used by plan to register function.
   virtual void AddMap(int id, MapFuncT func) override;
@@ -40,6 +42,7 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) override;
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) override;
   virtual void AddWritePart(int id, WritePartFuncT func) override;
+  virtual void AddGetter(int id, GetterFuncT func) override;
 
  private:
   std::map<int, MapFuncT> maps_;
@@ -50,7 +53,7 @@ class FunctionStore : public AbstractFunctionStore {
   std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;
   std::map<int, CreatePartFromBlockReaderFuncT> create_part_from_block_reader_;
   std::map<int, WritePartFuncT> write_part_;
-
+  std::map<int, GetterFuncT> getter_;
 };
 
 }  // namespaca xyz

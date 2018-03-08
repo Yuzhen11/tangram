@@ -36,7 +36,7 @@ class SArrayBinStream {
     buffer_ = sarray;
     front_ = 0;
   }
-  third_party::SArray<char> ToSArray();
+  third_party::SArray<char> ToSArray() const;
 
   inline const char* GetPtr() const { return (&buffer_[0]) + front_; }
   void CopyFrom(const char* data, size_t size) {

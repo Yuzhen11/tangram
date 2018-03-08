@@ -40,9 +40,17 @@ void Engine::Start() {
       engine_elem_.function_store);
   mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
 
+  // create fetcher
+  const int fetcher_id = GetFetcherQid(engine_elem_.node.id);
+  fetcher_ = std::make_shared<Fetcher>(fetcher_id, 
+          engine_elem_.partition_manager,
+          engine_elem_.function_store->GetGetter(),
+          engine_elem_.collection_map, engine_elem_.sender);
+  mailbox_->RegisterQueue(fetcher_id, fetcher_->GetWorkQueue());
+  engine_elem_.fetcher = fetcher_;  // set it to engine_elem_ as worker needs it
+
   // create worker actor
   const int worker_id = GetWorkerQid(engine_elem_.node.id);
-
   const std::string namenode = engine_elem_.namenode;
   const int port = engine_elem_.port;
   // set hdfs reader_wrapper
@@ -72,6 +80,7 @@ void Engine::Stop() {
   mailbox_->Stop();
   worker_.reset();
   join_actor_.reset();
+  fetcher_.reset();
 }
 
 } // namespace xyz

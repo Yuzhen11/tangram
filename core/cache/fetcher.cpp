@@ -76,11 +76,44 @@ void Fetcher::FetchObjReply(Message msg) {
   ctrl2_bin >> app_thread_id >> collection_id >> partition_id;
 
   std::unique_lock<std::mutex> lk(m_);
-  recv_binstream_[app_thread_id][partition_id] = bin;
+  CHECK(recv_binstream_.find(app_thread_id) != recv_binstream_.end());
+  CHECK_NOTNULL(recv_binstream_[app_thread_id]);
+  recv_binstream_[app_thread_id]->push_back(bin);
   recv_finished_[app_thread_id]++;
   cv_.notify_all();
 }
 
+void Fetcher::FetchLocalObj(Message msg) {
+  CHECK_EQ(msg.data.size(), 3);
+  SArrayBinStream ctrl2_bin, bin;
+  ctrl2_bin.FromSArray(msg.data[1]);
+  bin.FromSArray(msg.data[2]);
+  int app_thread_id, collection_id, partition_id;  // TODO
+  ctrl2_bin >> app_thread_id >> collection_id >> partition_id;
+
+  CHECK(func_.find(collection_id) != func_.end());
+  auto& func = func_[collection_id];
+  CHECK(partition_manager_->Has(collection_id, partition_id));
+  auto part = partition_manager_->Get(collection_id, partition_id);
+  SArrayBinStream reply_bin;
+  {
+    boost::shared_lock<boost::shared_mutex> lk(part->mu);
+    reply_bin = func(bin, part->partition);
+  }
+
+  // reply
+  Message reply_msg;
+  reply_msg.meta.sender = msg.meta.recver;
+  reply_msg.meta.recver = msg.meta.sender;
+  reply_msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
+  ctrl_reply_bin << Ctrl::kFetchObjReply;
+  ctrl2_reply_bin << app_thread_id << collection_id << partition_id; 
+  reply_msg.AddData(ctrl_reply_bin.ToSArray());
+  reply_msg.AddData(ctrl2_reply_bin.ToSArray());
+  reply_msg.AddData(reply_bin.ToSArray());
+  sender_->Send(std::move(reply_msg));
+}
 
 void Fetcher::Process(Message msg) {
   CHECK_GE(msg.data.size(), 2);

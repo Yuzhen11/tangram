@@ -10,6 +10,7 @@
 #include "core/plan/function_store.hpp"
 #include "comm/abstract_sender.hpp"
 #include "core/collection_map.hpp"
+#include "core/cache/fetcher.hpp"
 
 namespace xyz {
 
@@ -22,6 +23,7 @@ struct EngineElem {
   std::shared_ptr<PartitionTracker> partition_tracker;
   std::shared_ptr<AbstractSender> sender;
   std::shared_ptr<CollectionMap> collection_map;
+  std::shared_ptr<Fetcher> fetcher;
 
   std::string namenode;
   int port;

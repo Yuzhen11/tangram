@@ -11,6 +11,7 @@
 #include "core/partition/abstract_partition.hpp"
 #include "comm/abstract_sender.hpp"
 #include "core/collection_map.hpp"
+#include "core/queue_node_map.hpp"
 
 namespace xyz {
 
@@ -32,11 +33,11 @@ class Fetcher : public Actor {
     kFetch, kFetchObj, kFetchReply, kFetchObjReply
   };
   Fetcher(int qid, std::shared_ptr<PartitionManager> partition_manager,
-          std::map<int, GetterFuncT> funcs, std::shared_ptr<KeyToPartMappers> mappers,
+          const std::map<int, GetterFuncT>& funcs,
           std::shared_ptr<CollectionMap> collection_map, 
           std::shared_ptr<AbstractSender> sender):
     Actor(qid), partition_manager_(partition_manager), func_(funcs), 
-    mappers_(mappers), collection_map_(collection_map),
+    collection_map_(collection_map),
     sender_(sender) {
     Start();
   }
@@ -56,115 +57,45 @@ class Fetcher : public Actor {
    * Invoked by Process().
    */
 
-  template<typename ObjT>  
-  std::vector<ObjT> Fetch(int app_thread_id, int collection_id, const std::vector<typename ObjT::KeyT>& keys) {
-    // 1. send requests
-    auto mapper = mappers_->Get(collection_id);
-    std::map<int, std::vector<typename ObjT::KeyT>> part_to_keys;
-    for (auto key : keys) {
-      int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*> (mapper.get())->Get(key);
-      part_to_keys[partition_id].push_back(key);
-    }
+  void Fetch(int app_thread_id, int collection_id, 
+          const std::map<int, SArrayBinStream>& part_to_keys,
+          std::vector<SArrayBinStream>* const rets) {
 
-    int recv_count = 0;
+    // 0. register rets
+    recv_binstream_[app_thread_id] = rets;
+        
+    // 1. send requests
     for (auto const& pair : part_to_keys) {
       Message msg;
-      msg.meta.sender = 
-      msg.meta.recver = 
+      msg.meta.sender = GetFetcherQid(collection_map_->Lookup(collection_id, pair.first));
+      msg.meta.recver = Qid();
       msg.meta.flag = Flag::kOthers;
-      Ctrl ctrl = Ctrl::kFetchObj;
-      SArrayBinStream ctrl_bin, bin;
-      ctrl_bin << ctrl;
+      SArrayBinStream ctrl_bin, ctrl2_bin;
+      ctrl_bin << Ctrl::kFetchObj;
+      ctrl2_bin << app_thread_id << collection_id << pair.first;
+      auto& bin = pair.second;
       msg.AddData(ctrl_bin.ToSArray());
-      
-      bin << app_thread_id << collection_id << pair.first << pair.second;
+      msg.AddData(ctrl2_bin.ToSArray());
       msg.AddData(bin.ToSArray());
       
       sender_->Send(msg);
-      recv_count++;
     }
     
     // 2. wait requests
+    int recv_count = part_to_keys.size();
     {
       std::unique_lock<std::mutex> lk(m_);
       cv_.wait(lk, [this, app_thread_id, recv_count] {
         return recv_finished_[app_thread_id] == recv_count;
       });
-    }
-
-    // 3. organize the replies
-    // TODO, now use a naive algorithm
-    std::vector<ObjT> objs;
-    {
-      std::unique_lock<std::mutex> lk(m_);
-      for (auto& kv: recv_binstream_[app_thread_id]) {
-        auto bin = kv.second;
-        while (bin.Size()) {
-          ObjT obj;
-          bin >> obj;
-          objs.push_back(std::move(obj));
-        }
-      }
       recv_binstream_.erase(app_thread_id);
+      recv_finished_.erase(app_thread_id);
     }
-    CHECK_EQ(objs.size(), keys.size());
-    // assume keys are ordered
-    std::sort(objs.begin(), objs.end(), [](const ObjT& o1, const ObjT& o2) {
-      return o1.Key() < o2.Key();
-    });
-
-    /*
-    std::vector<ObjT> ret_objs;
-    std::map<int, std::vector<ObjT>> part_objs_map;
-    std::map<int, int> index_map;
-    for (auto& pair : recv_binstream_[app_thread_id]) {
-        std::vector<ObjT> objs(part_to_keys[pair.first].size());
-        pair.second >> objs;
-        part_objs_map[pair.first] = objs;
-    }
-
-    for (auto key : keys) {
-      int index;
-      int partition_id = static_cast<TypedKeyToPartMapper<typename ObjT::KeyT>*> (mapper.get())->Get(key);
-      if (index_map.find(partition_id) == index_map.end()) {
-        index_map[partition_id] = 0;
-        index = 0;
-      } else {
-        index = ++index_map[partition_id];
-      }
-      ObjT &k = part_objs_map[partition_id][index];
-      ret_objs.push_back(k);
-    }
-    return ret_objs;
-    */
+    return;
   }
 
 
-  void FetchLocalObj(Message msg) {
-    CHECK_EQ(msg.data.size(), 2);
-    SArrayBinStream bin;
-    bin.FromSArray(msg.data[1]);
-    int app_thread_id, collection_id, partition_id;  // TODO
-    bin >> app_thread_id >> collection_id >> partition_id;
-    CHECK(func_.find(collection_id) != func_.end());
-    auto& func = func_[collection_id];
-    CHECK(partition_manager_->Has(collection_id, partition_id));
-    auto part = partition_manager_->Get(collection_id, partition_id);
-    SArrayBinStream reply_bin;
-    {
-      boost::shared_lock<boost::shared_mutex> lk(part->mu);
-      reply_bin = func(bin, part->partition);
-    }
-    Message reply_msg;
-    SArrayBinStream ctrl_bin, ctrl2_bin;
-    Ctrl ctrl = Ctrl::kFetchObjReply;
-    ctrl_bin << ctrl;
-    ctrl2_bin << app_thread_id << collection_id << partition_id; 
-    reply_msg.AddData(ctrl_bin.ToSArray());
-    reply_msg.AddData(ctrl2_bin.ToSArray());
-    reply_msg.AddData(reply_bin.ToSArray());
-    sender_->Send(std::move(reply_msg));
-  }
+  void FetchLocalObj(Message msg);
 
 
   // void FetchReply(Message msg);
@@ -178,7 +109,6 @@ class Fetcher : public Actor {
 
  private:
   std::map<int, GetterFuncT> func_;
-  std::shared_ptr<KeyToPartMappers> mappers_;
   std::shared_ptr<PartitionManager> partition_manager_;
   std::shared_ptr<CollectionMap> collection_map_;
   // std::shared_ptr<AbstractPartitionCache> partition_cache_;
@@ -188,7 +118,7 @@ class Fetcher : public Actor {
   // app_thread_id -> recv_count
   std::map<int, int> recv_finished_;
   // app_thread_id -> (partition_id -> binstream)
-  std::map<int, std::map<int, SArrayBinStream>> recv_binstream_;
+  std::map<int, std::vector<SArrayBinStream>*> recv_binstream_;
 };
 
 }  // namespace xyz

@@ -26,7 +26,7 @@ void SArrayBinStream::FromMsg(const Message& msg) {
   FromSArray(msg.data[0]);
 }
 
-third_party::SArray<char> SArrayBinStream::ToSArray() {
+third_party::SArray<char> SArrayBinStream::ToSArray() const {
   return buffer_;
 }
 

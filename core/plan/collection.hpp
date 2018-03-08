@@ -16,7 +16,23 @@ namespace xyz {
 
 struct CollectionBase {
   virtual ~CollectionBase() = default;
+  virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) = 0;
 };
+
+template<typename T>
+AbstractFunctionStore::GetterFuncT GetGetterFunc() {
+  return [](SArrayBinStream& bin, std::shared_ptr<AbstractPartition> partition) {
+    auto* p = dynamic_cast<Indexable<T>*>(partition.get());
+    CHECK_NOTNULL(p);
+    typename T::KeyT key;
+    SArrayBinStream reply_bin;
+    while (bin.Size()) {
+      bin >> key;
+      reply_bin << *p->FindOrCreate(key);
+    }
+    return reply_bin;
+  };
+}
 
 template<typename T, typename PartitionT = IndexedSeqPartition<T>>
 class Collection : public CollectionBase {
@@ -26,50 +42,41 @@ class Collection : public CollectionBase {
   Collection(int id, int num_part): 
     id_(id), num_partition_(num_part) {
   }
-  
+
   int Id() const {
     return id_;
   }
-
-  // void SetWriteObj(std::function<void(ObjT& obj, std::stringstream& ss)> write_obj) {
-  //   write_obj_ = write_obj;
-  // }
   
   void SetMapper(std::shared_ptr<AbstractKeyToPartMapper> mapper) {
     mapper_ = mapper;
   }
+
   std::shared_ptr<AbstractKeyToPartMapper> GetMapper() {
     return mapper_;
   }
 
-  // void RegisterWritePart(std::shared_ptr<AbstractFunctionStore> function_store) {
-  //   function_store->AddWritePart(id_, [this](std::shared_ptr<AbstractPartition> part, 
-  //                   std::shared_ptr<AbstractWriter> writer, std::string url) {
-  //     std::stringstream ss;
-  //     auto* p = static_cast<TypedPartition<ObjT>*>(part.get());
-  //     CHECK_NOTNULL(p);
-  //     for (auto& elem : *p) {
-  //       write_obj_(elem, ss);
-  //     }
-  //     ss.seekg(0, std::ios::end);
-  //     auto size = ss.tellg();
-  //     writer->Write(url, ss.rdbuf(), size);  // TODO: test these lines
-  //   });
-  // }
+  template<typename Q = PartitionT>
+  typename std::enable_if<!std::is_same<Q, IndexedSeqPartition<T>>::value>::type
+  RegisterHelper(
+          std::shared_ptr<AbstractFunctionStore> function_store) {
+    // do nothing
+  }
+
+  template<typename Q = PartitionT>
+  typename std::enable_if<std::is_same<Q, IndexedSeqPartition<T>>::value>::type 
+  RegisterHelper(
+          std::shared_ptr<AbstractFunctionStore> function_store) {
+    function_store->AddGetter(id_, GetGetterFunc<T>());
+  }
+
+  virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
+     RegisterHelper(function_store);
+  }
+
  private:
   int id_;
   int num_partition_;
-  CollectionSource source_ = CollectionSource::kOthers;
-  // from distribute
-  // std::vector<T> data_;
-  // from hdfs file
-  // std::string load_url_;
-  // std::function<T(std::string&)> parse_line_;
-  // std::function<void(ObjT&, std::stringstream& ss)> write_obj_;
-
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
-
-
 };
 
 }  // namespace

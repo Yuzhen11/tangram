@@ -14,6 +14,7 @@
 #include "core/scheduler/worker.hpp"
 #include "core/engine_elem.hpp"
 #include "core/join_actor.hpp"
+#include "core/cache/fetcher.hpp"
 #include "comm/worker_mailbox.hpp"
 #include "comm/sender.hpp"
 
@@ -72,6 +73,7 @@ class Engine {
   std::shared_ptr<WorkerMailbox> mailbox_;
   std::shared_ptr<Worker> worker_;
   std::shared_ptr<JoinActor> join_actor_;
+  std::shared_ptr<Fetcher> fetcher_;
 };
 
 }  // namespace xyz
