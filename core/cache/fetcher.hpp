@@ -30,7 +30,10 @@ class Fetcher : public Actor {
   using GetterFuncT = std::function<
       SArrayBinStream(SArrayBinStream& bin, std::shared_ptr<AbstractPartition>)>;
   enum class Ctrl : char {
-    kFetch, kFetchObj, kFetchReply, kFetchObjReply
+    kFetch, 
+    kFetchReply, 
+    kFetchObjsRequest, 
+    kFetchObjsReply
   };
   Fetcher(int qid, std::shared_ptr<PartitionManager> partition_manager,
           const std::map<int, GetterFuncT>& funcs,
@@ -45,6 +48,13 @@ class Fetcher : public Actor {
     Stop();
   }
 
+  // public api:
+  void FetchObjs(int app_thread_id, int collection_id, 
+        const std::map<int, SArrayBinStream>& part_to_keys,
+        std::vector<SArrayBinStream>* const rets);
+
+  void FetchPart(int collection_id, int partition_id);
+
   // virtual void FetchRemote(int collection_id, int partition_id, int version) override;
 
   /*
@@ -58,22 +68,14 @@ class Fetcher : public Actor {
    */
 
 
-  void Fetch(int app_thread_id, int collection_id, 
-        const std::map<int, SArrayBinStream>& part_to_keys,
-        std::vector<SArrayBinStream>* const rets);
+  // for Process
+  void FetchObjsRequest(Message msg);
+  void FetchObjsReply(Message msg);
+  void FetchPartRequest(Message msg);
+  void FetchPartReply(Message msg);
 
-  void FetchLocalObj(Message msg);
 
-
-  // void FetchReply(Message msg);
-
-  void FetchObjReply(Message msg);
-
-  // void setFunc(std::function <SArrayBinStream(SArrayBinStream, Fetcher*)> func) { func_ = func; }
-  // void setMappers(std::shared_ptr<KeyToPartMappers> mappers) { mappers_ = mappers; }
-  // std::shared_ptr<PartitionManager> getPartMng() { return partition_manager_; }
   virtual void Process(Message msg) override;
-
  private:
   std::map<int, GetterFuncT> func_;
   std::shared_ptr<PartitionManager> partition_manager_;

@@ -71,7 +71,7 @@ class TypedCache : public AbstractCache {
     auto part_to_keys = Partition(keys);
     // 2. fetch
     std::vector<SArrayBinStream> rets;
-    fetcher_->Fetch(app_thread_id, collection_id_, part_to_keys, &rets);
+    fetcher_->FetchObjs(app_thread_id, collection_id_, part_to_keys, &rets);
     // 3. organize the result
     CHECK_EQ(rets.size(), part_to_keys.size());
     auto objs = Organzie(rets);

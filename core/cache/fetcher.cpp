@@ -2,6 +2,14 @@
 
 namespace xyz {
 
+
+void Fetcher::FetchPart(int collection_id, int partition_id) {
+}
+void Fetcher::FetchPartRequest(Message msg) {
+}
+void Fetcher::FetchPartReply(Message msg) {
+}
+
 /*
 void Fetcher::FetchRemote(int collection_id, int partition_id, int version) {
   Message fetch_msg;
@@ -64,7 +72,7 @@ void Fetcher::FetchReply(Message msg) {
 }
 */
 
-void Fetcher::FetchObjReply(Message msg) {
+void Fetcher::FetchObjsReply(Message msg) {
   int app_thread_id;
   int collection_id;
   int partition_id;
@@ -83,7 +91,7 @@ void Fetcher::FetchObjReply(Message msg) {
   cv_.notify_all();
 }
 
-void Fetcher::Fetch(int app_thread_id, int collection_id, 
+void Fetcher::FetchObjs(int app_thread_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) {
 
@@ -97,7 +105,7 @@ void Fetcher::Fetch(int app_thread_id, int collection_id,
     msg.meta.recver = GetFetcherQid(collection_map_->Lookup(collection_id, pair.first));
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, ctrl2_bin;
-    ctrl_bin << Ctrl::kFetchObj;
+    ctrl_bin << Ctrl::kFetchObjsRequest;
     ctrl2_bin << app_thread_id << collection_id << pair.first;
     auto& bin = pair.second;
     msg.AddData(ctrl_bin.ToSArray());
@@ -120,7 +128,7 @@ void Fetcher::Fetch(int app_thread_id, int collection_id,
   return;
 }
 
-void Fetcher::FetchLocalObj(Message msg) {
+void Fetcher::FetchObjsRequest(Message msg) {
   CHECK_EQ(msg.data.size(), 3);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[1]);
@@ -144,7 +152,7 @@ void Fetcher::FetchLocalObj(Message msg) {
   reply_msg.meta.recver = msg.meta.sender;
   reply_msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
-  ctrl_reply_bin << Ctrl::kFetchObjReply;
+  ctrl_reply_bin << Ctrl::kFetchObjsReply;
   ctrl2_reply_bin << app_thread_id << collection_id << partition_id; 
   reply_msg.AddData(ctrl_reply_bin.ToSArray());
   reply_msg.AddData(ctrl2_reply_bin.ToSArray());
@@ -161,12 +169,12 @@ void Fetcher::Process(Message msg) {
   ctrl_bin >> ctrl;
   if (ctrl == Ctrl::kFetch) {
     // FetchLocal(msg);
-  } else if (ctrl == Ctrl::kFetchObj){
-    FetchLocalObj(msg);
   } else if (ctrl == Ctrl::kFetchReply){
     // FetchReply(msg);
-  } else if (ctrl == Ctrl::kFetchObjReply){
-    FetchObjReply(msg);
+  } else if (ctrl == Ctrl::kFetchObjsRequest){
+    FetchObjsRequest(msg);
+  } else if (ctrl == Ctrl::kFetchObjsReply){
+    FetchObjsReply(msg);
   } else {
     CHECK(false);
   }
