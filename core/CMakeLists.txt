@@ -13,6 +13,7 @@ file(GLOB core-src-files
     scheduler/block_manager.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
+    worker/controller.cpp
   )
 
 # TODO now we let engine and worker depends on HDFS

@@ -21,6 +21,9 @@ int GetJoinActorQid(int nid) {
 int GetFetcherQid(int nid) {
   return nid * kMagic + 2;
 }
+int GetControllerActorQid(int nid) {
+  return nid * kMagic + 3;
+}
 
 }
 }  // namespace xyz

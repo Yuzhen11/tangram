@@ -74,6 +74,7 @@ class Engine {
   std::shared_ptr<Worker> worker_;
   std::shared_ptr<JoinActor> join_actor_;
   std::shared_ptr<Fetcher> fetcher_;
+  std::shared_ptr<Controller> controller_;
 };
 
 }  // namespace xyz

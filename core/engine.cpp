@@ -49,6 +49,11 @@ void Engine::Start() {
   mailbox_->RegisterQueue(fetcher_id, fetcher_->GetWorkQueue());
   engine_elem_.fetcher = fetcher_;  // set it to engine_elem_ as worker needs it
 
+  // create controller
+  const int controller_id = GetControllerActorQid(engine_elem_.node.id);
+  controller_ = std::make_shared<Controller>(controller_id, engine_elem_);
+  mailbox_->RegisterQueue(controller_id, controller_->GetWorkQueue());
+
   // create worker actor
   const int worker_id = GetWorkerQid(engine_elem_.node.id);
   const std::string namenode = engine_elem_.namenode;
@@ -66,7 +71,8 @@ void Engine::Start() {
       });
 
   // create worker
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, writer_wrapper);
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, writer_wrapper,
+          controller_);
   worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
 
@@ -81,6 +87,7 @@ void Engine::Stop() {
   worker_.reset();
   join_actor_.reset();
   fetcher_.reset();
+  controller_.reset();
 }
 
 } // namespace xyz
