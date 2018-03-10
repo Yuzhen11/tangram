@@ -3,7 +3,6 @@
 
 #include "comm/simple_sender.hpp"
 #include "io/fake_block_reader.hpp"
-#include "io/hdfs_reader.hpp"
 #include "io/fake_reader.hpp"
 #include "io/fake_writer.hpp"
 #include "core/scheduler/worker.hpp"
