@@ -22,6 +22,24 @@ struct return_type<ReturnType(ClassType::*)(Args...) const>
     using type = ReturnType;
 };
 
+struct CountObjT {
+  using KeyT = int;
+  using ValT = int;
+  CountObjT() = default;
+  CountObjT(KeyT key) : a(key), b(0) {}
+  KeyT Key() const { return a; }
+  KeyT a;
+  int b;
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const CountObjT& obj) {
+    stream << obj.a << obj.b;
+    return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, CountObjT& obj) {
+    stream >> obj.a >> obj.b;
+    return stream;
+  }
+};
+
 template <typename Base> class Store {
 public:
   template <typename O = Base, typename... ArgT> 
@@ -103,6 +121,28 @@ class Context {
     p->join = j;
     p->num_iter = num_iter;
     return p;
+  }
+
+  template<typename C1>
+  static void count(C1* c1) {
+    auto *count_collection = placeholder<CountObjT>(1);
+    auto *p = plans_.make<MapJoin<C1, Collection<CountObjT>, typename C1::ObjT, CountObjT, int>>(c1, count_collection);
+    p->map = [](const typename C1::ObjT& obj) {
+      return std::make_pair(0, 1);
+    };
+    p->join = [](CountObjT* a, int b) {
+      a->b += b;
+    };
+    p->num_iter = 1;
+    auto *p2 = plans_.make<MapJoin<Collection<CountObjT>, Collection<CountObjT>, 
+         CountObjT, CountObjT, int>>(count_collection, count_collection);
+    p2->map = [](const CountObjT& obj) {
+      LOG(INFO) << "**************count: " << obj.b;
+      return std::make_pair(0, 0);
+    };
+    p2->join = [](CountObjT* a, int b) {
+    };
+    p2->num_iter = 1;
   }
 
   template<typename C1, typename C2, typename C3, typename M, typename J>

@@ -18,12 +18,12 @@ void PartitionTracker::SetPlan(PlanSpec plan) {
 
   // if no map partition
   if (parts.empty()) {
-    LOG(INFO) << "[SetPlan] no map partition and send map finish";
+    LOG(INFO) << "[Worker "<< node_id_ << "]" << "[SetPlan] no map partition and send map finish";
     SendMapFinish();
   }
   // if no join partition
   if (num_local_part == 0) {
-    LOG(INFO) << "[SetPlan] no join partition and send join finish";
+    LOG(INFO) << "[Worker "<< node_id_ << "]" << "[SetPlan] no join partition and send join finish";
     SendJoinFinish();
   }
 
@@ -142,9 +142,9 @@ void PartitionTracker::FinishJoin(int part_id, int upstream_part_id) {
   std::lock_guard<std::mutex> lk(mu_);
   join_tracker_->Finish(part_id, upstream_part_id);
   if (join_tracker_->FinishAll()) {
-    LOG(INFO) << "[FinishJoin] join tracker finish all, clear and send join finish";
+    LOG(INFO) <<"[Worker " << node_id_ << "]" <<
+      "[FinishJoin] join tracker finish all, clear and send join finish";
     join_tracker_->Clear();
-    plan_set_ = false;
     SendJoinFinish();
   }
 }
@@ -165,6 +165,7 @@ void PartitionTracker::SendMapFinish() {
 
 void PartitionTracker::SendJoinFinish() {
   // send a message to worker
+  plan_set_ = false;
   Message msg;
   msg.meta.sender = GetJoinActorQid(node_id_);
   msg.meta.recver = GetWorkerQid(node_id_);
