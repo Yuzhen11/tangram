@@ -41,6 +41,11 @@ const std::map<int, FunctionStore::GetterFuncT>& FunctionStore::GetGetter() {
   return getter_;
 }
 
+const FunctionStore::CreatePartFuncT& FunctionStore::GetCreatePart(int id) {
+  CHECK(create_part_.find(id) != create_part_.end()) << id;
+  return create_part_[id];
+}
+
 void FunctionStore::AddMap(int id, MapFuncT map) {
   maps_.insert({id, map});
 }
@@ -79,6 +84,12 @@ void FunctionStore::AddWritePart(int id, WritePartFuncT func) {
 
 void FunctionStore::AddGetter(int id, GetterFuncT func) {
   getter_.insert({id, func});
+}
+
+void FunctionStore::AddCreatePartFunc(int id, CreatePartFuncT func) {
+  create_part_.insert({id, func});
+  LOG(INFO) << "insert to " << std::to_string(id);
+  CHECK(create_part_.find(id) != create_part_.end());
 }
 
 }  // namespaca xyz

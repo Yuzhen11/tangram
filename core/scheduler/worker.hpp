@@ -19,7 +19,7 @@
 
 #include "glog/logging.h"
 #include "io/block_reader_wrapper.hpp"
-#include "io/writer_wrapper.hpp"
+#include "io/io_wrapper.hpp"
 #include "core/worker/controller.hpp"
 
 namespace xyz {
@@ -27,10 +27,9 @@ namespace xyz {
 class Worker : public Actor {
 public:
   Worker(int qid, EngineElem engine_elem, std::shared_ptr<BlockReaderWrapper> block_reader_wrapper,
-         std::shared_ptr<WriterWrapper> writer,
-         std::shared_ptr<Controller> controller)
+         std::shared_ptr<IOWrapper> io_wrapper, std::shared_ptr<Controller> controller)
       : Actor(qid), engine_elem_(engine_elem), block_reader_wrapper_(block_reader_wrapper),
-        writer_(writer), controller_(controller) {
+        io_wrapper_(io_wrapper), controller_(controller) {
     Start();
   }
   virtual ~Worker() override { Stop(); }
@@ -68,6 +67,7 @@ public:
   void LoadBlock(SArrayBinStream bin);
   void Distribute(SArrayBinStream bin);
   void CheckPoint(SArrayBinStream bin);
+  void LoadCheckPoint(SArrayBinStream bin);
   void WritePartition(SArrayBinStream bin);
 
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
@@ -85,7 +85,7 @@ private:
   }
   EngineElem engine_elem_;
   std::shared_ptr<BlockReaderWrapper> block_reader_wrapper_;
-  std::shared_ptr<WriterWrapper> writer_;
+  std::shared_ptr<IOWrapper> io_wrapper_;
   std::shared_ptr<Controller> controller_;
 
   std::promise<void> exit_promise_;

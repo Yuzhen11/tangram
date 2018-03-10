@@ -75,6 +75,10 @@ void Worker::Process(Message msg) {
     CheckPoint(bin);
     break;
   }
+  case ScheduleFlag::kLoadCheckPoint: {
+    LoadCheckPoint(bin);
+    break;
+  }
   case ScheduleFlag::kWritePartition: {
     WritePartition(bin);
     break;
@@ -186,7 +190,7 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  writer_->Write(collection_id, part_id, dest_url, 
+  io_wrapper_->Write(collection_id, part_id, dest_url, 
     [](std::shared_ptr<AbstractPartition> p, std::shared_ptr<AbstractWriter> writer, std::string url) { 
       SArrayBinStream bin;
       p->ToBin(bin);
@@ -199,12 +203,24 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   );
 }
 
+void Worker::LoadCheckPoint(SArrayBinStream bin) {
+  int collection_id, part_id;
+  std::string dest_url;
+  bin >> collection_id >> part_id >> dest_url;
+
+  io_wrapper_->Read(collection_id, part_id, dest_url, 
+    [this](SArrayBinStream bin) {
+      SendMsgToScheduler(ScheduleFlag::kFinishLoadCheckPoint, bin);
+    }
+  );
+}
+
 void Worker::WritePartition(SArrayBinStream bin) {
   int collection_id, part_id;
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  writer_->Write(collection_id, part_id, dest_url, 
+  io_wrapper_->Write(collection_id, part_id, dest_url, 
     engine_elem_.function_store->GetWritePartFunc(collection_id),  // get the write_part_func from function_store
     [this](SArrayBinStream bin) {
       SendMsgToScheduler(ScheduleFlag::kFinishWritePartition, bin);

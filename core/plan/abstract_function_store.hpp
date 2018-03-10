@@ -32,7 +32,7 @@ class AbstractFunctionStore {
   using WritePartFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractWriter>, std::string)>;
   using GetterFuncT = std::function<
       SArrayBinStream(SArrayBinStream& bin, std::shared_ptr<AbstractPartition>)>;
-
+  using CreatePartFuncT = std::function<std::shared_ptr<AbstractPartition>()>;
   ~AbstractFunctionStore(){}
   virtual void AddMap(int id, MapFuncT func) = 0;
   virtual void AddMergeCombine(int id, MergeCombineFuncT func) = 0;
@@ -43,6 +43,7 @@ class AbstractFunctionStore {
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) = 0;
   virtual void AddWritePart(int id, WritePartFuncT func) = 0;
   virtual void AddGetter(int id, GetterFuncT func) = 0;
+  virtual void AddCreatePartFunc(int id, CreatePartFuncT func) = 0;
 };
 
 }  // namespaca xyz

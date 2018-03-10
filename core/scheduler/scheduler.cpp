@@ -53,6 +53,10 @@ void Scheduler::Process(Message msg) {
     FinishCheckPoint(bin);
     break;
   }
+  case ScheduleFlag::kFinishLoadCheckPoint: {
+    FinishLoadCheckPoint(bin);
+    break;
+  }
   case ScheduleFlag::kFinishWritePartition: {
     FinishWritePartition(bin);
     break;
@@ -223,6 +227,11 @@ void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
   CHECK(false);
 }
 
+void Scheduler::FinishLoadCheckPoint(SArrayBinStream bin) {
+  // TODO
+  CHECK(false);
+}
+
 void Scheduler::CheckPoint() {
   // TODO: Check point proper collection, partition to proper dest_rul
   const int collection_id = 1;
@@ -232,6 +241,16 @@ void Scheduler::CheckPoint() {
   SArrayBinStream bin;
   bin << collection_id << part_id << dest_url;
   SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
+}
+
+void Scheduler::LoadCheckPoint() {
+  const int collection_id = 1;
+  const int part_id = 1;
+  const std::string dest_url = "/tmp/tmp/c.txt";
+
+  SArrayBinStream bin;
+  bin << collection_id << part_id << dest_url;
+  SendToAllWorkers(ScheduleFlag::kLoadCheckPoint, bin);
 }
 
 void Scheduler::Write(SpecWrapper s) {

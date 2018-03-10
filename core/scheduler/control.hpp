@@ -18,6 +18,8 @@ enum class ScheduleFlag : char {
   kFinishDistribute,
   kCheckPoint,
   kFinishCheckPoint,
+  kLoadCheckPoint,
+  kFinishLoadCheckPoint,
   kWritePartition,
   kFinishWritePartition,
   kRunController,

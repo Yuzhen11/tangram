@@ -71,6 +71,7 @@ class Collection : public CollectionBase {
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
      RegisterHelper(function_store);
+     function_store->AddCreatePartFunc(id_, []() { return std::make_shared<PartitionT>(); });
   }
 
  private:

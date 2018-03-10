@@ -19,6 +19,7 @@
 #include "comm/sender.hpp"
 
 #include "io/hdfs_block_reader.hpp"
+#include "io/hdfs_reader.hpp"
 #include "io/hdfs_writer.hpp"
 
 namespace xyz {
