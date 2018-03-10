@@ -5,7 +5,7 @@ namespace xyz {
 size_t SArrayBinStream::Size() const { return buffer_.size() - front_; }
 
 void SArrayBinStream::AddBin(const char* bin, size_t sz) {
-  buffer_.append_bytes(bin, sz);
+  buffer_.append_bytes_double(bin, sz);
 }
 
 void* SArrayBinStream::PopBin(size_t sz) {

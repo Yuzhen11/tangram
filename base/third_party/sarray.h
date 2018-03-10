@@ -242,6 +242,15 @@ class SArray {
     memcpy(data()+orig_size, arr.data(), arr.size()*sizeof(V));
   }
 
+  void append_bytes_double(const char* bytes, size_t sz) {
+    static_assert(std::is_same<V, char>::value, "append_bytes must be invoked on SArray<char>");
+    if (size_ + sz > capacity_) {
+      reserve(size_*2+5);
+    }
+    memcpy(data()+size_, bytes, sz);
+    size_ += sz;
+  }
+
   void append_bytes(const char* bytes, size_t sz) {
     static_assert(std::is_same<V, char>::value, "append_bytes must be invoked on SArray<char>");
     auto orig_size = size_;

@@ -77,8 +77,10 @@ int main(int argc, char** argv) {
     }, [](Vertex* v, float contrib) {
       v->pr += 0.85 * contrib;
     }, 5);
-  // p2->combine = [](float a, float b) {
-  //   return a+b;
-  // };
+  p2->combine = [](float a, float b) {
+    return a+b;
+  };
+
+  Context::count(c1);
   Runner::Run();
 }

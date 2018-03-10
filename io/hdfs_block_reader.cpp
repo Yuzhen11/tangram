@@ -19,7 +19,7 @@ bool HdfsBlockReader::HasLine() { return next(tmp_line_); }
 std::string HdfsBlockReader::GetLine() {
   tmp_line_count_ += 1;
   if (tmp_line_count_ % 10000 == 0) {
-    LOG(INFO) << tmp_line_count_ << " lines read.";
+    //LOG(INFO) << tmp_line_count_ << " lines read.";
   }
   return tmp_line_.to_string();
 }

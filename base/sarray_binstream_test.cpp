@@ -45,6 +45,15 @@ TEST_F(TestSArrayBinStream, FromMsg) {
   EXPECT_EQ(b, 2);
 }
 
+TEST_F(TestSArrayBinStream, AddBinTime) {
+  SArrayBinStream bin;
+  int size = 8;
+  char* p = new char[size];
+  for (int i = 0; i < size; i++) { p[i] = 0; }
+  int loop = 20000;
+  for (int i = 0; i < loop; i++) { bin.AddBin(p, size); }
+}
+  
 TEST_F(TestSArrayBinStream, ToMsg) {
   SArrayBinStream bin;
   int a = 1;

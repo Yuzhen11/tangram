@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <future>
+#include <chrono>
 
 #include "core/scheduler/scheduler_elem.hpp"
 #include "core/scheduler/block_manager.hpp"
@@ -144,6 +145,9 @@ private:
   int expected_write_reply_count_;
 
   std::shared_ptr<BlockManager> block_manager_;
+  
+  std::chrono::system_clock::time_point start;
+  std::chrono::system_clock::time_point end;
 };
 
 } // namespace xyz

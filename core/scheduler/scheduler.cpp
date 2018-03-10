@@ -8,6 +8,7 @@ namespace xyz {
 
 // make the scheduler ready and start receiving RegisterProgram
 void Scheduler::Ready(std::vector<Node> nodes) {
+  start = std::chrono::system_clock::now();
   LOG(INFO) << "[Scheduler] Ready";
   for (auto& node : nodes) {
     CHECK(elem_->nodes.find(node.id) == elem_->nodes.end());
@@ -113,7 +114,9 @@ void Scheduler::StartScheduling() {
 }
 
 void Scheduler::Exit() {
-  LOG(INFO) << "[Scheduler] Exit";
+  end = std::chrono::system_clock::now();
+  std::chrono::duration<double> duration = end - start;
+  LOG(INFO) << "[Scheduler] Exit. Runtime: " << duration.count();
   SArrayBinStream dummy_bin;
   SendToAllWorkers(ScheduleFlag::kExit, dummy_bin);
   exit_promise_.set_value();
