@@ -2,7 +2,6 @@
 #include "gtest/gtest.h"
 
 #include "io/io_wrapper.hpp"
-#include "io/hdfs_reader.hpp"
 #include "io/fake_reader.hpp"
 #include "io/fake_writer.hpp"
 
@@ -70,15 +69,17 @@ TEST_F(TestIOWrapper, Read) {
   function_store->AddCreatePartFunc(0, []() { return std::make_shared<SeqPartition<ObjT>>(); });
 
   IOWrapper io_wrapper(qid, executor, partition_manager, function_store,
-                []() { return std::make_shared<HdfsReader>("proj10", 9000); },
+                []() { return std::make_shared<FakeReader>(); },
                 []() { return std::make_shared<FakeWriter>(); });
   
+  /*
   ThreadsafeQueue<SArrayBinStream> q;
   io_wrapper.Read(0, 0, "/tmp/tmp/d.txt",
                [&q](SArrayBinStream bin) { q.Push(bin); }
                );
   SArrayBinStream recv_bin;
   q.WaitAndPop(&recv_bin);
+  */
 }
 
 } // namespace
