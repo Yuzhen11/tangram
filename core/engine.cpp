@@ -75,8 +75,7 @@ void Engine::Start() {
       });
 
   // create worker
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, io_wrapper,
-          controller_);
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, io_wrapper);
   worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
 

@@ -43,10 +43,6 @@ void Worker::Process(Message msg) {
     RunMap(bin);
     break;
   }
-  case ScheduleFlag::kRunController: {
-    RunController(bin);
-    break;
-  }
   case ScheduleFlag::kLoadBlock: {
     LoadBlock(bin);
     break;
@@ -97,20 +93,6 @@ void Worker::InitWorkers(SArrayBinStream bin) {
 }
 
 void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }
-
-void Worker::RunController(SArrayBinStream bin) {
-  // PlanSpec plan;
-  SpecWrapper spec;
-  bin >> spec;
-  controller_->Setup(spec);
-  Message msg;
-  msg.meta.flag = Flag::kOthers;
-  SArrayBinStream ctrl_bin, dummy_bin;
-  ctrl_bin << Controller::ControllerFlag::kStart;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(dummy_bin.ToSArray());
-  controller_->GetWorkQueue()->Push(msg);
-}
 
 void Worker::RunMap(SArrayBinStream bin) {
   // PlanSpec plan;

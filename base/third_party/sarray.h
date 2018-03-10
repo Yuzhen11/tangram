@@ -245,7 +245,8 @@ class SArray {
   void append_bytes_double(const char* bytes, size_t sz) {
     static_assert(std::is_same<V, char>::value, "append_bytes must be invoked on SArray<char>");
     if (size_ + sz > capacity_) {
-      reserve(size_*2+5);
+      size_t new_size = std::max(size_+sz, size_*2+5);
+      reserve(new_size);
     }
     memcpy(data()+size_, bytes, sz);
     size_ += sz;

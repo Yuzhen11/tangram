@@ -1,5 +1,7 @@
 #include "core/worker/controller.hpp"
 
+#include "core/scheduler/control.hpp"
+
 #include "core/partition/abstract_map_progress_tracker.hpp"
 
 namespace xyz {
@@ -8,7 +10,10 @@ struct FakeTracker : public AbstractMapProgressTracker {
   virtual void Report(int) override {}
 };
 
-void Controller::Setup(SpecWrapper spec) {
+void Controller::Setup(SArrayBinStream bin) {
+  SpecWrapper spec;
+  bin >> spec;
+
   type_ = spec.type;
   CHECK(type_ == SpecWrapper::Type::kMapJoin
        || type_ == SpecWrapper::Type::kMapWithJoin);
@@ -23,6 +28,11 @@ void Controller::Setup(SpecWrapper spec) {
   staleness_ = 0;
   min_map_version_ = 0;
   min_join_version_ = 0;
+  map_versions_.clear();
+  join_versions_.clear();
+  join_tracker_.clear();
+  pending_joins_.clear();
+  waiting_joins_.clear();
 
   auto parts = engine_elem_.partition_manager->Get(map_collection_id_);
   for (auto& part : parts) {
@@ -32,6 +42,13 @@ void Controller::Setup(SpecWrapper spec) {
   for (auto& part : parts) {
     join_versions_[part->part_id] = 0;
   }
+
+  SArrayBinStream reply_bin;
+  ControllerMsg ctrl;
+  ctrl.flag = ControllerMsg::Flag::kSetup;
+  ctrl.node_id = engine_elem_.node.id;
+  reply_bin << ctrl;
+  SendMsgToScheduler(reply_bin);
 }
 
 void Controller::Process(Message msg) {
@@ -44,6 +61,10 @@ void Controller::Process(Message msg) {
   ctrl_bin >> flag;
 
   switch (flag) {
+  case ControllerFlag::kSetup: {
+    Setup(bin);
+    break;
+  }
   case ControllerFlag::kStart: {
     StartPlan();
     break;
@@ -74,9 +95,19 @@ void Controller::StartPlan() {
 
 
 void Controller::UpdateVersion(SArrayBinStream bin) {
-  bin >> min_version_;
-  CHECK_GE(min_version_, min_map_version_);
-  CHECK_GE(min_version_, min_join_version_);
+  int new_version;
+  bin >> new_version;
+  if (new_version == -1) {
+    SArrayBinStream bin;
+    ControllerMsg ctrl;
+    ctrl.flag = ControllerMsg::Flag::kFinish;
+    ctrl.version = min_map_version_;
+    ctrl.node_id = engine_elem_.node.id;
+    bin << ctrl;
+    SendMsgToScheduler(bin);
+  }
+  CHECK_EQ(new_version, min_version_+1);
+  min_version_ = new_version;
   TryRunSomeMaps();
 }
 
@@ -91,6 +122,7 @@ void Controller::FinishMap(SArrayBinStream bin) {
   if (map_collection_id_ == join_collection_id_) {
     if (!pending_joins_[part_id][last_version].empty()) {
       waiting_joins_[part_id] = std::move(pending_joins_[part_id][last_version]);
+      pending_joins_[part_id].erase(last_version);
       bool run = TryRunWaitingJoins(part_id);
       // if (run) {
       //   return;
@@ -102,6 +134,20 @@ void Controller::FinishMap(SArrayBinStream bin) {
 }
 
 void Controller::TryRunSomeMaps() {
+  // if there is no map partitions
+  if (map_versions_.empty()) {
+    min_map_version_ += 1;
+    SendUpdateMapVersionToScheduler();
+  }
+  // if there is no join partition
+  if (join_versions_.empty()) {
+    min_join_version_ += 1;
+    SendUpdateJoinVersionToScheduler();
+  }
+  if (map_versions_.empty() || join_versions_.empty()) {
+    return;
+  }
+
   for (auto kv : map_versions_) {
     if (IsMapRunnable(kv.first)) {
       RunMap(kv.first, kv.second);
@@ -185,10 +231,24 @@ void Controller::TryUpdateJoinVersion() {
 void Controller::SendUpdateMapVersionToScheduler() {
   LOG(INFO) << "[Controller] update map version: " << min_map_version_
       << ", on " << engine_elem_.node.id;
+  SArrayBinStream bin;
+  ControllerMsg ctrl;
+  ctrl.flag = ControllerMsg::Flag::kMap;
+  ctrl.version = min_map_version_;
+  ctrl.node_id = engine_elem_.node.id;
+  bin << ctrl;
+  SendMsgToScheduler(bin);
 }
 void Controller::SendUpdateJoinVersionToScheduler() {
   LOG(INFO) << "[Controller] update join version: " << min_join_version_
       << ", on " << engine_elem_.node.id;
+  SArrayBinStream bin;
+  ControllerMsg ctrl;
+  ctrl.flag = ControllerMsg::Flag::kJoin;
+  ctrl.version = min_join_version_;
+  ctrl.node_id = engine_elem_.node.id;
+  bin << ctrl;
+  SendMsgToScheduler(bin);
 }
 
 void Controller::RunMap(int part_id, int version) {
@@ -301,6 +361,18 @@ void Controller::RunJoin(VersionedJoinMeta meta) {
     msg.AddData(bin.ToSArray());
     GetWorkQueue()->Push(msg);
   });
+}
+
+void Controller::SendMsgToScheduler(SArrayBinStream bin) {
+  Message msg;
+  msg.meta.sender = Qid();
+  msg.meta.recver = 0;
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << ScheduleFlag::kController;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  engine_elem_.sender->Send(std::move(msg));
 }
 
 }  // namespace

@@ -12,13 +12,6 @@ namespace xyz {
 
 class Controller : public Actor {
  public:
-  enum class ControllerFlag {
-    kStart,
-    kFinishMap,
-    kFinishJoin,
-    kUpdateVersion,
-    kReceiveJoin
-  };
   Controller(int qid, EngineElem engine_elem)
       : Actor(qid), engine_elem_(engine_elem) {
     Start();
@@ -52,7 +45,7 @@ class Controller : public Actor {
     SArrayBinStream bin;
   };
 
-  void Setup(SpecWrapper spec);
+  void Setup(SArrayBinStream bin);
   void StartPlan();
   void TryRunSomeMaps();
 
@@ -72,6 +65,7 @@ class Controller : public Actor {
 
   void RunMap(int part_id, int version);
   void RunJoin(VersionedJoinMeta meta);
+  void SendMsgToScheduler(SArrayBinStream bin);
  private:
   EngineElem engine_elem_;
 

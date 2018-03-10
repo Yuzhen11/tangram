@@ -4,8 +4,8 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
-progfile = "release/PageRank"
-schedulerfile = "release/SchedulerMain"
+progfile = "debug/PageRank"
+schedulerfile = "debug/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
@@ -15,7 +15,7 @@ common_params = {
 }
 
 program_params = {
-    "url" : "/datasets/graph/webbase-adj",
+    "url" : "/datasets/graph/google-adj",
     "num_local_threads" : 20,
 }
 

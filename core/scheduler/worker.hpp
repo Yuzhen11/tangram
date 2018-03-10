@@ -20,7 +20,7 @@
 #include "glog/logging.h"
 #include "io/block_reader_wrapper.hpp"
 #include "io/io_wrapper.hpp"
-#include "core/worker/controller.hpp"
+#include "io/writer_wrapper.hpp"
 
 namespace xyz {
 
@@ -29,7 +29,7 @@ public:
   Worker(int qid, EngineElem engine_elem, std::shared_ptr<BlockReaderWrapper> block_reader_wrapper,
          std::shared_ptr<IOWrapper> io_wrapper, std::shared_ptr<Controller> controller)
       : Actor(qid), engine_elem_(engine_elem), block_reader_wrapper_(block_reader_wrapper),
-        io_wrapper_(io_wrapper), controller_(controller) {
+        io_wrapper_(io_wrapper) {
     Start();
   }
   virtual ~Worker() override { Stop(); }
@@ -57,7 +57,6 @@ public:
 
   // Run map on this worker
   void RunMap(SArrayBinStream);
-  void RunController(SArrayBinStream);
 
   void RunDummy();
 
@@ -86,7 +85,6 @@ private:
   EngineElem engine_elem_;
   std::shared_ptr<BlockReaderWrapper> block_reader_wrapper_;
   std::shared_ptr<IOWrapper> io_wrapper_;
-  std::shared_ptr<Controller> controller_;
 
   std::promise<void> exit_promise_;
 

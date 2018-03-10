@@ -77,7 +77,7 @@ TEST_F(TestWorker, Create) {
       1, engine_elem.executor, engine_elem.partition_manager, engine_elem.function_store,
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper, nullptr);
+  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
 }
 
 /*
@@ -148,7 +148,7 @@ TEST_F(TestWorker, InitWorkers) {
       1, engine_elem.executor, engine_elem.partition_manager, engine_elem.function_store,
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper, nullptr);
+  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
   auto *q = worker.GetWorkQueue();
 
   // send request
@@ -342,7 +342,7 @@ TEST_F(TestWorker, Wait) {
       1, engine_elem.executor, engine_elem.partition_manager, engine_elem.function_store,
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper, nullptr);
+  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
   auto *q = worker.GetWorkQueue();
 
   std::thread th([=]() {

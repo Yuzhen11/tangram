@@ -22,6 +22,8 @@
 #include "io/hdfs_reader.hpp"
 #include "io/hdfs_writer.hpp"
 
+#include "core/worker/controller.hpp"
+
 namespace xyz {
 
 class Engine {

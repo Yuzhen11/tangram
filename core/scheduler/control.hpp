@@ -22,7 +22,7 @@ enum class ScheduleFlag : char {
   kFinishLoadCheckPoint,
   kWritePartition,
   kFinishWritePartition,
-  kRunController,
+  kController,
 };
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kInitWorker",
@@ -41,12 +41,30 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kFinishCheckPoint",
                                          "kWritePartition",
                                          "kFinishWritePartition",
-                                         "kRunController"
+                                         "kController"
 };
 
 // currently workerinfo only has one field.
 struct WorkerInfo {
   int num_local_threads;
+};
+
+struct ControllerMsg {
+  enum class Flag : char {
+    kSetup, kMap, kJoin, kFinish
+  };
+  Flag flag;
+  int version;
+  int node_id;
+};
+
+enum class ControllerFlag : char {
+  kSetup,
+  kStart,
+  kFinishMap,
+  kFinishJoin,
+  kUpdateVersion,
+  kReceiveJoin
 };
 
 } // namespace xyz
