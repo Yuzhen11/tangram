@@ -8,6 +8,7 @@
 #include "core/map_output/partitioned_map_output.hpp"
 
 #include "core/index/hash_key_to_part_mapper.hpp"
+#include "core/index/range_key_to_part_mapper.hpp"
 
 #include "core/plan/abstract_function_store.hpp"
 #include "core/plan/plan_spec.hpp"

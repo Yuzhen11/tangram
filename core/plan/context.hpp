@@ -1,4 +1,5 @@
 #pragma once
+#include "base/third_party/range.h"
 
 #include "core/plan/collection.hpp"
 #include "core/plan/plan_base.hpp"
@@ -90,6 +91,15 @@ class Context {
     auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), num_parts);
     return c;
   }
+
+  template<typename D>
+  static auto* placeholder(std::vector<third_party::Range> ranges) {
+    auto* c = collections_.make<Collection<D>>(ranges.size());
+    c->SetMapper(std::make_shared<RangeKeyToPartMapper<typename D::KeyT>>(ranges));
+    auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), ranges.size());
+    return c;
+  }
+
 
   template<typename C1, typename C2, typename M, typename J>
   static auto* mapjoin(C1* c1, C2* c2, M m, J j, int num_iter = 1, 
