@@ -65,6 +65,10 @@ void Scheduler::Process(Message msg) {
     FinishJoin(bin);
     break;
   }
+  case ScheduleFlag::kControl: {
+    control_manager_->Control(bin);
+    break;
+  }
   default:
     CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }

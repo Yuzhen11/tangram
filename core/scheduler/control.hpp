@@ -22,7 +22,7 @@ enum class ScheduleFlag : char {
   kFinishLoadCheckPoint,
   kWritePartition,
   kFinishWritePartition,
-  kController,
+  kControl,
 };
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kInitWorker",
@@ -41,7 +41,7 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kFinishCheckPoint",
                                          "kWritePartition",
                                          "kFinishWritePartition",
-                                         "kController"
+                                         "kControl"
 };
 
 // currently workerinfo only has one field.

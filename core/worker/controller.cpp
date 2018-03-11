@@ -369,7 +369,7 @@ void Controller::SendMsgToScheduler(SArrayBinStream bin) {
   msg.meta.recver = 0;
   msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kController;
+  ctrl_bin << ScheduleFlag::kControl;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
   engine_elem_.sender->Send(std::move(msg));

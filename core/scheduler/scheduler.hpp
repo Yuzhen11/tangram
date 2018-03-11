@@ -6,6 +6,7 @@
 
 #include "core/scheduler/scheduler_elem.hpp"
 #include "core/scheduler/block_manager.hpp"
+#include "core/scheduler/control_manager.hpp"
 
 #include "base/actor.hpp"
 #include "base/node.hpp"
@@ -35,6 +36,7 @@ public:
     elem_->collection_map = std::make_shared<CollectionMap>();
     // setup block_manager_
     block_manager_ = std::make_shared<BlockManager>(elem_, builder);
+    control_manager_ = std::make_shared<ControlManager>(elem_);
   }
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
@@ -147,6 +149,7 @@ private:
   int expected_write_reply_count_;
 
   std::shared_ptr<BlockManager> block_manager_;
+  std::shared_ptr<ControlManager> control_manager_;
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;
