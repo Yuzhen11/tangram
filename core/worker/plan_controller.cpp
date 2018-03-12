@@ -44,6 +44,7 @@ void PlanController::Setup(SpecWrapper spec) {
   ControllerMsg ctrl;
   ctrl.flag = ControllerMsg::Flag::kSetup;
   ctrl.node_id = controller_->engine_elem_.node.id;
+  ctrl.plan_id = plan_id_;
   reply_bin << ctrl;
   SendMsgToScheduler(reply_bin);
 }
@@ -62,6 +63,7 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
     ctrl.flag = ControllerMsg::Flag::kFinish;
     ctrl.version = min_map_version_;
     ctrl.node_id = controller_->engine_elem_.node.id;
+    ctrl.plan_id = plan_id_;
     bin << ctrl;
     SendMsgToScheduler(bin);
   }
@@ -195,6 +197,7 @@ void PlanController::SendUpdateMapVersionToScheduler() {
   ctrl.flag = ControllerMsg::Flag::kMap;
   ctrl.version = min_map_version_;
   ctrl.node_id = controller_->engine_elem_.node.id;
+  ctrl.plan_id = plan_id_;
   bin << ctrl;
   SendMsgToScheduler(bin);
 }
@@ -206,6 +209,7 @@ void PlanController::SendUpdateJoinVersionToScheduler() {
   ctrl.flag = ControllerMsg::Flag::kJoin;
   ctrl.version = min_join_version_;
   ctrl.node_id = controller_->engine_elem_.node.id;
+  ctrl.plan_id = plan_id_;
   bin << ctrl;
   SendMsgToScheduler(bin);
 }

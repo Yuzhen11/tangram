@@ -23,6 +23,7 @@ enum class ScheduleFlag : char {
   kWritePartition,
   kFinishWritePartition,
   kControl,
+  kFinishPlan
 };
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kInitWorker",
@@ -41,7 +42,8 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kFinishCheckPoint",
                                          "kWritePartition",
                                          "kFinishWritePartition",
-                                         "kControl"
+                                         "kControl",
+                                         "kFinishPlan"
 };
 
 // currently workerinfo only has one field.
@@ -56,6 +58,7 @@ struct ControllerMsg {
   Flag flag;
   int version;
   int node_id;
+  int plan_id;
 };
 
 enum class ControllerFlag : char {

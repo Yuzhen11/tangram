@@ -13,9 +13,18 @@ class ControlManager {
       : elem_(elem) {}
   void Control(SArrayBinStream bin);
   void RunPlan(SpecWrapper spec);
-  void ToController(ScheduleFlag flag, SArrayBinStream bin);
+  void SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
+  void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
+  void TryUpdateVersion(int plan_id);
  private:
   std::shared_ptr<SchedulerElem> elem_;
+
+  std::map<int, std::map<int, int>> map_versions_;
+  std::map<int, std::map<int, int>> join_versions_;
+  std::map<int, int> versions_;
+  std::map<int, int> expected_versions_;
+  std::map<int, std::set<int>> is_setup_;
+  std::map<int, std::set<int>> is_finished_;
 };
 
 

@@ -69,6 +69,10 @@ void Scheduler::Process(Message msg) {
     control_manager_->Control(bin);
     break;
   }
+  case ScheduleFlag::kFinishPlan: {
+    RunNextSpec();  // TODO, if a plan finishes, run next spec
+    break;
+  }
   default:
     CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }
@@ -163,6 +167,7 @@ void Scheduler::RunNextSpec() {
                 << " Plan Iteration (" << cur_iters_
                 << "/" << expected_num_iters << ") " << spec.DebugString();
       RunMap();
+      // control_manager_->RunPlan(spec);
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
       Write(spec);
