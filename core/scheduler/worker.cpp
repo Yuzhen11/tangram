@@ -67,11 +67,11 @@ void Worker::Process(Message msg) {
     Distribute(bin);
     break;
   }
-  case ScheduleFlag::kCheckPoint: {
+  case ScheduleFlag::kCheckpoint: {
     CheckPoint(bin);
     break;
   }
-  case ScheduleFlag::kLoadCheckPoint: {
+  case ScheduleFlag::kLoadCheckpoint: {
     LoadCheckPoint(bin);
     break;
   }
@@ -180,7 +180,7 @@ void Worker::CheckPoint(SArrayBinStream bin) {
       CHECK_EQ(rc, 0);
     }, 
     [this](SArrayBinStream bin) {
-      SendMsgToScheduler(ScheduleFlag::kFinishCheckPoint, bin);
+      SendMsgToScheduler(ScheduleFlag::kFinishCheckpoint, bin);
     }
   );
 }
@@ -192,7 +192,7 @@ void Worker::LoadCheckPoint(SArrayBinStream bin) {
 
   io_wrapper_->Read(collection_id, part_id, dest_url, 
     [this](SArrayBinStream bin) {
-      SendMsgToScheduler(ScheduleFlag::kFinishLoadCheckPoint, bin);
+      SendMsgToScheduler(ScheduleFlag::kFinishLoadCheckpoint, bin);
     }
   );
 }

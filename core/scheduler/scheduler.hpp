@@ -93,8 +93,8 @@ public:
 
   // void FinishBlock(SArrayBinStream bin);
   void FinishDistribute(SArrayBinStream bin);
-  void CheckPoint();
-  void LoadCheckPoint();
+  void Checkpoint(SpecWrapper s);
+  void LoadCheckpoint(SpecWrapper s);
   void Write(SpecWrapper s);
   void FinishCheckPoint(SArrayBinStream bin);
   void FinishLoadCheckPoint(SArrayBinStream bin);

@@ -9,6 +9,8 @@
 #include "core/plan/distribute.hpp"
 #include "core/plan/load.hpp"
 #include "core/plan/write.hpp"
+#include "core/plan/checkpoint.hpp"
+#include "core/plan/load_checkpoint.hpp"
 
 namespace xyz {
 
@@ -82,6 +84,16 @@ class Context {
   template<typename C, typename F>
   static void write(C* c, std::string url, F write) {
     plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);
+  }
+
+  template<typename C>
+  static void checkpoint(C* c, std::string url) {
+    plans_.make<Checkpoint>(c->Id(), url);
+  }
+
+  template<typename C>
+  static void loadcheckpoint(C* c, std::string url) {
+    plans_.make<LoadCheckpoint>(c->Id(), url);
   }
 
   template<typename D>

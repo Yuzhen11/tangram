@@ -49,11 +49,11 @@ void Scheduler::Process(Message msg) {
     FinishDistribute(bin);
     break;
   }
-  case ScheduleFlag::kFinishCheckPoint: {
+  case ScheduleFlag::kFinishCheckpoint: {
     FinishCheckPoint(bin);
     break;
   }
-  case ScheduleFlag::kFinishLoadCheckPoint: {
+  case ScheduleFlag::kFinishLoadCheckpoint: {
     FinishLoadCheckPoint(bin);
     break;
   }
@@ -174,7 +174,13 @@ void Scheduler::RunNextSpec() {
     // } else if (spec.type == SpecWrapper::Type::kMapWithJoin) {
     //   LOG(INFO) << "[Scheduler] spec not implemented: " << spec.DebugString();
     //   RunNextSpec();
-    } else {
+    } else if (spec.type == SpecWrapper::Type::kCheckpoint) {
+      LOG(INFO) << "[Scheduler] Checkpointing: " << spec.DebugString();
+      Checkpoint(spec);
+    } else if (spec.type == SpecWrapper::Type::kLoadCheckpoint) {
+      LOG(INFO) << "[Scheduler] Loading checkpoint: " << spec.DebugString();
+      LoadCheckpoint(spec);
+    }  else {
       CHECK(false) << spec.DebugString();
     }
   }
@@ -233,33 +239,44 @@ void Scheduler::Distribute(DistributeSpec* spec) {
 
 void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
   // TODO
-  CHECK(false);
+  // CHECK(false);
+  RunNextSpec();
 }
 
 void Scheduler::FinishLoadCheckPoint(SArrayBinStream bin) {
   // TODO
-  CHECK(false);
+  // CHECK(false);
+  RunNextSpec();
 }
 
-void Scheduler::CheckPoint() {
-  // TODO: Check point proper collection, partition to proper dest_rul
-  const int collection_id = 1;
-  const int part_id = 1;
-  const std::string dest_url = "/tmp/tmp/c.txt";
-
-  SArrayBinStream bin;
-  bin << collection_id << part_id << dest_url;
-  SendToAllWorkers(ScheduleFlag::kCheckPoint, bin);
+void Scheduler::Checkpoint(SpecWrapper s) {
+  CHECK(s.type == SpecWrapper::Type::kCheckpoint);
+  auto* checkpoint_spec = static_cast<CheckpointSpec*>(s.spec.get());
+  int cid = checkpoint_spec->cid;
+  std::string url = checkpoint_spec->url;
+  auto& collection_view = elem_->collection_map->Get(cid);
+  for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
+    int node_id = collection_view.mapper.Get(i);
+    SArrayBinStream bin;
+    std::string dest_url = url + "/part-" + std::to_string(i);
+    bin << cid << i << dest_url;  // collection_id, partition_id, url
+    SendTo(node_id, ScheduleFlag::kCheckpoint, bin);
+  }
 }
 
-void Scheduler::LoadCheckPoint() {
-  const int collection_id = 1;
-  const int part_id = 1;
-  const std::string dest_url = "/tmp/tmp/c.txt";
-
-  SArrayBinStream bin;
-  bin << collection_id << part_id << dest_url;
-  SendToAllWorkers(ScheduleFlag::kLoadCheckPoint, bin);
+void Scheduler::LoadCheckpoint(SpecWrapper s) {
+  CHECK(s.type == SpecWrapper::Type::kLoadCheckpoint);
+  auto* load_checkpoint_spec = static_cast<LoadCheckpointSpec*>(s.spec.get());
+  int cid = load_checkpoint_spec->cid;
+  std::string url = load_checkpoint_spec->url;
+  auto& collection_view = elem_->collection_map->Get(cid);
+  for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
+    int node_id = collection_view.mapper.Get(i);
+    SArrayBinStream bin;
+    std::string dest_url = url + "/part-" + std::to_string(i);
+    bin << cid << i << dest_url;  // collection_id, partition_id, url
+    SendTo(node_id, ScheduleFlag::kLoadCheckpoint, bin);
+  }
 }
 
 void Scheduler::Write(SpecWrapper s) {

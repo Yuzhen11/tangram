@@ -96,6 +96,44 @@ struct LoadSpec : public Spec {
   }
 };
 
+struct CheckpointSpec : public Spec {
+  int cid;
+  std::string url;
+  CheckpointSpec() = default;
+  CheckpointSpec(int _cid, std::string _url):cid(_cid), url(_url) {}
+  virtual void ToBin(SArrayBinStream& bin) override {
+    bin << cid << url;
+  }
+  virtual void FromBin(SArrayBinStream& bin) override {
+    bin >> cid >> url;
+  }
+  virtual std::string DebugString() const {
+    std:: stringstream ss;
+    ss << "collection_id: " << cid;
+    ss << ", url: " << url;
+    return ss.str();
+  }
+};
+
+struct LoadCheckpointSpec : public Spec {
+  int cid;
+  std::string url;
+  LoadCheckpointSpec() = default;
+  LoadCheckpointSpec(int _cid, std::string _url):cid(_cid), url(_url) {}
+  virtual void ToBin(SArrayBinStream& bin) override {
+    bin << cid << url;
+  }
+  virtual void FromBin(SArrayBinStream& bin) override {
+    bin >> cid >> url;
+  }
+  virtual std::string DebugString() const {
+    std:: stringstream ss;
+    ss << "collection_id: " << cid;
+    ss << ", url: " << url;
+    return ss.str();
+  }
+};
+
 struct DistributeSpec: public Spec {
   int collection_id;
   int num_partition;
@@ -125,7 +163,9 @@ struct SpecWrapper {
     kInit, 
     kMapJoin, 
     kMapWithJoin, 
-    kWrite
+    kWrite,
+    kCheckpoint,
+    kLoadCheckpoint
   };
   static constexpr const char* TypeName[] = {
     "kDistribute", 
@@ -133,7 +173,9 @@ struct SpecWrapper {
     "kInit", 
     "kMapJoin",
     "kMapWithJoin",
-    "kWrite"
+    "kWrite",
+    "kCheckpoint",
+    "kLoadCheckpoint"
   };
   Type type;
   int id;
@@ -176,6 +218,12 @@ struct SpecWrapper {
       s.spec->FromBin(stream);
     } else if (s.type == Type::kWrite){
       s.spec = std::make_shared<WriteSpec>();
+      s.spec->FromBin(stream);
+    } else if (s.type == Type::kCheckpoint){
+      s.spec = std::make_shared<CheckpointSpec>();
+      s.spec->FromBin(stream);
+    }  else if (s.type == Type::kLoadCheckpoint){
+      s.spec = std::make_shared<LoadCheckpointSpec>();
       s.spec->FromBin(stream);
     } else {
       CHECK(false);
