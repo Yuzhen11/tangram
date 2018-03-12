@@ -73,6 +73,7 @@ class PlanController : public AbstractPlanController {
 
   int min_version_;
   int staleness_;
+  int expected_num_iter_;
 
   // part -> version
   std::map<int, int> map_versions_;

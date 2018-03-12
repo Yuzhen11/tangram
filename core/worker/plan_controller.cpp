@@ -22,7 +22,9 @@ void PlanController::Setup(SpecWrapper spec) {
   num_local_join_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(join_collection_id_);
   num_local_map_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(map_collection_id_);
   min_version_ = 0;
-  staleness_ = 0;
+  staleness_ = 2;
+  expected_num_iter_ = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
+  CHECK_NE(expected_num_iter_, 0);
   min_map_version_ = 0;
   min_join_version_ = 0;
   map_versions_.clear();
@@ -84,14 +86,17 @@ void PlanController::FinishMap(SArrayBinStream bin) {
 
   if (map_collection_id_ == join_collection_id_) {
     if (!pending_joins_[part_id][last_version].empty()) {
-      waiting_joins_[part_id] = std::move(pending_joins_[part_id][last_version]);
+      while (!pending_joins_[part_id][last_version].empty()) {
+        waiting_joins_[part_id].push_back(pending_joins_[part_id][last_version].front());
+        pending_joins_[part_id][last_version].pop_front();
+      }
       pending_joins_[part_id].erase(last_version);
-      bool run = TryRunWaitingJoins(part_id);
-      // if (run) {
-      //   return;
-      // }
     }
   }
+  bool run = TryRunWaitingJoins(part_id);
+  // if (run) {
+  //   return;
+  // }
   // select other maps
   TryRunSomeMaps();
 }
@@ -130,6 +135,9 @@ bool PlanController::IsMapRunnable(int part_id) {
   }
   // 3. check version
   int version = map_versions_[part_id];
+  if (version == expected_num_iter_) {  // no need to run anymore
+    return false;
+  }
   if (version <= min_version_ + staleness_) {
     return true;
   } else {
@@ -286,6 +294,7 @@ void PlanController::ReceiveJoin(Message msg) {
   bin.FromSArray(msg.data[3]);
   VersionedShuffleMeta meta;
   ctrl2_bin >> meta;
+  // LOG(INFO) << meta.DebugString();
 
   VersionedJoinMeta join_meta;
   join_meta.meta = meta;
