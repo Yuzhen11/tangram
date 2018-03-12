@@ -22,8 +22,8 @@ void PlanController::Setup(SpecWrapper spec) {
   num_local_join_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(join_collection_id_);
   num_local_map_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(map_collection_id_);
   min_version_ = 0;
-  staleness_ = 2;
-  expected_num_iter_ = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
+  staleness_ = p->staleness;
+  expected_num_iter_ = p->num_iter;
   CHECK_NE(expected_num_iter_, 0);
   min_map_version_ = 0;
   min_join_version_ = 0;

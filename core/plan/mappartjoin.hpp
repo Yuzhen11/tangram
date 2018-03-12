@@ -34,10 +34,20 @@ struct MapPartJoin : public PlanBase {
   MapPartJoin(int _plan_id, C1* _map_collection, C2* _join_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {}
 
+  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetStaleness(int s) {
+    staleness = s;
+    return this;
+  }
+  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetIter(int iter) {
+    num_iter = iter;
+    return this;
+  }
+
+
   virtual SpecWrapper GetSpec() override {
     SpecWrapper w;
     w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin, 
-            map_collection->Id(), join_collection->Id(), num_iter);
+            map_collection->Id(), join_collection->Id(), num_iter, staleness);
     return w;
   }
 
@@ -73,11 +83,13 @@ struct MapPartJoin : public PlanBase {
 
   C1* map_collection;
   C2* join_collection;
-  //int num_iter = 1;
 
   MapPartFuncT mappart;
   JoinFuncT join;
   CombineFuncT combine;
+
+  int num_iter = 1;
+  int staleness = 0;
 };
 
 }  // namespace xyz

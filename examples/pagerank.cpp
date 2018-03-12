@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
       return contribs;
     }, [](Vertex* v, float contrib) {
       v->pr += 0.85 * contrib;
-    }, 5);
+    })->SetIter(5)->SetStaleness(2);
   p2->combine = [](float a, float b) {
     return a+b;
   };
