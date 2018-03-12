@@ -20,7 +20,7 @@ void ControlManager::Control(SArrayBinStream bin) {
     map_versions_[ctrl.plan_id][ctrl.node_id] = ctrl.version;
     TryUpdateVersion(ctrl.plan_id);
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
-    CHECK_EQ(join_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
+    // CHECK_EQ(join_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
     join_versions_[ctrl.plan_id][ctrl.node_id] = ctrl.version;
     TryUpdateVersion(ctrl.plan_id);
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {

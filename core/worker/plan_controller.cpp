@@ -53,6 +53,11 @@ void PlanController::Setup(SpecWrapper spec) {
 }
 
 void PlanController::StartPlan() {
+  // if there is no join partition
+  if (join_versions_.empty()) {
+    min_join_version_ = expected_num_iter_;
+    SendUpdateJoinVersionToScheduler();
+  }
   TryRunSomeMaps();
 }
 
@@ -102,18 +107,13 @@ void PlanController::FinishMap(SArrayBinStream bin) {
 }
 
 void PlanController::TryRunSomeMaps() {
+  if (min_map_version_ == expected_num_iter_) {
+    return;
+  }
   // if there is no map partitions
   if (map_versions_.empty()) {
     min_map_version_ += 1;
     SendUpdateMapVersionToScheduler();
-  }
-  // if there is no join partition
-  if (join_versions_.empty()) {
-    min_join_version_ += 1;
-    SendUpdateJoinVersionToScheduler();
-  }
-  if (map_versions_.empty() || join_versions_.empty()) {
-    return;
   }
 
   for (auto kv : map_versions_) {
@@ -146,6 +146,9 @@ bool PlanController::IsMapRunnable(int part_id) {
 }
 
 bool PlanController::TryRunWaitingJoins(int part_id) {
+  if (running_joins_.find(part_id) != running_joins_.end()) {
+    return false;
+  }
   // see whether there is any waiting joins
   auto& joins = waiting_joins_[part_id];
   if (!joins.empty()) {
@@ -322,6 +325,7 @@ void PlanController::ReceiveJoin(Message msg) {
 }
 
 void PlanController::RunJoin(VersionedJoinMeta meta) {
+  CHECK(running_joins_.find(meta.meta.part_id) == running_joins_.end());
   running_joins_.insert(meta.meta.part_id);
   controller_->engine_elem_.executor->Add([this, meta]() {
     auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
