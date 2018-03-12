@@ -8,6 +8,7 @@ file(GLOB core-src-files
     executor/executor.cpp
     plan/function_store.cpp
     map_output/map_output_storage.cpp
+    scheduler/control.cpp
     scheduler/worker.cpp
     scheduler/scheduler.cpp
     scheduler/block_manager.cpp

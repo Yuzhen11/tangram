@@ -166,8 +166,8 @@ void Scheduler::RunNextSpec() {
                 << "/" << program_.specs.size() << ")"
                 << " Plan Iteration (" << cur_iters_
                 << "/" << expected_num_iters << ") " << spec.DebugString();
-      RunMap();
-      // control_manager_->RunPlan(spec);
+      // RunMap();
+      control_manager_->RunPlan(spec);
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
       Write(spec);

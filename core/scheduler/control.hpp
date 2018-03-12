@@ -1,5 +1,8 @@
 #pragma once
 
+#include <sstream>
+#include <string>
+
 namespace xyz {
 
 enum class ScheduleFlag : char {
@@ -55,10 +58,21 @@ struct ControllerMsg {
   enum class Flag : char {
     kSetup, kMap, kJoin, kFinish
   };
+  static constexpr const char* FlagName[] = {
+    "kSetup", "kMap", "kJoin", "kFinish"
+  };
   Flag flag;
   int version;
   int node_id;
   int plan_id;
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "flag: " << FlagName[static_cast<int>(flag)];
+    ss << ", version: " << version;
+    ss << ", node_id: " << node_id;
+    ss << ", plan_id: " << plan_id;
+    return ss.str();
+  }
 };
 
 enum class ControllerFlag : char {

@@ -7,9 +7,11 @@ namespace xyz {
 void ControlManager::Control(SArrayBinStream bin) {
   ControllerMsg ctrl;
   bin >> ctrl;
+  VLOG(2) << "[ControlManager] ctrl: " << ctrl.DebugString();
   if (ctrl.flag == ControllerMsg::Flag::kSetup) {
     is_setup_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_setup_[ctrl.plan_id].size() == elem_->nodes.size()) {
+      LOG(INFO) << "[ControlManager] Setup all nodes, startPlan: " << ctrl.plan_id;
       SArrayBinStream reply_bin;
       SendToAllWorkers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
     }
@@ -44,11 +46,13 @@ void ControlManager::TryUpdateVersion(int plan_id) {
   }
   versions_[plan_id] ++;
   if (versions_[plan_id] == expected_versions_[plan_id]) {
+    LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id];
     // send finish
     SArrayBinStream bin;
     bin << int(-1);
     SendToAllWorkers(ControllerFlag::kUpdateVersion, plan_id, bin);
   } else {
+    LOG(INFO) << "[ControlManager] Update min version: " << versions_[plan_id]; 
     // update version
     SArrayBinStream bin;
     bin << versions_[plan_id];
@@ -67,7 +71,9 @@ void ControlManager::RunPlan(SpecWrapper spec) {
   map_versions_[plan_id].clear();
   join_versions_[plan_id].clear();
   versions_[plan_id] = 0;
-  expected_versions_[plan_id] == static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
+  expected_versions_[plan_id] = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
+  CHECK_NE(expected_versions_[plan_id], 0);
+  LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
 
   for (auto& node : elem_->nodes) {
     map_versions_[plan_id][node.second.node.id] = 0;

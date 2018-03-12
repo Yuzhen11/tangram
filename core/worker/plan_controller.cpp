@@ -45,6 +45,7 @@ void PlanController::Setup(SpecWrapper spec) {
   ctrl.flag = ControllerMsg::Flag::kSetup;
   ctrl.node_id = controller_->engine_elem_.node.id;
   ctrl.plan_id = plan_id_;
+  ctrl.version = -1;
   reply_bin << ctrl;
   SendMsgToScheduler(reply_bin);
 }
@@ -66,6 +67,7 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
     ctrl.plan_id = plan_id_;
     bin << ctrl;
     SendMsgToScheduler(bin);
+    return;
   }
   CHECK_EQ(new_version, min_version_+1);
   min_version_ = new_version;
@@ -278,7 +280,7 @@ void PlanController::RunMap(int part_id, int version) {
 }
 
 void PlanController::ReceiveJoin(Message msg) {
-  CHECK_EQ(msg.data.size(), 3);
+  CHECK_EQ(msg.data.size(), 4);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[2]);
   bin.FromSArray(msg.data[3]);
@@ -291,7 +293,7 @@ void PlanController::ReceiveJoin(Message msg) {
   // TODO: how to control the version!
   if (map_collection_id_ == join_collection_id_) {
     if (meta.version >= map_versions_[meta.part_id]) {
-      pending_joins_[meta.part_id][meta.part_id].push_back(join_meta);
+      pending_joins_[meta.part_id][meta.version].push_back(join_meta);
       return;
     }
   }
