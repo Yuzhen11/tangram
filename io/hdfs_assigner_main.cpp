@@ -12,7 +12,8 @@ int main(int argc, char **argv) {
   const int qid = 0;
   const std::string namenode = "proj10";
   const int port = 9000;
-  std::string url = "/datasets/classification/kdd12-5blocks";
+  // std::string url = "/datasets/classification/kdd12-5blocks";
+  std::string url = "/datasets/graph/webbase-adj";
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<HDFSBrowser>(namenode, port);
 

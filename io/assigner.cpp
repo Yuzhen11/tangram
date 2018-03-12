@@ -31,7 +31,7 @@ void Assigner::InitBlocks(std::string url) {
   CHECK_NOTNULL(browser_);
   auto blocks = browser_->Browse(url);
   for (auto block : blocks) {
-    std::pair<std::string, int> p{block.filename, block.offset};
+    std::pair<std::string, size_t> p{block.filename, block.offset};
     locality_map_[block.hostname].insert(p);
     blocks_[p].push_back(block.hostname);
   }
