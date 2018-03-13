@@ -91,7 +91,7 @@ int main(int argc, char** argv) {
   //   ss << obj.a << " " << obj.b << "\n";
   // });
 
-  Context::checkpoint(c1, "/tmp/tmp/checkpoint");
+  // Context::checkpoint(c1, "/tmp/tmp/checkpoint");
   // Context::loadcheckpoint(c1, "/tmp/tmp/checkpoint");
 
   Runner::Run();

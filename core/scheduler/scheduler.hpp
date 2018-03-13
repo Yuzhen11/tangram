@@ -11,6 +11,8 @@
 #include "core/scheduler/distribute_manager.hpp"
 #include "core/scheduler/collection_manager.hpp"
 
+#include "core/scheduler/dag_runner.hpp"
+
 #include "base/actor.hpp"
 #include "base/node.hpp"
 #include "base/sarray_binstream.hpp"
@@ -45,9 +47,9 @@ public:
     collection_manager_ = std::make_shared<CollectionManager>(elem_);
   }
   virtual ~Scheduler() override {
-    if (scheduler_thread_.joinable()) {
-      scheduler_thread_.join();
-    }
+    // if (scheduler_thread_.joinable()) {
+    //   scheduler_thread_.join();
+    // }
     if (start_) {
       Stop();
     }
@@ -58,11 +60,7 @@ public:
   // make the scheduler ready and start receiving RegisterProgram
   void Ready(std::vector<Node> nodes);
 
-  void Run() {
-    spec_count_ = -1;
-    RunNextSpec();
-  }
-
+  void TryRunPlan();
   /*
    * <- : receive
    * -> : send
@@ -78,28 +76,27 @@ public:
 
   void RunDummy();
 
-  void RunMap();
+  // void RunMap();
 
   void Exit();
 
   // Send speculative command
   void RunSpeculativeMap();
 
-  void StartScheduling();
-
   void Checkpoint(SpecWrapper s);
   void LoadCheckpoint(SpecWrapper s);
   void FinishCheckPoint(SArrayBinStream bin);
   void FinishLoadCheckPoint(SArrayBinStream bin);
-  void FinishJoin(SArrayBinStream bin);
+  // void FinishJoin(SArrayBinStream bin);
 
+  void RunPlan(int plan_id);
 
 private:
   // void TryRunPlan();
   void PrepareNextCollection();
 
-  void RunNextSpec();
-  void RunNextIteration();
+  // void RunNextSpec();
+  // void RunNextIteration();
 private:
   std::shared_ptr<SchedulerElem> elem_;
 
@@ -109,10 +106,10 @@ private:
 
   std::promise<void> exit_promise_;
   bool start_ = false;
-  std::thread scheduler_thread_;
+  // std::thread scheduler_thread_;
 
-  int spec_count_ = 0;
-  SpecWrapper currnet_spec_;
+  // int spec_count_ = 0;
+  // SpecWrapper currnet_spec_;
   int num_workers_finish_a_plan_iteration_ = 0;
   int cur_iters_ = 0;
 
@@ -124,6 +121,8 @@ private:
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;
+
+  std::unique_ptr<AbstractDagRunner> dag_runner_;
 };
 
 } // namespace xyz

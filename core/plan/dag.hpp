@@ -2,6 +2,8 @@
 
 #include "glog/logging.h"
 
+#include "base/sarray_binstream.hpp"
+
 #include <map>
 #include <set>
 #include <vector>
@@ -25,6 +27,14 @@ struct Col {
   void AppendWrite(int w) {
     write_queue.push_back(w);
   }
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Col& c) {
+    stream << c.id << c.read_queue << c.write_queue;
+  	return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Col& c) {
+    stream >> c.id >> c.read_queue >> c.write_queue;
+  	return stream;
+  }
 };
 
 struct DagNode {
@@ -41,6 +51,15 @@ struct DagNode {
     in.push_back(i);
   }
   std::string DebugString() const;
+
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const DagNode& n) {
+    stream << n.id << n.out << n.in;
+  	return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, DagNode& n) {
+    stream >> n.id >> n.out >> n.in;
+  	return stream;
+  }
 };
 
 class Dag {
@@ -49,6 +68,15 @@ class Dag {
 
   std::string DebugString() const;
   friend class DagVistor;
+
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Dag& d) {
+    stream << d.nodes_ << d.cols_;
+  	return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Dag& d) {
+    stream >> d.nodes_ >> d.cols_;
+  	return stream;
+  }
  private:
   void AddEdge(int src, int dst);
   DagNode* GetOrCreateDagNode(int id);

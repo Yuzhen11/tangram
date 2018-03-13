@@ -24,6 +24,7 @@ void Runner::Run() {
   for (auto* p : plans) {
     program.specs.push_back(p->GetSpec());
   }
+  program.dag = Context::get_dag();
 
   Engine::Config config;
   config.scheduler = FLAGS_scheduler;

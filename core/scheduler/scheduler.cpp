@@ -61,16 +61,20 @@ void Scheduler::Process(Message msg) {
     write_manager_->FinishWritePartition(bin);
     break;
   }
-  case ScheduleFlag::kJoinFinish: {
-    FinishJoin(bin);
-    break;
-  }
+  // case ScheduleFlag::kJoinFinish: {
+  //   FinishJoin(bin);
+  //   break;
+  // }
   case ScheduleFlag::kControl: {
     control_manager_->Control(bin);
     break;
   }
   case ScheduleFlag::kFinishPlan: {
-    RunNextSpec();  // TODO, if a plan finishes, run next spec
+    // RunNextSpec();  // TODO, if a plan finishes, run next spec
+    int plan_id;
+    bin >> plan_id;
+    dag_runner_->Finish(plan_id);
+    TryRunPlan();
     break;
   }
   default:
@@ -86,6 +90,7 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
   if (!init_program_) {
     init_program_ = true;
     bin >> program_;
+    dag_runner_.reset(new SequentialDagRunner(program_.dag));
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
   }
   register_program_count_ += 1;
@@ -93,38 +98,54 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
     // spawn the scheduler thread
     LOG(INFO)
         << "[Scheduler] all workers registerred, start the scheduling thread";
-    scheduler_thread_ = std::thread([this]() { Run(); });
+    // scheduler_thread_ = std::thread([this]() { Run(); });
+    TryRunPlan();
   }
 }
 
-/*
-void Scheduler::InitWorkers() {
-  // init the partitions
-  init_reply_count_ = 0;
-  LOG(INFO) << "[Scheduler] CollectionMap: " << elem_->collection_map->DebugString();
-
-  LOG(INFO) << "[Scheduler] Initworker";
-  // Send the collection_map_ to all workers.
-  SArrayBinStream bin;
-  bin << *elem_->collection_map;
-  SendToAllWorkers(elem_, ScheduleFlag::kInitWorkers, bin);
-}
-
-void Scheduler::InitWorkersReply(SArrayBinStream bin) {
-  init_reply_count_ += 1;
-  if (init_reply_count_ == elem_->nodes.size()) {
-    // init_worker_reply_promise_.set_value();
-    LOG(INFO) << "[Scheduler] Initworker Done, RunNextSpec";
-    RunNextSpec();
+void Scheduler::TryRunPlan() {
+  if (dag_runner_->GetNumRemainingPlans() == 0) {
+    Exit();
+  } else {
+    auto plans = dag_runner_->GetRunnablePlans();
+    for (auto plan_id : plans) {
+      RunPlan(plan_id);
+    }
   }
 }
-*/
 
-void Scheduler::StartScheduling() {
-  // TODO
-  // RunDummy();
-  // Exit();
-  // TryRunPlan();
+void Scheduler::RunPlan(int plan_id) {
+  CHECK_LT(plan_id, program_.specs.size());
+  auto spec = program_.specs[plan_id];
+  LOG(INFO) << "[Scheduler] Running: " << spec.DebugString();
+  if (spec.type == SpecWrapper::Type::kDistribute) {
+    LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
+    distribute_manager_->Distribute(spec);
+  } else if (spec.type == SpecWrapper::Type::kLoad) {
+    LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
+    block_manager_->Load(spec);
+  } else if (spec.type == SpecWrapper::Type::kMapJoin
+          || spec.type == SpecWrapper::Type::kMapWithJoin) {
+    // currnet_spec_ = spec;
+    // int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
+    // LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
+    //           << "/" << program_.specs.size() << ")"
+    //           << " Plan Iteration (" << cur_iters_
+    //           << "/" << expected_num_iters << ") " << spec.DebugString();
+    // RunMap();
+    control_manager_->RunPlan(spec);
+  } else if (spec.type == SpecWrapper::Type::kWrite) {
+    LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
+    write_manager_->Write(spec);
+  } else if (spec.type == SpecWrapper::Type::kCheckpoint) {
+    LOG(INFO) << "[Scheduler] Checkpointing: " << spec.DebugString();
+    Checkpoint(spec);
+  } else if (spec.type == SpecWrapper::Type::kLoadCheckpoint) {
+    LOG(INFO) << "[Scheduler] Loading checkpoint: " << spec.DebugString();
+    LoadCheckpoint(spec);
+  } else {
+    CHECK(false) << spec.DebugString();
+  }
 }
 
 void Scheduler::Exit() {
@@ -147,57 +168,28 @@ void Scheduler::RunDummy() {
   SendToAllWorkers(elem_, ScheduleFlag::kDummy, bin);
 }
 
+/*
 void Scheduler::RunNextSpec() {
   spec_count_ += 1;
   if (spec_count_ == program_.specs.size()) {
     Exit();
   } else {
-    auto spec = program_.specs[spec_count_];
-    LOG(INFO) << "[Scheduler] Running: " << spec.DebugString();
-    if (spec.type == SpecWrapper::Type::kDistribute) {
-      LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
-      distribute_manager_->Distribute(spec);
-    } else if (spec.type == SpecWrapper::Type::kLoad) {
-      LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
-      block_manager_->Load(spec);
-    } else if (spec.type == SpecWrapper::Type::kMapJoin
-            || spec.type == SpecWrapper::Type::kMapWithJoin) {
-      currnet_spec_ = spec;
-      int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
-      LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
-                << "/" << program_.specs.size() << ")"
-                << " Plan Iteration (" << cur_iters_
-                << "/" << expected_num_iters << ") " << spec.DebugString();
-      // RunMap();
-      control_manager_->RunPlan(spec);
-    } else if (spec.type == SpecWrapper::Type::kWrite) {
-      LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
-      write_manager_->Write(spec);
-    } else if (spec.type == SpecWrapper::Type::kCheckpoint) {
-      LOG(INFO) << "[Scheduler] Checkpointing: " << spec.DebugString();
-      Checkpoint(spec);
-    } else if (spec.type == SpecWrapper::Type::kLoadCheckpoint) {
-      LOG(INFO) << "[Scheduler] Loading checkpoint: " << spec.DebugString();
-      LoadCheckpoint(spec);
-    } else {
-      CHECK(false) << spec.DebugString();
-    }
   }
 }
-
+*/
 
 
 
 void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
   // TODO
-  // CHECK(false);
-  RunNextSpec();
+  CHECK(false);
+  // RunNextSpec();
 }
 
 void Scheduler::FinishLoadCheckPoint(SArrayBinStream bin) {
   // TODO
-  // CHECK(false);
-  RunNextSpec();
+  CHECK(false);
+  // RunNextSpec();
 }
 
 void Scheduler::Checkpoint(SpecWrapper s) {
@@ -232,6 +224,7 @@ void Scheduler::LoadCheckpoint(SpecWrapper s) {
 
 
 
+/*
 void Scheduler::RunMap() {
   SArrayBinStream bin;
   bin << currnet_spec_;
@@ -261,6 +254,7 @@ void Scheduler::FinishJoin(SArrayBinStream bin) {
     RunNextIteration();
   }
 }
+*/
 
 
 } // namespace xyz
