@@ -9,7 +9,7 @@ schedulerfile = "debug/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
-    "scheduler_port" : "33254",
+    "scheduler_port" : "33224",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }
@@ -21,6 +21,7 @@ program_params = {
 
 scheduler_params = {
     "num_worker" : 5,
+    "dag_runner_type" : "sequential",
 }
 
 env_params = (

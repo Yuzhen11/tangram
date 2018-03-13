@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "glog/logging.h"
+
 namespace xyz {
 
 std::vector<int> SequentialDagRunner::GetRunnablePlans() {
@@ -17,6 +19,29 @@ void SequentialDagRunner::Finish(int plan_id) {
 }
 
 int SequentialDagRunner::GetNumRemainingPlans() {
+  return dag_visitor_.GetNumDagNodes();
+}
+
+// wide dag runner
+std::vector<int> WideDagRunner::GetRunnablePlans() {
+  auto f = dag_visitor_.GetFront();
+  std::vector<int> ret;
+  for (auto plan : f) {
+    if (running_.find(plan) == running_.end()) {
+      ret.push_back(plan);
+      running_.insert(plan);
+    }
+  }
+  return ret;
+}
+
+void WideDagRunner::Finish(int plan_id) {
+  CHECK(running_.find(plan_id) != running_.end());
+  running_.erase(plan_id);
+  dag_visitor_.Finish(plan_id);
+}
+
+int WideDagRunner::GetNumRemainingPlans() {
   return dag_visitor_.GetNumDagNodes();
 }
 

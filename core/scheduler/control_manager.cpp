@@ -47,13 +47,13 @@ void ControlManager::TryUpdateVersion(int plan_id) {
   }
   versions_[plan_id] ++;
   if (versions_[plan_id] == expected_versions_[plan_id]) {
-    LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id];
+    LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id] << " for plan " << plan_id;
     // send finish
     SArrayBinStream bin;
     bin << int(-1);
     SendToAllWorkers(ControllerFlag::kUpdateVersion, plan_id, bin);
   } else {
-    LOG(INFO) << "[ControlManager] Update min version: " << versions_[plan_id]; 
+    LOG(INFO) << "[ControlManager] Update min version: " << versions_[plan_id] << " for plan " << plan_id; 
     // update version
     SArrayBinStream bin;
     bin << versions_[plan_id];
@@ -74,7 +74,7 @@ void ControlManager::RunPlan(SpecWrapper spec) {
   versions_[plan_id] = 0;
   expected_versions_[plan_id] = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
   CHECK_NE(expected_versions_[plan_id], 0);
-  LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
+  // LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
 
   for (auto& node : elem_->nodes) {
     map_versions_[plan_id][node.second.node.id] = 0;

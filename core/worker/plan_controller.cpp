@@ -204,7 +204,8 @@ void PlanController::TryUpdateJoinVersion() {
 
 void PlanController::SendUpdateMapVersionToScheduler() {
   LOG(INFO) << "[PlanController] update map version: " << min_map_version_
-      << ", on " << controller_->engine_elem_.node.id;
+      << ", on " << controller_->engine_elem_.node.id 
+      << ", for plan " << plan_id_;
   SArrayBinStream bin;
   ControllerMsg ctrl;
   ctrl.flag = ControllerMsg::Flag::kMap;
@@ -216,7 +217,8 @@ void PlanController::SendUpdateMapVersionToScheduler() {
 }
 void PlanController::SendUpdateJoinVersionToScheduler() {
   LOG(INFO) << "[PlanController] update join version: " << min_join_version_
-      << ", on " << controller_->engine_elem_.node.id;
+      << ", on " << controller_->engine_elem_.node.id
+      << ", for plan " << plan_id_;
   SArrayBinStream bin;
   ControllerMsg ctrl;
   ctrl.flag = ControllerMsg::Flag::kJoin;

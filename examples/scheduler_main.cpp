@@ -13,6 +13,8 @@ DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "proj10", "The namenode of hdfs");
 DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
 
+DEFINE_string(dag_runner_type, "sequential", "");
+
 namespace xyz {
 
 void RunScheduler() {
@@ -31,7 +33,7 @@ void RunScheduler() {
     auto assigner = std::make_shared<Assigner>(sender, browser);
     return assigner;
   };
-  Scheduler scheduler(id, sender, assigner_builder);
+  Scheduler scheduler(id, sender, assigner_builder, FLAGS_dag_runner_type);
   scheduler_mailbox->RegisterQueue(id, scheduler.GetWorkQueue());
 
   // start mailbox

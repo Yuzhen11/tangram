@@ -10,6 +10,8 @@ namespace {
 
 class TestScheduler : public testing::Test {};
 
+const std::string dag_runner_type = "sequential";
+
 std::vector<Node> GetNodes() {
   Node n1, n2;
   n1.id = 1;
@@ -22,7 +24,7 @@ TEST_F(TestScheduler, Create) {
   const int qid = 0;
   auto nodes = GetNodes();
   auto sender = std::make_shared<SimpleSender>();
-  Scheduler scheduler(qid, sender, []() {});
+  Scheduler scheduler(qid, sender, []() {}, dag_runner_type);
 }
 */
 

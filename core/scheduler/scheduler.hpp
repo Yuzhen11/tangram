@@ -33,8 +33,11 @@ namespace xyz {
 class Scheduler : public Actor {
 public:
   Scheduler(int qid, std::shared_ptr<AbstractSender> sender,
-            std::function<std::shared_ptr<Assigner>()> builder)
-      : Actor(qid) {
+            std::function<std::shared_ptr<Assigner>()> builder,
+            std::string dag_runner_type)
+      : Actor(qid), dag_runner_type_(dag_runner_type) {
+    CHECK(dag_runner_type_ == "sequential"
+       || dag_runner_type_ == "wide");
     // setup elem_
     elem_ = std::make_shared<SchedulerElem>();
     elem_->sender = sender;
@@ -123,6 +126,7 @@ private:
   std::chrono::system_clock::time_point end;
 
   std::unique_ptr<AbstractDagRunner> dag_runner_;
+  std::string dag_runner_type_;
 };
 
 } // namespace xyz

@@ -4,6 +4,8 @@
 #include "core/queue_node_map.hpp"
 #include "core/scheduler/scheduler.hpp"
 
+#include "base/color.hpp"
+
 namespace xyz {
 
 // make the scheduler ready and start receiving RegisterProgram
@@ -73,6 +75,7 @@ void Scheduler::Process(Message msg) {
     // RunNextSpec();  // TODO, if a plan finishes, run next spec
     int plan_id;
     bin >> plan_id;
+    LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
     dag_runner_->Finish(plan_id);
     TryRunPlan();
     break;
@@ -90,7 +93,14 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
   if (!init_program_) {
     init_program_ = true;
     bin >> program_;
-    dag_runner_.reset(new SequentialDagRunner(program_.dag));
+    LOG(INFO) << "set dag_runner: " << dag_runner_type_;
+    if (dag_runner_type_ == "sequential") {
+      dag_runner_.reset(new SequentialDagRunner(program_.dag));
+    } else if (dag_runner_type_ == "wide") {
+      dag_runner_.reset(new WideDagRunner(program_.dag));
+    } else {
+      CHECK(false);
+    }
     LOG(INFO) << "[Scheduler] Receive program: " << program_.DebugString();
   }
   register_program_count_ += 1;
@@ -117,7 +127,7 @@ void Scheduler::TryRunPlan() {
 void Scheduler::RunPlan(int plan_id) {
   CHECK_LT(plan_id, program_.specs.size());
   auto spec = program_.specs[plan_id];
-  LOG(INFO) << "[Scheduler] Running: " << spec.DebugString();
+  LOG(INFO) << "[Scheduler] " << YELLOW("Running plan "+std::to_string(spec.id)+" ") << spec.DebugString();
   if (spec.type == SpecWrapper::Type::kDistribute) {
     LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
     distribute_manager_->Distribute(spec);

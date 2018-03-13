@@ -9,7 +9,7 @@ schedulerfile = "debug/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
-    "scheduler_port" : "33254",
+    "scheduler_port" : "33214",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }

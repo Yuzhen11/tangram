@@ -88,7 +88,6 @@ void FunctionStore::AddGetter(int id, GetterFuncT func) {
 
 void FunctionStore::AddCreatePartFunc(int id, CreatePartFuncT func) {
   create_part_.insert({id, func});
-  LOG(INFO) << "insert to " << std::to_string(id);
   CHECK(create_part_.find(id) != create_part_.end());
 }
 
