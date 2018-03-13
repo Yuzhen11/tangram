@@ -27,6 +27,7 @@ void ControlManager::Control(SArrayBinStream bin) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
       SArrayBinStream reply_bin;
+      reply_bin << ctrl.plan_id;
       ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
     }
   }

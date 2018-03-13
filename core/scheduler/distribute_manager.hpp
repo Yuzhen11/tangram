@@ -16,8 +16,8 @@ class DistributeManager {
  private:
   std::map<int, int> part_expected_map_;
   std::shared_ptr<SchedulerElem> elem_;
-  // plan_id, collection_id, part_id, node_id
-  std::map<int, std::map<int, std::map<int, int>>> distribute_map_;
+  // collection_id, part_id, node_id
+  std::map<int, std::map<int, int>> distribute_map_;
 
 };
 

@@ -7,8 +7,8 @@ namespace xyz {
 
 enum class ScheduleFlag : char {
   kRegisterProgram,
-  kInitWorkers,
-  kInitWorkersReply,
+  // kInitWorkers,
+  // kInitWorkersReply,
   kRunMap,
   kRunSpeculativeMap,
   kFinishBlock,
@@ -26,11 +26,13 @@ enum class ScheduleFlag : char {
   kWritePartition,
   kFinishWritePartition,
   kControl,
-  kFinishPlan
+  kFinishPlan,
+  kUpdateCollection,
+  kUpdateCollectionReply
 };
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
-                                         "kInitWorker",
-                                         "kInitWorkersReply",
+                                         // "kInitWorker",
+                                         // "kInitWorkersReply",
                                          "kRunMap",
                                          "kRunSpeculativeMap",
                                          "kFinishBlock",
@@ -48,7 +50,9 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kWritePartition",
                                          "kFinishWritePartition",
                                          "kControl",
-                                         "kFinishPlan"
+                                         "kFinishPlan",
+                                         "kUpdateCollection",
+                                         "kUpdateCollectionReply"
 };
 
 // currently workerinfo only has one field.

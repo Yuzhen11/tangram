@@ -16,6 +16,7 @@ file(GLOB core-src-files
     scheduler/control_manager.cpp
     scheduler/write_manager.cpp
     scheduler/distribute_manager.cpp
+    scheduler/collection_manager.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
     worker/controller.cpp

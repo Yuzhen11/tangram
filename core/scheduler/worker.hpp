@@ -50,9 +50,7 @@ public:
   // The scheduler requests program from workers.
   void StartCluster();
 
-  // Process the kInitWorkers msg from scheduler
-  // and send back reply
-  void InitWorkers(SArrayBinStream bin);
+  void UpdateCollection(SArrayBinStream bin);
 
   // Run map on this worker
   void RunMap(SArrayBinStream);

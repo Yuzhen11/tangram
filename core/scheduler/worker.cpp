@@ -35,8 +35,12 @@ void Worker::Process(Message msg) {
   ctrl_bin >> flag;
 
   switch (flag) {
-  case ScheduleFlag::kInitWorkers: {
-    InitWorkers(bin);
+  // case ScheduleFlag::kInitWorkers: {
+  //   InitWorkers(bin);
+  //   break;
+  // }
+  case ScheduleFlag::kUpdateCollection: {
+    UpdateCollection(bin);
     break;
   }
   case ScheduleFlag::kRunMap: {
@@ -84,12 +88,16 @@ void Worker::Process(Message msg) {
   }
 }
 
-void Worker::InitWorkers(SArrayBinStream bin) {
-  std::unordered_map<int, CollectionView> collection_map;
-  bin >> collection_map;
-  engine_elem_.collection_map->Init(collection_map);
-  SArrayBinStream dummy_bin;
-  SendMsgToScheduler(ScheduleFlag::kInitWorkersReply, dummy_bin);
+void Worker::UpdateCollection(SArrayBinStream bin) {
+  std::pair<int,int> pid_cid;  // plan_id, collection_id
+  CollectionView cv;
+  bin >> pid_cid >> cv;
+  // when we update a collection_view, no one is accessing it
+  engine_elem_.collection_map->Insert(cv);
+
+  SArrayBinStream reply_bin;
+  reply_bin << pid_cid << engine_elem_.node.id;
+  SendMsgToScheduler(ScheduleFlag::kUpdateCollectionReply, reply_bin);
 }
 
 void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }

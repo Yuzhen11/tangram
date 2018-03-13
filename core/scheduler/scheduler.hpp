@@ -9,6 +9,7 @@
 #include "core/scheduler/control_manager.hpp"
 #include "core/scheduler/write_manager.hpp"
 #include "core/scheduler/distribute_manager.hpp"
+#include "core/scheduler/collection_manager.hpp"
 
 #include "base/actor.hpp"
 #include "base/node.hpp"
@@ -41,6 +42,7 @@ public:
     control_manager_ = std::make_shared<ControlManager>(elem_);
     distribute_manager_ = std::make_shared<DistributeManager>(elem_);
     write_manager_ = std::make_shared<WriteManager>(elem_);
+    collection_manager_ = std::make_shared<CollectionManager>(elem_);
   }
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
@@ -67,20 +69,12 @@ public:
    *
    * The initialization step includes:
    * 1. RegisterProgram <-
-   * 2. InitWorkers ->
-   * 3. InitWorkersReply <-
-   * 4. StartScheduling
+   * 2. StartScheduling
    */
   virtual void Process(Message msg) override;
 
   // One worker register the program to scheduler
   void RegisterProgram(int, SArrayBinStream bin);
-
-  // Initialize all workers by sending the PartToNodeMap
-  // and wait for replies.
-  void InitWorkers();
-
-  void InitWorkersReply(SArrayBinStream bin);
 
   void RunDummy();
 
@@ -109,10 +103,7 @@ private:
 private:
   std::shared_ptr<SchedulerElem> elem_;
 
-  // std::shared_ptr<AbstractSender> sender_;
-
   int register_program_count_ = 0;
-  int init_reply_count_ = 0;
   bool init_program_ = false;
   ProgramContext program_;
 
@@ -129,6 +120,7 @@ private:
   std::shared_ptr<ControlManager> control_manager_;
   std::shared_ptr<DistributeManager> distribute_manager_;
   std::shared_ptr<WriteManager> write_manager_;
+  std::shared_ptr<CollectionManager> collection_manager_;
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;

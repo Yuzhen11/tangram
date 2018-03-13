@@ -18,6 +18,8 @@ class WriteManager {
   std::map<int, int> expected_reply_count_map;
   std::shared_ptr<SchedulerElem> elem_;
 
+  // collection_id -> plan_id
+  std::map<int,int> cid_pid_;
 };
 
 } // namespace xyz

@@ -33,12 +33,12 @@ void Scheduler::Process(Message msg) {
     RegisterProgram(node_id, bin);
     break;
   }
-  case ScheduleFlag::kInitWorkers: {
-    InitWorkers();
+  case ScheduleFlag::kUpdateCollection: {
+    collection_manager_->Update(bin);
     break;
   }
-  case ScheduleFlag::kInitWorkersReply: {
-    InitWorkersReply(bin);
+  case ScheduleFlag::kUpdateCollectionReply: {
+    collection_manager_->FinishUpdate(bin);
     break;
   }
   case ScheduleFlag::kFinishBlock: {
@@ -97,6 +97,7 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
   }
 }
 
+/*
 void Scheduler::InitWorkers() {
   // init the partitions
   init_reply_count_ = 0;
@@ -117,6 +118,7 @@ void Scheduler::InitWorkersReply(SArrayBinStream bin) {
     RunNextSpec();
   }
 }
+*/
 
 void Scheduler::StartScheduling() {
   // TODO
@@ -157,7 +159,7 @@ void Scheduler::RunNextSpec() {
       distribute_manager_->Distribute(spec);
     } else if (spec.type == SpecWrapper::Type::kLoad) {
       LOG(INFO) << "[Scheduler] Loading: " << spec.DebugString();
-      block_manager_->Load(static_cast<LoadSpec*>(spec.spec.get()));
+      block_manager_->Load(spec);
     } else if (spec.type == SpecWrapper::Type::kMapJoin
             || spec.type == SpecWrapper::Type::kMapWithJoin) {
       currnet_spec_ = spec;

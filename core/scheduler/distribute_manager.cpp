@@ -1,10 +1,11 @@
 #include "core/scheduler/distribute_manager.hpp"
 
-
 namespace xyz {
 
 void DistributeManager::Distribute(SpecWrapper spec_wrapper) {
   auto spec = static_cast<DistributeSpec*>(spec_wrapper.spec.get());
+  LOG(INFO) << "[Scheduler] Distribute {plan_id, collection_id}: {" 
+      << spec_wrapper.id << "," << spec->collection_id << "}";
   part_expected_map_[spec_wrapper.id] = spec->num_partition;
   // round-robin
   auto node_iter = elem_->nodes.begin();
@@ -30,17 +31,18 @@ void DistributeManager::Distribute(SpecWrapper spec_wrapper) {
 }
 
 void DistributeManager::FinishDistribute(SArrayBinStream bin) {
- LOG(INFO) << "[Scheduler] FinishDistribute";
   int collection_id, part_id, node_id, plan_id;
   bin >> collection_id >> part_id >> node_id >> plan_id;
-  distribute_map_[plan_id][collection_id][part_id] = node_id;
-  if (distribute_map_[plan_id][collection_id].size() == part_expected_map_[plan_id]) {
+  distribute_map_[collection_id][part_id] = node_id;
+  if (distribute_map_[collection_id].size() == part_expected_map_[plan_id]) {
+    LOG(INFO) << "[Scheduler] Distribute {plan_id, collection_id}: {" 
+        << plan_id << "," << collection_id << "} done";
     // construct the collection view
     std::vector<int> part_to_node(part_expected_map_[plan_id]);
     for (int i = 0; i < part_to_node.size(); ++i) {
-      CHECK(distribute_map_[plan_id][collection_id].find(i) !=
-            distribute_map_[plan_id][collection_id].end());
-      part_to_node[i] = distribute_map_[plan_id][collection_id][i];
+      CHECK(distribute_map_[collection_id].find(i) !=
+            distribute_map_[collection_id].end());
+      part_to_node[i] = distribute_map_[collection_id][i];
     }
     CollectionView cv;
     cv.collection_id = collection_id;
@@ -49,9 +51,11 @@ void DistributeManager::FinishDistribute(SArrayBinStream bin) {
     elem_->collection_map->Insert(cv);
 
     // trigger InitWorkers
-    SArrayBinStream bin;
-    ToScheduler(elem_, ScheduleFlag::kInitWorkers, bin);
+    SArrayBinStream reply_bin;
+    std::pair<int,int> pid_cid{plan_id, collection_id};
+    reply_bin << pid_cid;
+    ToScheduler(elem_, ScheduleFlag::kUpdateCollection, reply_bin);
   }
 }
 
-}
+}  // namespace xyz

@@ -135,52 +135,6 @@ TEST_F(TestWorker, RunMap) {
   // TODO
 }
 
-TEST_F(TestWorker, InitWorkers) {
-  // worker
-  const int qid = 0;
-  EngineElem engine_elem = GetEngineElem();
-  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
-      qid, engine_elem.executor, engine_elem.partition_manager,
-      engine_elem.node,
-      []() { return std::make_shared<FakeBlockReader>(); });
-  auto io_wrapper = std::make_shared<IOWrapper>(
-      1, engine_elem.executor, engine_elem.partition_manager, engine_elem.function_store,
-      []() { return std::make_shared<FakeReader>(); },
-      []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
-  auto *q = worker.GetWorkQueue();
-
-  // send request
-  {
-    SArrayBinStream bin;
-    std::unordered_map<int, CollectionView> collection_map_ =
-        GetCollectionMap();
-    bin << collection_map_;
-    SArrayBinStream ctrl_bin;
-    ctrl_bin << ScheduleFlag::kInitWorkers;
-
-    Message msg;
-    msg.meta.recver = 0;
-    msg.meta.flag = Flag::kOthers;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    q->Push(msg);
-  }
-
-  auto *sender = static_cast<SimpleSender *>(engine_elem.sender.get());
-
-  {
-    auto msg = sender->Get();
-    // TODO: Check msg.meta
-    ASSERT_EQ(msg.data.size(), 2);
-    SArrayBinStream ctrl_bin;
-    ctrl_bin.FromSArray(msg.data[0]);
-    ScheduleFlag flag;
-    ctrl_bin >> flag;
-    EXPECT_EQ(flag, ScheduleFlag::kInitWorkersReply);
-  }
-  ASSERT_EQ(sender->msgs.Size(), 0);
-}
 
 /*
 TEST_F(TestWorker, LoadBlock) {
