@@ -31,7 +31,4 @@ void WriteManager::FinishWritePartition(SArrayBinStream bin) {
   }
 }
 
-
-
-
 }

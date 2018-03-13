@@ -47,6 +47,10 @@ void DistributeManager::FinishDistribute(SArrayBinStream bin) {
     cv.mapper = SimplePartToNodeMapper(part_to_node);
     cv.num_partition = cv.mapper.GetNumParts();
     elem_->collection_map->Insert(cv);
+
+    // trigger InitWorkers
+    SArrayBinStream bin;
+    ToScheduler(elem_, ScheduleFlag::kInitWorkers, bin);
   }
 }
 

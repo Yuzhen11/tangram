@@ -171,9 +171,12 @@ void Scheduler::RunNextSpec() {
     } else if (spec.type == SpecWrapper::Type::kWrite) {
       LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
       write_manager_->Write(spec);
-    // } else if (spec.type == SpecWrapper::Type::kMapWithJoin) {
-    //   LOG(INFO) << "[Scheduler] spec not implemented: " << spec.DebugString();
-    //   RunNextSpec();
+    } else if (spec.type == SpecWrapper::Type::kCheckpoint) {
+      LOG(INFO) << "[Scheduler] Checkpointing: " << spec.DebugString();
+      Checkpoint(spec);
+    } else if (spec.type == SpecWrapper::Type::kLoadCheckpoint) {
+      LOG(INFO) << "[Scheduler] Loading checkpoint: " << spec.DebugString();
+      LoadCheckpoint(spec);
     } else {
       CHECK(false) << spec.DebugString();
     }
