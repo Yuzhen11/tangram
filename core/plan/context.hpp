@@ -12,6 +12,8 @@
 #include "core/plan/checkpoint.hpp"
 #include "core/plan/load_checkpoint.hpp"
 
+#include "core/plan/dag.hpp"
+
 namespace xyz {
 
 template <typename T>
@@ -69,7 +71,7 @@ class Context {
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>(num_parts);
     auto* p = plans_.make<Distribute<D>>(c->Id(), num_parts);
     p->data = std::move(data);
-
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
@@ -78,22 +80,26 @@ class Context {
     using D = decltype(parse(*(std::string*)nullptr));
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
     auto* p = plans_.make<Load<D>>(c->Id(), url, parse);
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
   template<typename C, typename F>
   static void write(C* c, std::string url, F write) {
-    plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);
+    auto* p = plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);
+    dag_.AddDagNode(p->plan_id, {c->Id()}, {});
   }
 
   template<typename C>
   static void checkpoint(C* c, std::string url) {
-    plans_.make<Checkpoint>(c->Id(), url);
+    auto* p = plans_.make<Checkpoint>(c->Id(), url);
+    dag_.AddDagNode(p->plan_id, {c->Id()}, {});
   }
 
   template<typename C>
   static void loadcheckpoint(C* c, std::string url) {
-    plans_.make<LoadCheckpoint>(c->Id(), url);
+    auto* p = plans_.make<LoadCheckpoint>(c->Id(), url);
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
   }
 
   template<typename D>
@@ -101,6 +107,7 @@ class Context {
     auto* c = collections_.make<Collection<D>>(num_parts);
     c->SetMapper(std::make_shared<HashKeyToPartMapper<typename D::KeyT>>(num_parts));
     auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), num_parts);
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
@@ -109,6 +116,7 @@ class Context {
     auto* c = collections_.make<Collection<D>>(ranges.size());
     c->SetMapper(std::make_shared<RangeKeyToPartMapper<typename D::KeyT>>(ranges));
     auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), ranges.size());
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
@@ -121,6 +129,7 @@ class Context {
     p->map = m;
     p->join = j;
     p->num_iter = num_iter;
+    dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
 
@@ -132,6 +141,7 @@ class Context {
     p->map_vec = m;
     p->join = j;
     p->num_iter = num_iter;
+    dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
   
@@ -142,6 +152,7 @@ class Context {
     p->mappart = m;
     p->join = j;
     p->num_iter = num_iter;
+    dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
 
@@ -155,16 +166,19 @@ class Context {
     p->join = [](CountObjT* a, int b) {
       a->b += b;
     };
+    dag_.AddDagNode(p->plan_id, {c1->Id()}, {count_collection->Id()});
+
     p->num_iter = 1;
     auto *p2 = plans_.make<MapJoin<Collection<CountObjT>, Collection<CountObjT>, 
          CountObjT, CountObjT, int>>(count_collection, count_collection);
     p2->map = [](const CountObjT& obj) {
-      LOG(INFO) << "**************count: " << obj.b;
+      LOG(INFO) << "********** count: " << obj.b << " *********";
       return std::make_pair(0, 0);
     };
     p2->join = [](CountObjT* a, int b) {
     };
     p2->num_iter = 1;
+    dag_.AddDagNode(p2->plan_id, {count_collection->Id()}, {count_collection->Id()});
   }
 
   template<typename C1, typename C2, typename C3, typename M, typename J>
@@ -178,6 +192,7 @@ class Context {
     p->mappartwith = m;
     p->join = j;
     p->num_iter = num_iter;
+    dag_.AddDagNode(p->plan_id, {c1->Id(), c2->Id()}, {c3->Id()});
     return p;
   }
 
@@ -187,9 +202,13 @@ class Context {
   static auto get_allcollections() {
     return collections_.all();
   }
+  static const Dag& get_dag() {
+    return dag_;
+  }
  private:
   static Store<CollectionBase> collections_;
   static Store<PlanBase> plans_;
+  static Dag dag_;
 };
 
 } // namespace xyz

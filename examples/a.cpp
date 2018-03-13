@@ -95,4 +95,5 @@ int main(int argc, char** argv) {
   // Context::loadcheckpoint(c1, "/tmp/tmp/checkpoint");
 
   Runner::Run();
+  // Runner::PrintDag();
 }
