@@ -7,6 +7,8 @@
 #include "core/scheduler/scheduler_elem.hpp"
 #include "core/scheduler/block_manager.hpp"
 #include "core/scheduler/control_manager.hpp"
+#include "core/scheduler/write_manager.hpp"
+#include "core/scheduler/distribute_manager.hpp"
 
 #include "base/actor.hpp"
 #include "base/node.hpp"
@@ -37,6 +39,8 @@ public:
     // setup block_manager_
     block_manager_ = std::make_shared<BlockManager>(elem_, builder);
     control_manager_ = std::make_shared<ControlManager>(elem_);
+    distribute_manager_ = std::make_shared<DistributeManager>(elem_);
+    write_manager_ = std::make_shared<WriteManager>(elem_);
   }
   virtual ~Scheduler() override {
     if (scheduler_thread_.joinable()) {
@@ -89,23 +93,14 @@ public:
 
   void StartScheduling();
 
-  void SendToAllWorkers(ScheduleFlag flag, SArrayBinStream bin);
-
-  // void FinishBlock(SArrayBinStream bin);
-  void FinishDistribute(SArrayBinStream bin);
   void Checkpoint(SpecWrapper s);
   void LoadCheckpoint(SpecWrapper s);
-  void Write(SpecWrapper s);
   void FinishCheckPoint(SArrayBinStream bin);
   void FinishLoadCheckPoint(SArrayBinStream bin);
-  void FinishWritePartition(SArrayBinStream bin);
   void FinishJoin(SArrayBinStream bin);
 
-  void SendTo(int node_id, ScheduleFlag flag, SArrayBinStream bin);
 
 private:
-  void Load(LoadSpec* spec);
-  void Distribute(DistributeSpec* spec);
   // void TryRunPlan();
   void PrepareNextCollection();
 
@@ -118,38 +113,22 @@ private:
 
   int register_program_count_ = 0;
   int init_reply_count_ = 0;
-
   bool init_program_ = false;
   ProgramContext program_;
-  // std::unordered_map<int, CollectionView> collection_map_;
-
-  // std::shared_ptr<Assigner> assigner_;
-  // std::vector<Node> nodes_;
-  // std::vector<int> num_local_threads_;
-  // std::map<int, NodeInfo> nodes_;
 
   std::promise<void> exit_promise_;
-
   bool start_ = false;
-
   std::thread scheduler_thread_;
 
-  int distribute_part_expected_ = 0;
-
-  // collection_id, part_id, node_id
-  std::map<int, std::map<int, int>> distribute_map_;
-
+  int spec_count_ = 0;
+  SpecWrapper currnet_spec_;
   int num_workers_finish_a_plan_iteration_ = 0;
   int cur_iters_ = 0;
 
-  int spec_count_ = -1;
-  SpecWrapper currnet_spec_;
-
-  int write_reply_count_ = 0;
-  int expected_write_reply_count_;
-
   std::shared_ptr<BlockManager> block_manager_;
   std::shared_ptr<ControlManager> control_manager_;
+  std::shared_ptr<DistributeManager> distribute_manager_;
+  std::shared_ptr<WriteManager> write_manager_;
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;

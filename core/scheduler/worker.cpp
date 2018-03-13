@@ -155,15 +155,15 @@ void Worker::LoadBlock(SArrayBinStream bin) {
 
 void Worker::Distribute(SArrayBinStream bin) {
   // LOG(INFO) << WorkerId() << "[Worker] Distribute";
-  int part_id;
+  int part_id, plan_id;
   DistributeSpec spec;
-  bin >> part_id;
+  bin >> part_id >> plan_id;
   spec.FromBin(bin);
   auto func = engine_elem_.function_store->GetCreatePartFromBin(spec.collection_id);
   auto part = func(spec.data, part_id, spec.num_partition);
   engine_elem_.partition_manager->Insert(spec.collection_id, part_id, std::move(part));
   SArrayBinStream reply_bin;
-  reply_bin << spec.collection_id << part_id << engine_elem_.node.id;
+  reply_bin << spec.collection_id << part_id << engine_elem_.node.id << plan_id;
   SendMsgToScheduler(ScheduleFlag::kFinishDistribute, reply_bin);
 }
 

@@ -9,10 +9,13 @@ file(GLOB core-src-files
     plan/function_store.cpp
     map_output/map_output_storage.cpp
     scheduler/control.cpp
+    scheduler/scheduler_elem.cpp
     scheduler/worker.cpp
     scheduler/scheduler.cpp
     scheduler/block_manager.cpp
     scheduler/control_manager.cpp
+    scheduler/write_manager.cpp
+    scheduler/distribute_manager.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
     worker/controller.cpp

@@ -27,7 +27,7 @@ void ControlManager::Control(SArrayBinStream bin) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
       SArrayBinStream reply_bin;
-      ToScheduler(ScheduleFlag::kFinishPlan, reply_bin);
+      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
     }
   }
 }
@@ -98,18 +98,6 @@ void ControlManager::SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBi
     msg.AddData(bin.ToSArray());
     elem_->sender->Send(std::move(msg));
   }
-}
-
-void ControlManager::ToScheduler(ScheduleFlag flag, SArrayBinStream bin) {
-  SArrayBinStream ctrl_bin;
-  ctrl_bin << flag;
-  Message msg;
-  msg.meta.sender = -1;
-  msg.meta.recver = 0;
-  msg.meta.flag = Flag::kOthers;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(bin.ToSArray());
-  elem_->sender->Send(std::move(msg));
 }
 
 } // namespace xyz

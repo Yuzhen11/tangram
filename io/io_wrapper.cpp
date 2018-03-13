@@ -57,7 +57,7 @@ void IOWrapper::Write(int collection_id, int part_id, std::string url,
 
     // 2. reply
     SArrayBinStream reply_bin;
-    reply_bin << qid_;
+    reply_bin << qid_ << collection_id;
     finish_handle(reply_bin);
   });
 }

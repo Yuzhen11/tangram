@@ -13,9 +13,10 @@ class ControlManager {
       : elem_(elem) {}
   void Control(SArrayBinStream bin);
   void RunPlan(SpecWrapper spec);
-  void SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
-  void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   void TryUpdateVersion(int plan_id);
+  void SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
+  //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
+  
  private:
   std::shared_ptr<SchedulerElem> elem_;
 

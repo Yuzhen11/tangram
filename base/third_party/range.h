@@ -19,10 +19,20 @@ class Range {
   uint64_t begin() const { return begin_; }
   uint64_t end() const { return end_; }
   uint64_t size() const { return end_ - begin_; }
+/* 
+  friend SArrayBinStream& operator<<(SArrayBinStream& stream, const third_party::Range& range) {
+    stream << range.begin() << range.end();
+    return stream;
+  }
+  friend SArrayBinStream& operator>>(SArrayBinStream& stream, third_party::Range& range) {
+    stream >> range.begin() >> range.end();
+    return stream;
+  }
+ */
  private:
   uint64_t begin_;
   uint64_t end_;
 };
-
+ 
 }  // namespace third_party
 }  // namespace xyz

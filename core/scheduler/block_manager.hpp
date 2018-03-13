@@ -18,7 +18,7 @@ class BlockManager {
           std::function<std::shared_ptr<Assigner>()> builder);
   void Load(LoadSpec* spec);
   void FinishBlock(SArrayBinStream bin);
-  void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
+
  private:
   std::map<int, std::shared_ptr<Assigner>> assigners_;
   std::function<std::shared_ptr<Assigner>()> builder_;
