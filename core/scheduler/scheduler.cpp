@@ -52,11 +52,11 @@ void Scheduler::Process(Message msg) {
     break;
   }
   case ScheduleFlag::kFinishCheckpoint: {
-    FinishCheckPoint(bin);
+    checkpoint_manager_->FinishCheckpoint(bin);
     break;
   }
   case ScheduleFlag::kFinishLoadCheckpoint: {
-    FinishLoadCheckPoint(bin);
+    checkpoint_manager_->FinishLoadCheckpoint(bin);
     break;
   }
   case ScheduleFlag::kFinishWritePartition: {
@@ -149,10 +149,10 @@ void Scheduler::RunPlan(int plan_id) {
     write_manager_->Write(spec);
   } else if (spec.type == SpecWrapper::Type::kCheckpoint) {
     LOG(INFO) << "[Scheduler] Checkpointing: " << spec.DebugString();
-    Checkpoint(spec);
+    checkpoint_manager_->Checkpoint(spec);
   } else if (spec.type == SpecWrapper::Type::kLoadCheckpoint) {
     LOG(INFO) << "[Scheduler] Loading checkpoint: " << spec.DebugString();
-    LoadCheckpoint(spec);
+    checkpoint_manager_->LoadCheckpoint(spec);
   } else {
     CHECK(false) << spec.DebugString();
   }
@@ -187,52 +187,6 @@ void Scheduler::RunNextSpec() {
   }
 }
 */
-
-
-
-void Scheduler::FinishCheckPoint(SArrayBinStream bin) {
-  // TODO
-  CHECK(false);
-  // RunNextSpec();
-}
-
-void Scheduler::FinishLoadCheckPoint(SArrayBinStream bin) {
-  // TODO
-  CHECK(false);
-  // RunNextSpec();
-}
-
-void Scheduler::Checkpoint(SpecWrapper s) {
-  CHECK(s.type == SpecWrapper::Type::kCheckpoint);
-  auto* checkpoint_spec = static_cast<CheckpointSpec*>(s.spec.get());
-  int cid = checkpoint_spec->cid;
-  std::string url = checkpoint_spec->url;
-  auto& collection_view = elem_->collection_map->Get(cid);
-  for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
-    int node_id = collection_view.mapper.Get(i);
-    SArrayBinStream bin;
-    std::string dest_url = url + "/part-" + std::to_string(i);
-    bin << cid << i << dest_url;  // collection_id, partition_id, url
-    SendTo(elem_, node_id, ScheduleFlag::kCheckpoint, bin);
-  }
-}
-
-void Scheduler::LoadCheckpoint(SpecWrapper s) {
-  CHECK(s.type == SpecWrapper::Type::kLoadCheckpoint);
-  auto* load_checkpoint_spec = static_cast<LoadCheckpointSpec*>(s.spec.get());
-  int cid = load_checkpoint_spec->cid;
-  std::string url = load_checkpoint_spec->url;
-  auto& collection_view = elem_->collection_map->Get(cid);
-  for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
-    int node_id = collection_view.mapper.Get(i);
-    SArrayBinStream bin;
-    std::string dest_url = url + "/part-" + std::to_string(i);
-    bin << cid << i << dest_url;  // collection_id, partition_id, url
-    SendTo(elem_, node_id, ScheduleFlag::kLoadCheckpoint, bin);
-  }
-}
-
-
 
 /*
 void Scheduler::RunMap() {
