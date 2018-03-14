@@ -18,16 +18,6 @@
 
 namespace xyz {
 
-/*
- * Fetch format: collection_id, partition_id, version, ...
- * FetchReply format: collection_id, partition_id, version, <partition>
- *
- * This is used to:
- * 1. Fetch remote partition (RemoteFetch)
- *     - called by partition_cache or other components
- * 2. Handle fetch request
- * 3. Handle fetch reply
- */
 class Fetcher : public Actor, public AbstractFetcher {
  public:
   Fetcher(int qid, std::shared_ptr<FunctionStore> function_store,
@@ -42,28 +32,15 @@ class Fetcher : public Actor, public AbstractFetcher {
     Stop();
   }
 
-  // public api:
   virtual void FetchObjs(int plan_id, int app_thread_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) override;
 
   virtual std::shared_ptr<AbstractPartition> FetchPart(FetchMeta meta) override;
 
+
   void FetchPartRequest(Message msg);
   void SendFetchPart(FetchMeta meta);
-
-  // virtual void FetchRemote(int collection_id, int partition_id, int version) override;
-
-  /*
-   * Fetch from local partition_manager
-   * Invoked by Process().
-   */
-  // void FetchLocal(Message msg);
-  /*
-   * Receive FetchReply from remote.
-   * Invoked by Process().
-   */
-
 
   // for Process
   // void FetchObjsRequest(Message msg);
@@ -74,15 +51,16 @@ class Fetcher : public Actor, public AbstractFetcher {
   virtual void Process(Message msg) override;
  private:
   std::shared_ptr<CollectionMap> collection_map_;
-  // std::shared_ptr<AbstractPartitionCache> partition_cache_;
   std::shared_ptr<AbstractSender> sender_;
   std::mutex m_;
   std::condition_variable cv_;
+  // for fetch objs
   // app_thread_id -> recv_count
   std::map<int, int> recv_finished_;
   // app_thread_id -> (partition_id -> binstream)
   std::map<int, std::vector<SArrayBinStream>*> recv_binstream_;
 
+  // for fetch partition
   // collection_id, part_id, version
   std::map<int, std::map<int, int>> partition_versions_;
   std::map<int, std::map<int, std::shared_ptr<AbstractPartition>>> partition_cache_;

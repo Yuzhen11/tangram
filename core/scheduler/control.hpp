@@ -57,9 +57,6 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
 };
 
 enum class FetcherFlag : char{
-  kFetch,
-  kFetchReply,
-  kFetchObjsRequest,
   kFetchObjsReply,
   kFetchPartRequest,
   kFetchPartReplyLocal,
@@ -99,7 +96,7 @@ enum class ControllerFlag : char {
   kFinishJoin,
   kUpdateVersion,
   kReceiveJoin,
-  kFetchObjsRequest,
+  kFetchRequest,
   kFinishFetchObjsRequest,
 };
 

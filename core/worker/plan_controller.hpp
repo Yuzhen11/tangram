@@ -51,7 +51,7 @@ class PlanController : public AbstractPlanController {
   virtual void FinishJoin(SArrayBinStream bin) override;
   virtual void UpdateVersion(SArrayBinStream bin) override;
   virtual void ReceiveJoin(Message msg) override;
-  virtual void ReceiveFetchObjsRequest(Message msg) override;
+  virtual void ReceiveFetchRequest(Message msg) override;
   virtual void FinishRunObjsRequest(SArrayBinStream bin) override;
 
   void TryRunSomeMaps();
@@ -65,7 +65,7 @@ class PlanController : public AbstractPlanController {
 
   void RunMap(int part_id, int version);
   void RunJoin(VersionedJoinMeta meta);
-  void RunFetchObjsRequest(VersionedJoinMeta fetch_meta);
+  void RunFetchRequest(VersionedJoinMeta fetch_meta);
   void SendMsgToScheduler(SArrayBinStream bin);
  private:
   Controller* controller_;

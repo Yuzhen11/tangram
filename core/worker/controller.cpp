@@ -46,8 +46,8 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->ReceiveJoin(msg);
     break;
   }
-  case ControllerFlag::kFetchObjsRequest: {
-    plan_controllers_[plan_id]->ReceiveFetchObjsRequest(msg);
+  case ControllerFlag::kFetchRequest: {
+    plan_controllers_[plan_id]->ReceiveFetchRequest(msg);
     break;
   }
   case ControllerFlag::kFinishFetchObjsRequest: {

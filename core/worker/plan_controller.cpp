@@ -163,7 +163,7 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
     VersionedJoinMeta meta = joins.front();
     joins.pop_front();
     if (!meta.meta.is_fetch) RunJoin(meta);
-    else RunFetchObjsRequest(meta);
+    else RunFetchRequest(meta);
     return true;
   }
   return false;
@@ -375,7 +375,7 @@ void PlanController::SendMsgToScheduler(SArrayBinStream bin) {
   controller_->engine_elem_.sender->Send(std::move(msg));
 }
 
-void PlanController::ReceiveFetchObjsRequest(Message msg) {
+void PlanController::ReceiveFetchRequest(Message msg) {
   CHECK_EQ(msg.data.size(), 3);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[1]);
@@ -407,13 +407,13 @@ void PlanController::ReceiveFetchObjsRequest(Message msg) {
   bool map_join = (map_collection_id_ == join_collection_id_);
   bool join_fetch = (fetch_meta.meta.collection_id == join_collection_id_);
   if (!map_fetch && !map_join && !join_fetch) { // all different collection
-    RunFetchObjsRequest(fetch_meta);
+    RunFetchRequest(fetch_meta);
   }
   if (map_fetch && !map_join) { // map collection = fetch collection
-    RunFetchObjsRequest(fetch_meta);
+    RunFetchRequest(fetch_meta);
   }
   if (map_join && !map_fetch) { // map collection = join collection
-    RunFetchObjsRequest(fetch_meta);
+    RunFetchRequest(fetch_meta);
   }
 
 
@@ -422,18 +422,18 @@ void PlanController::ReceiveFetchObjsRequest(Message msg) {
     if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
       waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
     } else {
-      RunFetchObjsRequest(fetch_meta);
+      RunFetchRequest(fetch_meta);
     }
   }
   if (map_fetch && map_join) { // all the same collection
     if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
       waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
-    } else { RunFetchObjsRequest(fetch_meta); }
+    } else { RunFetchRequest(fetch_meta); }
   }
 
 }
 
-void PlanController::RunFetchObjsRequest(VersionedJoinMeta fetch_meta) {
+void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
   CHECK(running_fetches_[fetch_meta.meta.part_id].find(fetch_meta.meta.upstream_part_id) ==
           running_fetches_[fetch_meta.meta.part_id].end());
   running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);

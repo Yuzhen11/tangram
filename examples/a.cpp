@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
        TypedCache<ObjT>* typed_cache, 
        AbstractMapProgressTracker* t) {
 
-      /*
+      // Get
       std::vector<std::string> keys{"a", "b", "c", "n"};
       auto ret = typed_cache->Get(keys);
       CHECK_EQ(ret.size(), keys.size());
@@ -76,7 +76,8 @@ int main(int argc, char** argv) {
         ss << keys[i] << ":" << ret[i].b << ", ";
       }
       LOG(INFO) << ss.str();
-      */
+
+      // GetPartition
       for (int part_id = 0; part_id < 10; ++ part_id) {
         auto part = typed_cache->GetPartition(part_id);
         auto* with_p = static_cast<TypedPartition<ObjT>*>(part.get());
