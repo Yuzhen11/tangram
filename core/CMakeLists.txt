@@ -20,7 +20,6 @@ file(GLOB core-src-files
     scheduler/collection_manager.cpp
     scheduler/checkpoint_manager.cpp
     plan/context.cpp
-    plan/runner.cpp
     plan/spec_wrapper.cpp
     plan/dag.cpp
     worker/controller.cpp
@@ -32,6 +31,7 @@ file(GLOB core-src-files
 if(LIBHDFS3_FOUND)
     file(GLOB core-src-hdfs-files
         engine.cpp
+        plan/runner.cpp
         )
     list(APPEND core-src-files ${core-src-hdfs-files})
 endif(LIBHDFS3_FOUND)
