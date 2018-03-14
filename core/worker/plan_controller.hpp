@@ -4,6 +4,7 @@
 
 #include "core/worker/controller.hpp"
 #include "core/worker/abstract_plan_controller.hpp"
+#include "base/message.hpp"
 
 namespace xyz {
 
@@ -11,6 +12,7 @@ class PlanController : public AbstractPlanController {
  public:
   PlanController(Controller* controller)
     : controller_(controller) {
+    fetch_executor_ = std::make_shared<Executor>(1);
   }
 
   ~PlanController() = default;
@@ -21,7 +23,11 @@ class PlanController : public AbstractPlanController {
     int part_id;
     int upstream_part_id;
     int version;
-  
+    bool is_fetch = false;
+    int sender;
+    int recver;
+    Flag flag;
+
     std::string DebugString() const {
       std::stringstream ss;
       ss << "{";
@@ -30,6 +36,7 @@ class PlanController : public AbstractPlanController {
       ss << ", part_id: " << part_id;
       ss << ", upstream_part_id: " << upstream_part_id;
       ss << ", version: " << version;
+      ss << ", is fetch: " << is_fetch;
       ss << " }";
       return ss.str();
     }
@@ -45,6 +52,8 @@ class PlanController : public AbstractPlanController {
   virtual void FinishJoin(SArrayBinStream bin) override;
   virtual void UpdateVersion(SArrayBinStream bin) override;
   virtual void ReceiveJoin(Message msg) override;
+  virtual void ReceiveFetchObjsRequest(Message msg) override;
+  virtual void FinishRunObjsRequest(SArrayBinStream bin) override;
 
   void TryRunSomeMaps();
 
@@ -57,6 +66,7 @@ class PlanController : public AbstractPlanController {
 
   void RunMap(int part_id, int version);
   void RunJoin(VersionedJoinMeta meta);
+  void RunFetchObjsRequest(VersionedJoinMeta fetch_meta);
   void SendMsgToScheduler(SArrayBinStream bin);
  private:
   Controller* controller_;
@@ -65,6 +75,7 @@ class PlanController : public AbstractPlanController {
   // TODO: now only support running 1 plan at a time
   int map_collection_id_;
   int join_collection_id_;
+  int fetch_collection_id_ = -1; 
   int plan_id_;
   int num_upstream_part_;
   int num_local_join_part_;
@@ -91,8 +102,12 @@ class PlanController : public AbstractPlanController {
 
   std::set<int> running_maps_;
   std::set<int> running_joins_;
+  std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
   // part -> join, some joins are waiting as there is a join writing that part
   std::map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
+
+  std::shared_ptr<Executor> fetch_executor_;
+  
 };
 
 }  // namespace

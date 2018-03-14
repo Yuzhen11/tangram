@@ -12,6 +12,7 @@
 #include "comm/abstract_sender.hpp"
 #include "core/collection_map.hpp"
 #include "core/queue_node_map.hpp"
+#include "core/scheduler/control.hpp"
 
 namespace xyz {
 
@@ -27,19 +28,10 @@ namespace xyz {
  */
 class Fetcher : public Actor {
  public:
-  using GetterFuncT = std::function<
-      SArrayBinStream(SArrayBinStream& bin, std::shared_ptr<AbstractPartition>)>;
-  enum class Ctrl : char {
-    kFetch, 
-    kFetchReply, 
-    kFetchObjsRequest, 
-    kFetchObjsReply
-  };
   Fetcher(int qid, std::shared_ptr<PartitionManager> partition_manager,
-          const std::map<int, GetterFuncT>& funcs,
           std::shared_ptr<CollectionMap> collection_map, 
           std::shared_ptr<AbstractSender> sender):
-    Actor(qid), partition_manager_(partition_manager), func_(funcs), 
+    Actor(qid), partition_manager_(partition_manager),
     collection_map_(collection_map),
     sender_(sender) {
     Start();
@@ -49,7 +41,7 @@ class Fetcher : public Actor {
   }
 
   // public api:
-  void FetchObjs(int app_thread_id, int collection_id, 
+  void FetchObjs(int plan_id, int app_thread_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets);
 
@@ -69,7 +61,7 @@ class Fetcher : public Actor {
 
 
   // for Process
-  void FetchObjsRequest(Message msg);
+  // void FetchObjsRequest(Message msg);
   void FetchObjsReply(Message msg);
   void FetchPartRequest(Message msg);
   void FetchPartReply(Message msg);
@@ -77,7 +69,6 @@ class Fetcher : public Actor {
 
   virtual void Process(Message msg) override;
  private:
-  std::map<int, GetterFuncT> func_;
   std::shared_ptr<PartitionManager> partition_manager_;
   std::shared_ptr<CollectionMap> collection_map_;
   // std::shared_ptr<AbstractPartitionCache> partition_cache_;

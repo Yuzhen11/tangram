@@ -31,7 +31,7 @@ class AbstractFunctionStore {
           std::shared_ptr<AbstractBlockReader>)>;
   using WritePartFuncT = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractWriter>, std::string)>;
   using GetterFuncT = std::function<
-      SArrayBinStream(SArrayBinStream& bin, std::shared_ptr<AbstractPartition>)>;
+      SArrayBinStream(SArrayBinStream bin, std::shared_ptr<AbstractPartition>)>;
   using CreatePartFuncT = std::function<std::shared_ptr<AbstractPartition>()>;
   ~AbstractFunctionStore(){}
   virtual void AddMap(int id, MapFuncT func) = 0;

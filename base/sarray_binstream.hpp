@@ -22,7 +22,6 @@ class SArrayBinStream {
   size_t Size() const;
 
   void AddBin(const char* bin, size_t sz);
-  void AddBinDouble(const char* bin, size_t sz);
 
   void* PopBin(size_t sz);
 

@@ -21,7 +21,7 @@ struct CollectionBase {
 
 template<typename T>
 AbstractFunctionStore::GetterFuncT GetGetterFunc() {
-  return [](SArrayBinStream& bin, std::shared_ptr<AbstractPartition> partition) {
+  return [](SArrayBinStream bin, std::shared_ptr<AbstractPartition> partition) {
     auto* p = dynamic_cast<Indexable<T>*>(partition.get());
     CHECK_NOTNULL(p);
     typename T::KeyT key;

@@ -30,6 +30,7 @@ enum class ScheduleFlag : char {
   kUpdateCollection,
   kUpdateCollectionReply
 };
+
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          // "kInitWorker",
                                          // "kInitWorkersReply",
@@ -53,6 +54,13 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kFinishPlan",
                                          "kUpdateCollection",
                                          "kUpdateCollectionReply"
+};
+
+enum class FetcherFlag : char{
+  kFetch,
+  kFetchReply,
+  kFetchObjsRequest,
+  kFetchObjsReply,
 };
 
 // currently workerinfo only has one field.
@@ -87,7 +95,9 @@ enum class ControllerFlag : char {
   kFinishMap,
   kFinishJoin,
   kUpdateVersion,
-  kReceiveJoin
+  kReceiveJoin,
+  kFetchObjsRequest,
+  kFinishFetchObjsRequest,
 };
 
 } // namespace xyz

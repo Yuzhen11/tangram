@@ -1,19 +1,22 @@
 #include "core/worker/plan_controller.hpp"
-
 #include "core/scheduler/control.hpp"
-
 #include "core/partition/abstract_map_progress_tracker.hpp"
+#include "glog/logging.h"
 
 namespace xyz {
 
 struct FakeTracker : public AbstractMapProgressTracker {
   virtual void Report(int) override {}
 };
-
+ 
 void PlanController::Setup(SpecWrapper spec) {
   type_ = spec.type;
   CHECK(type_ == SpecWrapper::Type::kMapJoin
        || type_ == SpecWrapper::Type::kMapWithJoin);
+  if (type_ == SpecWrapper::Type::kMapWithJoin) {
+    auto* p = static_cast<MapWithJoinSpec*>(spec.spec.get());
+    fetch_collection_id_ = p->with_collection_id;
+  }
   auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   map_collection_id_ = p->map_collection_id;
   join_collection_id_ = p->join_collection_id;
@@ -149,12 +152,18 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
   if (running_joins_.find(part_id) != running_joins_.end()) {
     return false;
   }
+
+  // see whether there is any fetch running
+  if (fetch_collection_id_ == join_collection_id_ && !running_fetches_[part_id].empty()) {
+    return false;
+  }
   // see whether there is any waiting joins
   auto& joins = waiting_joins_[part_id];
   if (!joins.empty()) {
     VersionedJoinMeta meta = joins.front();
     joins.pop_front();
-    RunJoin(meta);
+    if (!meta.meta.is_fetch) RunJoin(meta);
+    else RunFetchObjsRequest(meta);
     return true;
   }
   return false;
@@ -172,9 +181,6 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
     TryUpdateJoinVersion();
   }
   bool run = TryRunWaitingJoins(part_id);
-  if (run) {
-    return;
-  }
 }
 
 void PlanController::TryUpdateMapVersion() {
@@ -323,6 +329,12 @@ void PlanController::ReceiveJoin(Message msg) {
     waiting_joins_[meta.part_id].push_back(join_meta);
     return;
   }
+
+  if (fetch_collection_id_ == join_collection_id_ && !running_fetches_[meta.part_id].empty()) {
+    // someone is fetching this part
+    waiting_joins_[meta.part_id].push_back(join_meta);
+    return;
+  }
   RunJoin(join_meta);
 }
 
@@ -361,6 +373,114 @@ void PlanController::SendMsgToScheduler(SArrayBinStream bin) {
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(bin.ToSArray());
   controller_->engine_elem_.sender->Send(std::move(msg));
+}
+
+void PlanController::ReceiveFetchObjsRequest(Message msg) {
+  CHECK_EQ(msg.data.size(), 3);
+  SArrayBinStream ctrl2_bin, bin;
+  ctrl2_bin.FromSArray(msg.data[1]);
+  bin.FromSArray(msg.data[2]);
+  int plan_id, app_thread_id, collection_id, partition_id;
+  ctrl2_bin >> plan_id >> app_thread_id >> collection_id >> partition_id;//version?
+  CHECK(plan_id == plan_id_);
+  CHECK(controller_->engine_elem_.partition_manager->Has(collection_id, partition_id)) << "cid: " << collection_id << ", pid: " << partition_id;
+
+  VersionedJoinMeta fetch_meta;
+  fetch_meta.meta.plan_id = plan_id_;
+  fetch_meta.meta.collection_id = collection_id;
+  CHECK(fetch_meta.meta.collection_id == fetch_collection_id_);
+  fetch_meta.meta.part_id = partition_id;
+  fetch_meta.meta.upstream_part_id = app_thread_id;
+  //fetch_meta.meta.version = version;
+  fetch_meta.meta.is_fetch = true;
+  fetch_meta.bin = bin;
+  fetch_meta.meta.sender = msg.meta.sender;
+  CHECK_EQ(msg.meta.recver, controller_->Qid());
+  fetch_meta.meta.recver = msg.meta.recver;
+  fetch_meta.meta.flag = Flag::kOthers;
+  
+  CHECK(fetch_meta.meta.is_fetch == true);
+  
+  bool map_fetch = (fetch_meta.meta.collection_id == map_collection_id_);
+  bool map_join = (map_collection_id_ == join_collection_id_);
+  bool join_fetch = (fetch_meta.meta.collection_id == join_collection_id_);
+  if (!map_fetch && !map_join && !join_fetch) { // all different collection
+    RunFetchObjsRequest(fetch_meta);
+  }
+  if (map_fetch && !map_join) { // map collection = fetch collection
+    RunFetchObjsRequest(fetch_meta);
+  }
+  if (map_join && !map_fetch) { // map collection = join collection
+    RunFetchObjsRequest(fetch_meta);
+  }
+
+
+  // join could be blocked by running_fetches
+  if (join_fetch && !map_fetch) { // join collection = fetch collection
+    if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
+      waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+    } else {
+      RunFetchObjsRequest(fetch_meta);
+    }
+  }
+  if (map_fetch && map_join) { // all the same collection
+    if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
+      waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+    } else { RunFetchObjsRequest(fetch_meta); }
+  }
+
+}
+
+void PlanController::RunFetchObjsRequest(VersionedJoinMeta fetch_meta) {
+  CHECK(running_fetches_[fetch_meta.meta.part_id].find(fetch_meta.meta.upstream_part_id) ==
+          running_fetches_[fetch_meta.meta.part_id].end());
+  running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);
+
+  fetch_executor_->Add([this, fetch_meta]{
+    CHECK(controller_->engine_elem_.partition_manager->Has(fetch_meta.meta.collection_id, fetch_meta.meta.part_id)) << fetch_meta.meta.collection_id << " " <<  fetch_meta.meta.part_id;
+    auto part = controller_->engine_elem_.partition_manager->Get(fetch_meta.meta.collection_id, fetch_meta.meta.part_id);
+    // when to
+    SArrayBinStream reply_bin;
+    auto getter_ = controller_->engine_elem_.function_store->GetGetter();
+    CHECK(getter_.find(fetch_meta.meta.collection_id) != getter_.end());
+    auto& func = getter_[fetch_meta.meta.collection_id];
+    reply_bin = func(fetch_meta.bin, part->partition);
+    // reply, send to fetcher
+    Message reply_msg;
+    reply_msg.meta.sender = fetch_meta.meta.recver;
+    reply_msg.meta.recver = fetch_meta.meta.sender;
+    reply_msg.meta.flag = fetch_meta.meta.flag;
+    //reply_msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
+    ctrl_reply_bin << FetcherFlag::kFetchObjsReply;
+    ctrl2_reply_bin << fetch_meta.meta.upstream_part_id << fetch_meta.meta.collection_id << fetch_meta.meta.part_id; 
+    //ctrl2_reply_bin << app_thread_id << collection_id << partition_id; 
+    reply_msg.AddData(ctrl_reply_bin.ToSArray());
+    reply_msg.AddData(ctrl2_reply_bin.ToSArray());
+    reply_msg.AddData(reply_bin.ToSArray());
+    controller_->engine_elem_.sender->Send(std::move(reply_msg));
+    
+    // send to controller
+    Message msg;
+    msg.meta.sender = 0;
+    msg.meta.recver = 0;
+    msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, plan_bin, bin;
+    ctrl_bin << ControllerFlag::kFinishFetchObjsRequest;
+    plan_bin << plan_id_;
+    bin << fetch_meta.meta.part_id << fetch_meta.meta.upstream_part_id;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(plan_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    controller_->GetWorkQueue()->Push(msg);
+  });
+}
+
+void PlanController::FinishRunObjsRequest(SArrayBinStream bin) {
+  int part_id, upstream_part_id;
+  bin >> part_id >> upstream_part_id;
+  running_fetches_[part_id].erase(upstream_part_id);
+  bool run = TryRunWaitingJoins(part_id);
 }
 
 }  // namespace

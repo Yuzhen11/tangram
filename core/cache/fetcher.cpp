@@ -91,7 +91,7 @@ void Fetcher::FetchObjsReply(Message msg) {
   cv_.notify_all();
 }
 
-void Fetcher::FetchObjs(int app_thread_id, int collection_id, 
+void Fetcher::FetchObjs(int plan_id, int app_thread_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) {
 
@@ -102,11 +102,11 @@ void Fetcher::FetchObjs(int app_thread_id, int collection_id,
   for (auto const& pair : part_to_keys) {
     Message msg;
     msg.meta.sender = Qid();
-    msg.meta.recver = GetFetcherQid(collection_map_->Lookup(collection_id, pair.first));
+    msg.meta.recver = GetControllerActorQid(collection_map_->Lookup(collection_id, pair.first));// get controller qid
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, ctrl2_bin;
-    ctrl_bin << Ctrl::kFetchObjsRequest;
-    ctrl2_bin << app_thread_id << collection_id << pair.first;
+    ctrl_bin << ControllerFlag::kFetchObjsRequest;// send to controller
+    ctrl2_bin << plan_id << app_thread_id << collection_id << pair.first;
     auto& bin = pair.second;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(ctrl2_bin.ToSArray());
@@ -128,52 +128,21 @@ void Fetcher::FetchObjs(int app_thread_id, int collection_id,
   return;
 }
 
-void Fetcher::FetchObjsRequest(Message msg) {
-  CHECK_EQ(msg.data.size(), 3);
-  SArrayBinStream ctrl2_bin, bin;
-  ctrl2_bin.FromSArray(msg.data[1]);
-  bin.FromSArray(msg.data[2]);
-  int app_thread_id, collection_id, partition_id;
-  ctrl2_bin >> app_thread_id >> collection_id >> partition_id;
-
-  CHECK(func_.find(collection_id) != func_.end());
-  auto& func = func_[collection_id];
-  CHECK(partition_manager_->Has(collection_id, partition_id)) << "cid: " << collection_id << ", pid: " << partition_id;
-  auto part = partition_manager_->Get(collection_id, partition_id);
-  SArrayBinStream reply_bin;
-  {
-    boost::shared_lock<boost::shared_mutex> lk(part->mu);
-    reply_bin = func(bin, part->partition);
-  }
-
-  // reply
-  Message reply_msg;
-  reply_msg.meta.sender = msg.meta.recver;
-  reply_msg.meta.recver = msg.meta.sender;
-  reply_msg.meta.flag = Flag::kOthers;
-  SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
-  ctrl_reply_bin << Ctrl::kFetchObjsReply;
-  ctrl2_reply_bin << app_thread_id << collection_id << partition_id; 
-  reply_msg.AddData(ctrl_reply_bin.ToSArray());
-  reply_msg.AddData(ctrl2_reply_bin.ToSArray());
-  reply_msg.AddData(reply_bin.ToSArray());
-  sender_->Send(std::move(reply_msg));
-}
-
 void Fetcher::Process(Message msg) {
   CHECK_GE(msg.data.size(), 2);
   SArrayBinStream ctrl_bin, bin;
   ctrl_bin.FromSArray(msg.data[0]);
   bin.FromSArray(msg.data[1]);
-  Ctrl ctrl;
+  FetcherFlag ctrl;
   ctrl_bin >> ctrl;
-  if (ctrl == Ctrl::kFetch) {
+  if (ctrl == FetcherFlag::kFetch) {
     // FetchLocal(msg);
-  } else if (ctrl == Ctrl::kFetchReply){
+  } else if (ctrl == FetcherFlag::kFetchReply){
     // FetchReply(msg);
-  } else if (ctrl == Ctrl::kFetchObjsRequest){
-    FetchObjsRequest(msg);
-  } else if (ctrl == Ctrl::kFetchObjsReply){
+  } else if (ctrl == FetcherFlag::kFetchObjsRequest){
+    // FetchObjsRequest(msg);
+    CHECK(false);
+  } else if (ctrl == FetcherFlag::kFetchObjsReply){
     FetchObjsReply(msg);
   } else {
     CHECK(false);

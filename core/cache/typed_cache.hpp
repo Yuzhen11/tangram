@@ -27,9 +27,9 @@ class TypedCache : public AbstractCache {
   //   return obj;
   // }
  
-  TypedCache(int collection_id, std::shared_ptr<Fetcher> fetcher, 
+  TypedCache(int plan_id, int collection_id, std::shared_ptr<Fetcher> fetcher, 
           std::shared_ptr<AbstractKeyToPartMapper> mapper)
-      :collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
+      :plan_id_(plan_id), collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
     // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
   }
 
@@ -66,12 +66,12 @@ class TypedCache : public AbstractCache {
   }
 
   std::vector<ObjT> Get(const std::vector<typename ObjT::KeyT>& keys) {
-    int app_thread_id = 0;
+    int app_thread_id = 0;//TODO
     // 1. sliced
     auto part_to_keys = Partition(keys);
     // 2. fetch
     std::vector<SArrayBinStream> rets;
-    fetcher_->FetchObjs(app_thread_id, collection_id_, part_to_keys, &rets);
+    fetcher_->FetchObjs(plan_id_, app_thread_id, collection_id_, part_to_keys, &rets);
     // 3. organize the result
     CHECK_EQ(rets.size(), part_to_keys.size());
     auto objs = Organzie(rets);
@@ -82,6 +82,7 @@ class TypedCache : public AbstractCache {
  private:
   std::shared_ptr<Fetcher> fetcher_;
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
+  int plan_id_;
   int collection_id_;
 
   // std::shared_ptr<AbstractPartitionCache> partition_cache_;
