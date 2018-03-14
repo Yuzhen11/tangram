@@ -42,12 +42,16 @@ struct MapPartJoin : public PlanBase {
     num_iter = iter;
     return this;
   }
-
+  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetCheckpointInterval(int cp) {
+    checkpoint_interval = cp;
+    return this;
+  }
 
   virtual SpecWrapper GetSpec() override {
     SpecWrapper w;
     w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin, 
-            map_collection->Id(), join_collection->Id(), num_iter, staleness);
+            map_collection->Id(), join_collection->Id(), num_iter, 
+            staleness, checkpoint_interval);
     return w;
   }
 
@@ -90,6 +94,7 @@ struct MapPartJoin : public PlanBase {
 
   int num_iter = 1;
   int staleness = 0;
+  int checkpoint_interval = 0;
 };
 
 }  // namespace xyz

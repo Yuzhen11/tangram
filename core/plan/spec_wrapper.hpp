@@ -18,14 +18,18 @@ struct MapJoinSpec : public Spec {
   int join_collection_id;
   int num_iter = 1;
   int staleness = 0;
+  int checkpoint_interval = 0;
   MapJoinSpec() = default;
-  MapJoinSpec(int mid, int jid, int iter, int s)
-      : map_collection_id(mid), join_collection_id(jid), num_iter(iter), staleness(s) {}
+  MapJoinSpec(int mid, int jid, int iter, int s, int cp)
+      : map_collection_id(mid), join_collection_id(jid), 
+      num_iter(iter), staleness(s), checkpoint_interval(cp) {}
   virtual void ToBin(SArrayBinStream& bin) override {
-    bin << map_collection_id << join_collection_id << num_iter << staleness;
+    bin << map_collection_id << join_collection_id 
+        << num_iter << staleness << checkpoint_interval;
   }
   virtual void FromBin(SArrayBinStream& bin) override {
-    bin >> map_collection_id >> join_collection_id >> num_iter >> staleness;
+    bin >> map_collection_id >> join_collection_id
+        >> num_iter >> staleness >> checkpoint_interval;
   }
   virtual std::string DebugString() const {
     std::stringstream ss;
@@ -33,6 +37,7 @@ struct MapJoinSpec : public Spec {
     ss << ", join_collection_id: " << join_collection_id;
     ss << ", num_iter: " << num_iter;
     ss << ", staleness: " << staleness;
+    ss << ", checkpoint_interval: " << checkpoint_interval;
     return ss.str();
   }
 };
@@ -40,8 +45,8 @@ struct MapJoinSpec : public Spec {
 struct MapWithJoinSpec : public MapJoinSpec {
   int with_collection_id;
   MapWithJoinSpec() = default;
-  MapWithJoinSpec(int mid, int jid, int iter, int s, int wid)
-      : MapJoinSpec(mid, jid, iter, s), with_collection_id(wid) {}
+  MapWithJoinSpec(int mid, int jid, int iter, int s, int cp, int wid)
+      : MapJoinSpec(mid, jid, iter, s, cp), with_collection_id(wid) {}
   virtual void ToBin(SArrayBinStream& bin) override {
     MapJoinSpec::ToBin(bin);
     bin << with_collection_id;
