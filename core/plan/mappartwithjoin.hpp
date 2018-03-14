@@ -38,7 +38,7 @@ struct MapPartWithJoin : public PlanBase {
   // for internal use
   using MapPartWithTempFuncT= 
       std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<Fetcher>,
+                                                       std::shared_ptr<AbstractFetcher>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
@@ -74,7 +74,7 @@ struct MapPartWithJoin : public PlanBase {
     auto map_part_with = GetMapPartWithFunc();
     function_store->AddMapWith(this->plan_id, [this, map_part_with](
                 std::shared_ptr<AbstractPartition> partition,
-                std::shared_ptr<Fetcher> fetcher,
+                std::shared_ptr<AbstractFetcher> fetcher,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part_with(partition, fetcher, tracker);
       if (this->combine) {
@@ -91,7 +91,7 @@ struct MapPartWithJoin : public PlanBase {
   MapPartWithTempFuncT GetMapPartWithFunc() {
     CHECK_NOTNULL(mappartwith);
     return [this](std::shared_ptr<AbstractPartition> partition, 
-              std::shared_ptr<Fetcher> fetcher,
+              std::shared_ptr<AbstractFetcher> fetcher,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;

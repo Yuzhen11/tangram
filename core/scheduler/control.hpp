@@ -61,6 +61,9 @@ enum class FetcherFlag : char{
   kFetchReply,
   kFetchObjsRequest,
   kFetchObjsReply,
+  kFetchPartRequest,
+  kFetchPartReplyLocal,
+  kFetchPartReplyRemote,
 };
 
 // currently workerinfo only has one field.
@@ -98,6 +101,15 @@ enum class ControllerFlag : char {
   kReceiveJoin,
   kFetchObjsRequest,
   kFinishFetchObjsRequest,
+  kFetchPartRequest,
+};
+
+struct FetchMeta {
+  int plan_id; 
+  int app_thread_id;
+  int collection_id;
+  int partition_id; 
+  int version;
 };
 
 } // namespace xyz

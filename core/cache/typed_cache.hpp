@@ -5,8 +5,8 @@
 // #include "core/cache/abstract_partition_cache.hpp"
 // #include "core/partition/indexed_seq_partition.hpp"
 
-#include "core/cache/fetcher.hpp"
-
+#include "core/cache/abstract_fetcher.hpp"
+#include "core/index/key_to_part_mappers.hpp"
 
 namespace xyz {
 
@@ -27,7 +27,7 @@ class TypedCache : public AbstractCache {
   //   return obj;
   // }
  
-  TypedCache(int plan_id, int collection_id, std::shared_ptr<Fetcher> fetcher, 
+  TypedCache(int plan_id, int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 
           std::shared_ptr<AbstractKeyToPartMapper> mapper)
       :plan_id_(plan_id), collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
     // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
@@ -80,7 +80,7 @@ class TypedCache : public AbstractCache {
   }
 
  private:
-  std::shared_ptr<Fetcher> fetcher_;
+  std::shared_ptr<AbstractFetcher> fetcher_;
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
   int plan_id_;
   int collection_id_;

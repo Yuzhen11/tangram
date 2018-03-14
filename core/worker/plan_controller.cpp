@@ -380,24 +380,26 @@ void PlanController::ReceiveFetchObjsRequest(Message msg) {
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[1]);
   bin.FromSArray(msg.data[2]);
-  int plan_id, app_thread_id, collection_id, partition_id;
-  ctrl2_bin >> plan_id >> app_thread_id >> collection_id >> partition_id;//version?
-  CHECK(plan_id == plan_id_);
-  CHECK(controller_->engine_elem_.partition_manager->Has(collection_id, partition_id)) << "cid: " << collection_id << ", pid: " << partition_id;
+  FetchMeta received_fetch_meta;
+  // int plan_id, app_thread_id, collection_id, partition_id;
+  // ctrl2_bin >> plan_id >> app_thread_id >> collection_id >> partition_id;//version?
+  ctrl2_bin >> received_fetch_meta;
+  CHECK(received_fetch_meta.plan_id == plan_id_);
+  CHECK(controller_->engine_elem_.partition_manager->Has(received_fetch_meta.collection_id, received_fetch_meta.partition_id)) 
+      << "cid: " << received_fetch_meta.collection_id << ", pid: " << received_fetch_meta.partition_id;
 
   VersionedJoinMeta fetch_meta;
   fetch_meta.meta.plan_id = plan_id_;
-  fetch_meta.meta.collection_id = collection_id;
+  fetch_meta.meta.collection_id = received_fetch_meta.collection_id;
   CHECK(fetch_meta.meta.collection_id == fetch_collection_id_);
-  fetch_meta.meta.part_id = partition_id;
-  fetch_meta.meta.upstream_part_id = app_thread_id;
-  //fetch_meta.meta.version = version;
+  fetch_meta.meta.part_id = received_fetch_meta.partition_id;
+  fetch_meta.meta.upstream_part_id = received_fetch_meta.app_thread_id;
+  fetch_meta.meta.version = received_fetch_meta.version;  // version -1 means fetch objs, others means fetch part
   fetch_meta.meta.is_fetch = true;
   fetch_meta.bin = bin;
   fetch_meta.meta.sender = msg.meta.sender;
   CHECK_EQ(msg.meta.recver, controller_->Qid());
   fetch_meta.meta.recver = msg.meta.recver;
-  fetch_meta.meta.flag = Flag::kOthers;
   
   CHECK(fetch_meta.meta.is_fetch == true);
   
@@ -436,25 +438,34 @@ void PlanController::RunFetchObjsRequest(VersionedJoinMeta fetch_meta) {
           running_fetches_[fetch_meta.meta.part_id].end());
   running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);
 
-  fetch_executor_->Add([this, fetch_meta]{
+  fetch_executor_->Add([this, fetch_meta] {
     CHECK(controller_->engine_elem_.partition_manager->Has(fetch_meta.meta.collection_id, fetch_meta.meta.part_id)) << fetch_meta.meta.collection_id << " " <<  fetch_meta.meta.part_id;
     auto part = controller_->engine_elem_.partition_manager->Get(fetch_meta.meta.collection_id, fetch_meta.meta.part_id);
-    // when to
     SArrayBinStream reply_bin;
-    auto getter_ = controller_->engine_elem_.function_store->GetGetter();
-    CHECK(getter_.find(fetch_meta.meta.collection_id) != getter_.end());
-    auto& func = getter_[fetch_meta.meta.collection_id];
-    reply_bin = func(fetch_meta.bin, part->partition);
+    if (fetch_meta.meta.version == -1) {  // fetch objs
+      auto& func = controller_->engine_elem_.function_store->GetGetter(fetch_meta.meta.collection_id);
+      reply_bin = func(fetch_meta.bin, part->partition);
+    } else {  // fetch part
+      part->partition->ToBin(reply_bin);
+    }
     // reply, send to fetcher
     Message reply_msg;
     reply_msg.meta.sender = fetch_meta.meta.recver;
     reply_msg.meta.recver = fetch_meta.meta.sender;
-    reply_msg.meta.flag = fetch_meta.meta.flag;
-    //reply_msg.meta.flag = Flag::kOthers;
+    reply_msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
-    ctrl_reply_bin << FetcherFlag::kFetchObjsReply;
-    ctrl2_reply_bin << fetch_meta.meta.upstream_part_id << fetch_meta.meta.collection_id << fetch_meta.meta.part_id; 
-    //ctrl2_reply_bin << app_thread_id << collection_id << partition_id; 
+    if (fetch_meta.meta.version == -1) {  // fetch objs
+      ctrl_reply_bin << FetcherFlag::kFetchObjsReply;
+    } else {  // fetch part
+      ctrl_reply_bin << FetcherFlag::kFetchPartReplyRemote;
+    }
+    FetchMeta meta;
+    meta.plan_id = plan_id_;
+    meta.app_thread_id = fetch_meta.meta.upstream_part_id;
+    meta.collection_id = fetch_meta.meta.collection_id;
+    meta.partition_id = fetch_meta.meta.part_id;
+    meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
+    ctrl2_reply_bin << meta;
     reply_msg.AddData(ctrl_reply_bin.ToSArray());
     reply_msg.AddData(ctrl2_reply_bin.ToSArray());
     reply_msg.AddData(reply_bin.ToSArray());

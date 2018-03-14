@@ -26,7 +26,6 @@ class PlanController : public AbstractPlanController {
     bool is_fetch = false;
     int sender;
     int recver;
-    Flag flag;
 
     std::string DebugString() const {
       std::stringstream ss;

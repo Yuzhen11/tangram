@@ -32,7 +32,7 @@ class FunctionStore : public AbstractFunctionStore {
   const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
   const CreatePartFromBlockReaderFuncT& GetCreatePartFromBlockReader(int id);
   const WritePartFuncT& GetWritePartFunc(int id);
-  const std::map<int, GetterFuncT>& GetGetter();
+  const GetterFuncT& GetGetter(int id);
   const CreatePartFuncT& GetCreatePart(int id);
 
   // Used by plan to register function.

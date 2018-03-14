@@ -37,8 +37,9 @@ const FunctionStore::WritePartFuncT& FunctionStore::GetWritePartFunc(int id) {
   return write_part_[id];
 }
 
-const std::map<int, FunctionStore::GetterFuncT>& FunctionStore::GetGetter() {
-  return getter_;
+const FunctionStore::GetterFuncT& FunctionStore::GetGetter(int id) {
+  CHECK(getter_.find(id) != getter_.end()) << id;
+  return getter_[id];
 }
 
 const FunctionStore::CreatePartFuncT& FunctionStore::GetCreatePart(int id) {
