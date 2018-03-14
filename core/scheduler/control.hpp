@@ -101,7 +101,6 @@ enum class ControllerFlag : char {
   kReceiveJoin,
   kFetchObjsRequest,
   kFinishFetchObjsRequest,
-  kFetchPartRequest,
 };
 
 struct FetchMeta {

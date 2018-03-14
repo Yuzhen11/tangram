@@ -23,10 +23,12 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
     std::unique_lock<std::mutex> lk(m_);
     // TODO: decide when to return
     cv_.wait(lk, [this, meta] {
-      return partition_versions_[meta.collection_id][meta.partition_id] == meta.version;
+      return partition_versions_[meta.collection_id].find(meta.partition_id) != partition_versions_[meta.collection_id].end()
+       && partition_versions_[meta.collection_id][meta.partition_id] == meta.version;
     });
   }
   std::unique_lock<std::mutex> lk(m_);
+  auto p = partition_cache_[meta.collection_id][meta.partition_id];
   return partition_cache_[meta.collection_id][meta.partition_id];
 }
 
@@ -49,7 +51,7 @@ void Fetcher::SendFetchPart(FetchMeta meta) {
   msg.meta.recver = GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id));
   msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin, ctrl2_bin, dummy_bin;
-  ctrl_bin << ControllerFlag::kFetchPartRequest; // send to controller
+  ctrl_bin << ControllerFlag::kFetchObjsRequest; // send to controller
   // ctrl2_bin << plan_id << app_thread_id << collection_id << pair.first;
   ctrl2_bin << meta;
   msg.AddData(ctrl_bin.ToSArray());
