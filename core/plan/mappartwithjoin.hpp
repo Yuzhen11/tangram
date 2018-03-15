@@ -96,7 +96,10 @@ struct MapPartWithJoin : public PlanBase {
     return [this](int version, std::shared_ptr<AbstractPartition> partition, 
               std::shared_ptr<AbstractFetcher> fetcher,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      TypedCache<ObjT2> typed_cache(plan_id, partition->id, with_collection->Id(), fetcher, this->with_collection->GetMapper());
+      bool local_mode = true;
+      TypedCache<ObjT2> typed_cache(plan_id, partition->id, version, 
+              with_collection->Id(), fetcher, this->with_collection->GetMapper(), 
+              staleness, local_mode);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(this->join_collection->GetMapper());
       auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection->GetMapper());

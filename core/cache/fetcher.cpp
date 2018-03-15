@@ -2,12 +2,21 @@
 
 namespace xyz {
 
+// required to have lock first
+bool Fetcher::IsVersionSatisfied(const FetchMeta& meta) {
+  if (partition_versions_[meta.collection_id].find(meta.partition_id) != partition_versions_[meta.collection_id].end()
+      && partition_versions_[meta.collection_id][meta.partition_id] >= meta.version) {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
   {
     // check partition cache
     std::unique_lock<std::mutex> lk(m_);
-    if (partition_versions_[meta.collection_id].find(meta.partition_id) != partition_versions_[meta.collection_id].end()
-            && partition_versions_[meta.collection_id][meta.partition_id] >= meta.version) {
+    if (IsVersionSatisfied(meta)) {
       return partition_cache_[meta.collection_id][meta.partition_id];
     }
   }
@@ -21,9 +30,9 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
   GetWorkQueue()->Push(msg);
   {
     std::unique_lock<std::mutex> lk(m_);
+    // wait until partition version > required version.
     cv_.wait(lk, [this, meta] {
-      return partition_versions_[meta.collection_id].find(meta.partition_id) != partition_versions_[meta.collection_id].end()
-       && partition_versions_[meta.collection_id][meta.partition_id] == meta.version;
+      return IsVersionSatisfied(meta);
     });
   }
   std::unique_lock<std::mutex> lk(m_);
@@ -32,7 +41,7 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
 }
 
 void Fetcher::FinishPart(FetchMeta meta) {
-  // for local part
+  // for local part, do not forget to call FinishPart
   if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
     Message msg;
     msg.meta.sender = Qid();
@@ -61,10 +70,12 @@ void Fetcher::FetchPartRequest(Message msg) {
   // check whether there are pending requests for this version
   // TODO: add the request logic
   
+  // now I send fetch part directly
   SendFetchPart(meta);
 }
 
 void Fetcher::SendFetchPart(FetchMeta meta) {
+  // LOG(INFO) << "fetching: " << meta.DebugString();
   Message msg;
   msg.meta.sender = Qid();
   msg.meta.recver = GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id));
@@ -108,7 +119,6 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   p->FromBin(bin);
   // TODO remove from requesting_versions_
   std::unique_lock<std::mutex> lk(m_);
-  // TODO: work with plan_controller for the version
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
   cv_.notify_all();

@@ -3,6 +3,8 @@
 #include "core/partition/abstract_map_progress_tracker.hpp"
 #include "glog/logging.h"
 
+#include <limits>
+
 namespace xyz {
 
 struct FakeTracker : public AbstractMapProgressTracker {
@@ -455,6 +457,14 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
           running_fetches_[fetch_meta.meta.part_id].end());
   running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);
 
+  // identify the version
+  int version = -1;
+  if (fetch_collection_id_ == join_collection_id_) {
+    version = join_versions_[fetch_meta.meta.part_id];
+  } else {
+    version = std::numeric_limits<int>::max();
+  }
+
   bool local_fetch = (GetNodeId(fetch_meta.meta.sender) == GetNodeId(fetch_meta.meta.recver));
   // LOG(INFO) << "run fetch: " << local_fetch << " " << fetch_meta.meta.version;
   if (fetch_meta.meta.local_mode && fetch_meta.meta.version != -1 && local_fetch) {  // for local fetch part
@@ -471,21 +481,21 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
     meta.upstream_part_id = fetch_meta.meta.upstream_part_id;
     meta.collection_id = fetch_meta.meta.collection_id;
     meta.partition_id = fetch_meta.meta.part_id;
-    meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
+    meta.version = version;
     ctrl2_reply_bin << meta;
     reply_msg.AddData(ctrl_reply_bin.ToSArray());
     reply_msg.AddData(ctrl2_reply_bin.ToSArray());
     controller_->engine_elem_.sender->Send(std::move(reply_msg));
     // fetcher should release the fetch
   } else {
-    fetch_executor_->Add([this, fetch_meta] {
-      Fetch(fetch_meta);
+    fetch_executor_->Add([this, fetch_meta, version] {
+      Fetch(fetch_meta, version);
     });
   }
 
 }
 
-void PlanController::Fetch(VersionedJoinMeta fetch_meta) {
+void PlanController::Fetch(VersionedJoinMeta fetch_meta, int version) {
   CHECK(controller_->engine_elem_.partition_manager->Has(fetch_meta.meta.collection_id, fetch_meta.meta.part_id)) << fetch_meta.meta.collection_id << " " <<  fetch_meta.meta.part_id;
   auto part = controller_->engine_elem_.partition_manager->Get(fetch_meta.meta.collection_id, fetch_meta.meta.part_id);
   SArrayBinStream reply_bin;
@@ -511,7 +521,7 @@ void PlanController::Fetch(VersionedJoinMeta fetch_meta) {
   meta.upstream_part_id = fetch_meta.meta.upstream_part_id;
   meta.collection_id = fetch_meta.meta.collection_id;
   meta.partition_id = fetch_meta.meta.part_id;
-  meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
+  meta.version = version;
   ctrl2_reply_bin << meta;
   reply_msg.AddData(ctrl_reply_bin.ToSArray());
   reply_msg.AddData(ctrl2_reply_bin.ToSArray());

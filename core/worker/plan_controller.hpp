@@ -72,7 +72,7 @@ class PlanController : public AbstractPlanController {
   void RunMap(int part_id, int version);
   void RunJoin(VersionedJoinMeta meta);
   void RunFetchRequest(VersionedJoinMeta fetch_meta);
-  void Fetch(VersionedJoinMeta fetch_meta);
+  void Fetch(VersionedJoinMeta fetch_meta, int version);
   void SendMsgToScheduler(SArrayBinStream bin);
   void DisplayTime();
 

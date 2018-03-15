@@ -13,9 +13,13 @@ namespace xyz {
 template <typename ObjT>
 class TypedCache : public AbstractCache {
  public:
-  TypedCache(int plan_id, int partition_id, int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 
-          std::shared_ptr<AbstractKeyToPartMapper> mapper)
-      :plan_id_(plan_id), partition_id_(partition_id), collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
+  TypedCache(int plan_id, int partition_id, int version, 
+          int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 
+          std::shared_ptr<AbstractKeyToPartMapper> mapper, 
+          int staleness, bool local_mode)
+      :plan_id_(plan_id), partition_id_(partition_id), version_(version),
+       collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper),
+       staleness_(staleness), local_mode_(local_mode) {
     // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
   }
 
@@ -36,11 +40,11 @@ class TypedCache : public AbstractCache {
   std::shared_ptr<AbstractPartition> GetPartition(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.upstream_part_id = partition_id_;  // TODO
+    meta.upstream_part_id = partition_id_;
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
-    meta.version = 0;  // TODO
-    meta.local_mode = true;
+    meta.version = std::max(version_ - staleness_, 0);
+    meta.local_mode = local_mode_;
     return fetcher_->FetchPart(meta);
   }
 
@@ -48,11 +52,11 @@ class TypedCache : public AbstractCache {
   void ReleasePart(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.upstream_part_id = partition_id_;  // TODO
+    meta.upstream_part_id = partition_id_;
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
-    meta.version = 0;  // TODO
-    meta.local_mode = true;
+    meta.version = std::max(version_ - staleness_, 0);
+    meta.local_mode = local_mode_;
     fetcher_->FinishPart(meta);
   }
 
@@ -95,11 +99,9 @@ class TypedCache : public AbstractCache {
   int plan_id_;
   int collection_id_;
   int partition_id_;
-
-  // std::shared_ptr<AbstractPartitionCache> partition_cache_;
-  // int collection_id_;
-  // // TODO: the system should decide the version.
-  // int version_;
+  int version_;
+  int staleness_ = 0;
+  bool local_mode_ = true;
 };
 
 }  // namespace xyz

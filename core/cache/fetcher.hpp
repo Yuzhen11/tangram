@@ -52,6 +52,7 @@ class Fetcher : public Actor, public AbstractFetcher {
   void FetchPartReplyRemote(Message msg);
   void FetchPartReplyLocal(Message msg);
 
+  bool IsVersionSatisfied(const FetchMeta& meta);
 
   virtual void Process(Message msg) override;
  private:
