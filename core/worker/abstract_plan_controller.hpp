@@ -14,7 +14,7 @@ struct AbstractPlanController {
   virtual void UpdateVersion(SArrayBinStream bin) = 0;
   virtual void ReceiveJoin(Message msg) = 0;
   virtual void ReceiveFetchRequest(Message msg) = 0;
-  virtual void FinishRunObjsRequest(SArrayBinStream bin) = 0;
+  virtual void FinishFetch(SArrayBinStream bin) = 0;
 };
 
 }  // namespace xyz

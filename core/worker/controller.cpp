@@ -50,8 +50,8 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->ReceiveFetchRequest(msg);
     break;
   }
-  case ControllerFlag::kFinishFetchObjsRequest: {
-    plan_controllers_[plan_id]->FinishRunObjsRequest(bin);
+  case ControllerFlag::kFinishFetch: {
+    plan_controllers_[plan_id]->FinishFetch(bin);
     break;  
   }
   default: CHECK(false);

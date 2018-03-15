@@ -31,6 +31,26 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
   return partition_cache_[meta.collection_id][meta.partition_id];
 }
 
+void Fetcher::FinishPart(FetchMeta meta) {
+  // for local part
+  if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
+    Message msg;
+    msg.meta.sender = Qid();
+    msg.meta.recver = GetControllerActorQid(GetNodeId(Qid()));
+    CHECK_EQ(msg.meta.recver, 
+      GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id)));
+    msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, plan_bin, bin;
+    ctrl_bin << ControllerFlag::kFinishFetch;
+    plan_bin << meta.plan_id;
+    bin << meta.partition_id << meta.app_thread_id;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(plan_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    sender_->Send(msg);
+  }
+}
+
 void Fetcher::FetchPartRequest(Message msg) {
   SArrayBinStream bin;
   CHECK_EQ(msg.data.size(), 2);
@@ -56,6 +76,23 @@ void Fetcher::SendFetchPart(FetchMeta meta) {
   msg.AddData(ctrl2_bin.ToSArray());
   msg.AddData(dummy_bin.ToSArray());
   sender_->Send(msg);
+}
+
+void Fetcher::FetchPartReplyLocal(Message msg) {
+  // access to local part granted
+  CHECK_EQ(msg.data.size(), 2);
+  SArrayBinStream ctrl2_bin, bin;
+  ctrl2_bin.FromSArray(msg.data[1]);
+  FetchMeta meta;
+  ctrl2_bin >> meta;
+  // LOG(INFO) << "local: " << meta.DebugString();
+  auto p = partition_manager_->Get(meta.collection_id, meta.partition_id)->partition;
+
+  std::unique_lock<std::mutex> lk(m_);
+  // TODO: work with plan_controller for the version
+  partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
+  partition_cache_[meta.collection_id][meta.partition_id] = p;
+  cv_.notify_all();
 }
 
 void Fetcher::FetchPartReplyRemote(Message msg) {
@@ -149,6 +186,8 @@ void Fetcher::Process(Message msg) {
     FetchPartRequest(msg);
   } else if (ctrl == FetcherFlag::kFetchPartReplyRemote){
     FetchPartReplyRemote(msg);
+  } else if (ctrl == FetcherFlag::kFetchPartReplyLocal){
+    FetchPartReplyLocal(msg);
   } else {
     CHECK(false);
   }

@@ -21,9 +21,11 @@ namespace xyz {
 class Fetcher : public Actor, public AbstractFetcher {
  public:
   Fetcher(int qid, std::shared_ptr<FunctionStore> function_store,
+          std::shared_ptr<PartitionManager> partition_manager,
           std::shared_ptr<CollectionMap> collection_map, 
           std::shared_ptr<AbstractSender> sender):
     Actor(qid), function_store_(function_store),
+    partition_manager_(partition_manager),
     collection_map_(collection_map),
     sender_(sender) {
     Start();
@@ -38,6 +40,8 @@ class Fetcher : public Actor, public AbstractFetcher {
 
   virtual std::shared_ptr<AbstractPartition> FetchPart(FetchMeta meta) override;
 
+  virtual void FinishPart(FetchMeta meta) override;
+
 
   void FetchPartRequest(Message msg);
   void SendFetchPart(FetchMeta meta);
@@ -46,6 +50,7 @@ class Fetcher : public Actor, public AbstractFetcher {
   // void FetchObjsRequest(Message msg);
   void FetchObjsReply(Message msg);
   void FetchPartReplyRemote(Message msg);
+  void FetchPartReplyLocal(Message msg);
 
 
   virtual void Process(Message msg) override;
@@ -68,6 +73,7 @@ class Fetcher : public Actor, public AbstractFetcher {
   std::map<int, std::map<int, std::deque<int>>> requesting_versions_;
 
   std::shared_ptr<FunctionStore> function_store_;
+  std::shared_ptr<PartitionManager> partition_manager_;
 };
 
 }  // namespace xyz

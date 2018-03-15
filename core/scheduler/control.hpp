@@ -97,7 +97,7 @@ enum class ControllerFlag : char {
   kUpdateVersion,
   kReceiveJoin,
   kFetchRequest,
-  kFinishFetchObjsRequest,
+  kFinishFetch,
 };
 
 struct FetchMeta {
@@ -106,6 +106,17 @@ struct FetchMeta {
   int collection_id;
   int partition_id; 
   int version;
+  bool local_mode;
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "plan_id: " << plan_id;
+    ss << ", app_thread_id: " << app_thread_id;
+    ss << ", collection_id: " << collection_id;
+    ss << ", partition_id: " << partition_id;
+    ss << ", version: " << version;
+    ss << ", local_mode: " << local_mode;
+    return ss.str();
+  }
 };
 
 } // namespace xyz

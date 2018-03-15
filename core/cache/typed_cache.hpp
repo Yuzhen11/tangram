@@ -33,6 +33,7 @@ class TypedCache : public AbstractCache {
     return objs;
   }
 
+  // set the local_mode to true to enable local fetch part
   std::shared_ptr<AbstractPartition> GetPartition(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
@@ -40,7 +41,20 @@ class TypedCache : public AbstractCache {
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
     meta.version = 0;  // TODO
+    meta.local_mode = true;
     return fetcher_->FetchPart(meta);
+  }
+
+  // call FinishPart after accessing the part
+  void ReleasePart(int partition_id) {
+    FetchMeta meta;
+    meta.plan_id = plan_id_;
+    meta.app_thread_id = 0;  // TODO
+    meta.collection_id = collection_id_;
+    meta.partition_id = partition_id;
+    meta.version = 0;  // TODO
+    meta.local_mode = true;
+    fetcher_->FinishPart(meta);
   }
 
 

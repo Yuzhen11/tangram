@@ -68,6 +68,7 @@ int main(int argc, char** argv) {
        AbstractMapProgressTracker* t) {
 
       // Get
+      /*
       std::vector<std::string> keys{"a", "b", "c", "n"};
       auto ret = typed_cache->Get(keys);
       CHECK_EQ(ret.size(), keys.size());
@@ -76,6 +77,7 @@ int main(int argc, char** argv) {
         ss << keys[i] << ":" << ret[i].b << ", ";
       }
       LOG(INFO) << ss.str();
+      */
 
       // GetPartition
       for (int part_id = 0; part_id < 10; ++ part_id) {
@@ -85,6 +87,7 @@ int main(int argc, char** argv) {
         for (auto& elem : *with_p) {
           LOG(INFO) << "elem: " << elem.a << " " << elem.b;
         }
+        typed_cache->ReleasePart(part_id);
       }
 
       std::vector<std::pair<std::string, int>> kvs;

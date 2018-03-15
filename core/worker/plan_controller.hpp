@@ -26,8 +26,9 @@ class PlanController : public AbstractPlanController {
     int upstream_part_id;
     int version;
     bool is_fetch = false;
-    int sender;
-    int recver;
+    int sender = -1;
+    int recver = -1;
+    bool local_mode = false;
 
     std::string DebugString() const {
       std::stringstream ss;
@@ -38,6 +39,9 @@ class PlanController : public AbstractPlanController {
       ss << ", upstream_part_id: " << upstream_part_id;
       ss << ", version: " << version;
       ss << ", is fetch: " << is_fetch;
+      ss << ", sender: " << sender;
+      ss << ", recver: " << recver;
+      ss << ", local_mode: " << local_mode;
       ss << " }";
       return ss.str();
     }
@@ -54,7 +58,7 @@ class PlanController : public AbstractPlanController {
   virtual void UpdateVersion(SArrayBinStream bin) override;
   virtual void ReceiveJoin(Message msg) override;
   virtual void ReceiveFetchRequest(Message msg) override;
-  virtual void FinishRunObjsRequest(SArrayBinStream bin) override;
+  virtual void FinishFetch(SArrayBinStream bin) override;
 
   void TryRunSomeMaps();
 
@@ -68,6 +72,7 @@ class PlanController : public AbstractPlanController {
   void RunMap(int part_id, int version);
   void RunJoin(VersionedJoinMeta meta);
   void RunFetchRequest(VersionedJoinMeta fetch_meta);
+  void Fetch(VersionedJoinMeta fetch_meta);
   void SendMsgToScheduler(SArrayBinStream bin);
   void DisplayTime();
 

@@ -16,6 +16,8 @@ struct AbstractFetcher {
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) = 0;
   virtual std::shared_ptr<AbstractPartition> FetchPart(FetchMeta meta) = 0;
+  // call FinishPart after accessing the part
+  virtual void FinishPart(FetchMeta meta) = 0;
 };
 
 }  // namespace xyz

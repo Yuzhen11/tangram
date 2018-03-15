@@ -414,6 +414,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
   fetch_meta.meta.upstream_part_id = received_fetch_meta.app_thread_id;
   fetch_meta.meta.version = received_fetch_meta.version;  // version -1 means fetch objs, others means fetch part
   fetch_meta.meta.is_fetch = true;
+  fetch_meta.meta.local_mode = received_fetch_meta.local_mode;
   fetch_meta.bin = bin;
   fetch_meta.meta.sender = msg.meta.sender;
   CHECK_EQ(msg.meta.recver, controller_->Qid());
@@ -456,27 +457,15 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
           running_fetches_[fetch_meta.meta.part_id].end());
   running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);
 
-  fetch_executor_->Add([this, fetch_meta] {
-    CHECK(controller_->engine_elem_.partition_manager->Has(fetch_meta.meta.collection_id, fetch_meta.meta.part_id)) << fetch_meta.meta.collection_id << " " <<  fetch_meta.meta.part_id;
-    auto part = controller_->engine_elem_.partition_manager->Get(fetch_meta.meta.collection_id, fetch_meta.meta.part_id);
-    SArrayBinStream reply_bin;
-    if (fetch_meta.meta.version == -1) {  // fetch objs
-      auto& func = controller_->engine_elem_.function_store->GetGetter(fetch_meta.meta.collection_id);
-      reply_bin = func(fetch_meta.bin, part->partition);
-    } else {  // fetch part
-      part->partition->ToBin(reply_bin);
-    }
-    // reply, send to fetcher
+  bool local_fetch = (GetNodeId(fetch_meta.meta.sender) == GetNodeId(fetch_meta.meta.recver));
+  // LOG(INFO) << "run fetch: " << local_fetch << " " << fetch_meta.meta.version;
+  if (fetch_meta.meta.local_mode && fetch_meta.meta.version != -1 && local_fetch) {  // for local fetch part
     Message reply_msg;
     reply_msg.meta.sender = fetch_meta.meta.recver;
     reply_msg.meta.recver = fetch_meta.meta.sender;
     reply_msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
-    if (fetch_meta.meta.version == -1) {  // fetch objs
-      ctrl_reply_bin << FetcherFlag::kFetchObjsReply;
-    } else {  // fetch part
-      ctrl_reply_bin << FetcherFlag::kFetchPartReplyRemote;
-    }
+    ctrl_reply_bin << FetcherFlag::kFetchPartReplyLocal;
     FetchMeta meta;
     meta.plan_id = plan_id_;
     meta.app_thread_id = fetch_meta.meta.upstream_part_id;
@@ -486,26 +475,64 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
     ctrl2_reply_bin << meta;
     reply_msg.AddData(ctrl_reply_bin.ToSArray());
     reply_msg.AddData(ctrl2_reply_bin.ToSArray());
-    reply_msg.AddData(reply_bin.ToSArray());
     controller_->engine_elem_.sender->Send(std::move(reply_msg));
-    
-    // send to controller
-    Message msg;
-    msg.meta.sender = 0;
-    msg.meta.recver = 0;
-    msg.meta.flag = Flag::kOthers;
-    SArrayBinStream ctrl_bin, plan_bin, bin;
-    ctrl_bin << ControllerFlag::kFinishFetchObjsRequest;
-    plan_bin << plan_id_;
-    bin << fetch_meta.meta.part_id << fetch_meta.meta.upstream_part_id;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(plan_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    controller_->GetWorkQueue()->Push(msg);
-  });
+  } else {
+    fetch_executor_->Add([this, fetch_meta] {
+      Fetch(fetch_meta);
+    });
+  }
+
 }
 
-void PlanController::FinishRunObjsRequest(SArrayBinStream bin) {
+void PlanController::Fetch(VersionedJoinMeta fetch_meta) {
+  CHECK(controller_->engine_elem_.partition_manager->Has(fetch_meta.meta.collection_id, fetch_meta.meta.part_id)) << fetch_meta.meta.collection_id << " " <<  fetch_meta.meta.part_id;
+  auto part = controller_->engine_elem_.partition_manager->Get(fetch_meta.meta.collection_id, fetch_meta.meta.part_id);
+  SArrayBinStream reply_bin;
+  if (fetch_meta.meta.version == -1) {  // fetch objs
+    auto& func = controller_->engine_elem_.function_store->GetGetter(fetch_meta.meta.collection_id);
+    reply_bin = func(fetch_meta.bin, part->partition);
+  } else {  // fetch part
+    part->partition->ToBin(reply_bin);
+  }
+  // reply, send to fetcher
+  Message reply_msg;
+  reply_msg.meta.sender = fetch_meta.meta.recver;
+  reply_msg.meta.recver = fetch_meta.meta.sender;
+  reply_msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_reply_bin, ctrl2_reply_bin;
+  if (fetch_meta.meta.version == -1) {  // fetch objs
+    ctrl_reply_bin << FetcherFlag::kFetchObjsReply;
+  } else {  // fetch part
+    ctrl_reply_bin << FetcherFlag::kFetchPartReplyRemote;
+  }
+  FetchMeta meta;
+  meta.plan_id = plan_id_;
+  meta.app_thread_id = fetch_meta.meta.upstream_part_id;
+  meta.collection_id = fetch_meta.meta.collection_id;
+  meta.partition_id = fetch_meta.meta.part_id;
+  meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
+  ctrl2_reply_bin << meta;
+  reply_msg.AddData(ctrl_reply_bin.ToSArray());
+  reply_msg.AddData(ctrl2_reply_bin.ToSArray());
+  reply_msg.AddData(reply_bin.ToSArray());
+  controller_->engine_elem_.sender->Send(std::move(reply_msg));
+  
+  // send to controller
+  Message msg;
+  msg.meta.sender = 0;
+  msg.meta.recver = 0;
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, plan_bin, bin;
+  ctrl_bin << ControllerFlag::kFinishFetch;
+  plan_bin << plan_id_;
+  bin << fetch_meta.meta.part_id << fetch_meta.meta.upstream_part_id;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(plan_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  controller_->GetWorkQueue()->Push(msg);
+}
+
+void PlanController::FinishFetch(SArrayBinStream bin) {
   int part_id, upstream_part_id;
   bin >> part_id >> upstream_part_id;
   running_fetches_[part_id].erase(upstream_part_id);
