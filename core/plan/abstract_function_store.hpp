@@ -22,7 +22,8 @@ class AbstractFunctionStore {
   using MergeCombineFuncT = std::function<SArrayBinStream(const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id)>;
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
   using MapWith = 
-      std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
+      std::function<std::shared_ptr<AbstractMapOutput>(int,
+                                                       std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractFetcher>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;
   using CreatePartFromBinFuncT = std::function<std::shared_ptr<AbstractPartition>(

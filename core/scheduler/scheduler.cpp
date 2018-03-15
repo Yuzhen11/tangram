@@ -63,16 +63,11 @@ void Scheduler::Process(Message msg) {
     write_manager_->FinishWritePartition(bin);
     break;
   }
-  // case ScheduleFlag::kJoinFinish: {
-  //   FinishJoin(bin);
-  //   break;
-  // }
   case ScheduleFlag::kControl: {
     control_manager_->Control(bin);
     break;
   }
   case ScheduleFlag::kFinishPlan: {
-    // RunNextSpec();  // TODO, if a plan finishes, run next spec
     int plan_id;
     bin >> plan_id;
     LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
@@ -105,10 +100,8 @@ void Scheduler::RegisterProgram(int node_id, SArrayBinStream bin) {
   }
   register_program_count_ += 1;
   if (register_program_count_ == elem_->nodes.size()) {
-    // spawn the scheduler thread
     LOG(INFO)
         << "[Scheduler] all workers registerred, start the scheduling thread";
-    // scheduler_thread_ = std::thread([this]() { Run(); });
     TryRunPlan();
   }
 }
@@ -136,13 +129,6 @@ void Scheduler::RunPlan(int plan_id) {
     block_manager_->Load(spec);
   } else if (spec.type == SpecWrapper::Type::kMapJoin
           || spec.type == SpecWrapper::Type::kMapWithJoin) {
-    // currnet_spec_ = spec;
-    // int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
-    // LOG(INFO) << "[Scheduler] TryRunPlan (" << spec_count_
-    //           << "/" << program_.specs.size() << ")"
-    //           << " Plan Iteration (" << cur_iters_
-    //           << "/" << expected_num_iters << ") " << spec.DebugString();
-    // RunMap();
     control_manager_->RunPlan(spec);
   } else if (spec.type == SpecWrapper::Type::kWrite) {
     LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
@@ -177,48 +163,5 @@ void Scheduler::RunDummy() {
   SArrayBinStream bin;
   SendToAllWorkers(elem_, ScheduleFlag::kDummy, bin);
 }
-
-/*
-void Scheduler::RunNextSpec() {
-  spec_count_ += 1;
-  if (spec_count_ == program_.specs.size()) {
-    Exit();
-  } else {
-  }
-}
-*/
-
-/*
-void Scheduler::RunMap() {
-  SArrayBinStream bin;
-  bin << currnet_spec_;
-  SendToAllWorkers(elem_, ScheduleFlag::kRunMap, bin);
-}
-
-void Scheduler::RunNextIteration() {
-  SArrayBinStream bin;
-  bin << currnet_spec_;
-  SendToAllWorkers(elem_, ScheduleFlag::kRunMap, bin);
-}
-
-void Scheduler::FinishJoin(SArrayBinStream bin) {
-  num_workers_finish_a_plan_iteration_ += 1;
-
-  if (num_workers_finish_a_plan_iteration_ == elem_->nodes.size()) {
-    num_workers_finish_a_plan_iteration_ = 0;
-    cur_iters_ += 1;
-
-    int expected_num_iters = static_cast<MapJoinSpec*>(currnet_spec_.spec.get())->num_iter;
-    if (cur_iters_ == expected_num_iters) {
-      cur_iters_ = 0;
-
-      RunNextSpec();
-      return;
-    }
-    RunNextIteration();
-  }
-}
-*/
-
 
 } // namespace xyz

@@ -14,10 +14,6 @@ int GetWorkerQid(int nid) {
   return nid * kMagic;
 }
 
-int GetJoinActorQid(int nid) {
-  return nid * kMagic + 1;
-}
-
 int GetFetcherQid(int nid) {
   return nid * kMagic + 2;
 }

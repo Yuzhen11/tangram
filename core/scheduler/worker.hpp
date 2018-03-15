@@ -10,7 +10,6 @@
 #include "comm/abstract_sender.hpp"
 #include "core/engine_elem.hpp"
 #include "core/index/simple_part_to_node_mapper.hpp"
-#include "core/partition/partition_tracker.hpp"
 #include "core/plan/function_store.hpp"
 #include "core/plan/plan_spec.hpp"
 
@@ -52,13 +51,7 @@ public:
 
   void UpdateCollection(SArrayBinStream bin);
 
-  // Run map on this worker
-  void RunMap(SArrayBinStream);
-
   void RunDummy();
-
-  // Send speculative command
-  void RunSpeculativeMap();
 
   void LoadBlock(SArrayBinStream bin);
   void Distribute(SArrayBinStream bin);
@@ -69,9 +62,6 @@ public:
   void SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin);
 
   void Exit();
-  void MapFinish();
-  void JoinFinish();
-
 private:
   int Id() { return engine_elem_.node.id; }
   std::string WorkerId() { 

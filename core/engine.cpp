@@ -1,5 +1,4 @@
 #include "core/engine.hpp"
-#include "core/join_actor.hpp"
 #include "core/queue_node_map.hpp"
 
 #include <chrono>
@@ -29,16 +28,6 @@ void Engine::Start() {
 
   engine_elem_.intermediate_store =
       std::make_shared<IntermediateStore>(engine_elem_.sender);
-  engine_elem_.partition_tracker = std::make_shared<PartitionTracker>(
-      engine_elem_.node.id, engine_elem_.partition_manager,
-      engine_elem_.executor, engine_elem_.sender, engine_elem_.collection_map);
-
-  // create join actor
-  const int join_actor_id = GetJoinActorQid(engine_elem_.node.id);
-  join_actor_ = std::make_shared<JoinActor>(
-      join_actor_id, engine_elem_.partition_tracker, engine_elem_.executor,
-      engine_elem_.function_store);
-  mailbox_->RegisterQueue(join_actor_id, join_actor_->GetWorkQueue());
 
   // create fetcher
   const int fetcher_id = GetFetcherQid(engine_elem_.node.id);
@@ -88,7 +77,6 @@ void Engine::Start() {
 void Engine::Stop() {
   mailbox_->Stop();
   worker_.reset();
-  join_actor_.reset();
   fetcher_.reset();
   controller_.reset();
 }

@@ -255,7 +255,7 @@ void PlanController::RunMap(int part_id, int version) {
       map_output = map(p, pt); 
     } else if (type_ == SpecWrapper::Type::kMapWithJoin){
       auto& mapwith = controller_->engine_elem_.function_store->GetMapWith(plan_id_);
-      map_output = mapwith(p, controller_->engine_elem_.fetcher, pt); 
+      map_output = mapwith(version, p, controller_->engine_elem_.fetcher, pt); 
     } else {
       CHECK(false);
     }

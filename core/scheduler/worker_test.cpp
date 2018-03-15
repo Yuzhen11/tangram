@@ -38,9 +38,6 @@ EngineElem GetEngineElem() {
   engine_elem.function_store = std::make_shared<FunctionStore>();
   engine_elem.intermediate_store = std::make_shared<SimpleIntermediateStore>();
   engine_elem.sender = std::make_shared<SimpleSender>();
-  engine_elem.partition_tracker = std::make_shared<PartitionTracker>(
-      node.id, engine_elem.partition_manager, engine_elem.executor,
-      engine_elem.sender, engine_elem.collection_map);
   engine_elem.namenode = namenode;
   engine_elem.port = port;
   engine_elem.num_local_threads = 1;

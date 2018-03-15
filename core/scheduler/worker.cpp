@@ -43,10 +43,6 @@ void Worker::Process(Message msg) {
     UpdateCollection(bin);
     break;
   }
-  case ScheduleFlag::kRunMap: {
-    RunMap(bin);
-    break;
-  }
   case ScheduleFlag::kLoadBlock: {
     LoadBlock(bin);
     break;
@@ -57,14 +53,6 @@ void Worker::Process(Message msg) {
   }
   case ScheduleFlag::kExit: {
     Exit();
-    break;
-  }
-  case ScheduleFlag::kMapFinish: {
-    MapFinish();
-    break;
-  }
-  case ScheduleFlag::kJoinFinish: {
-    JoinFinish();
     break;
   }
   case ScheduleFlag::kDistribute: {
@@ -101,53 +89,6 @@ void Worker::UpdateCollection(SArrayBinStream bin) {
 }
 
 void Worker::RunDummy() { LOG(INFO) << WorkerId() << "RunDummy"; }
-
-void Worker::RunMap(SArrayBinStream bin) {
-  // PlanSpec plan;
-  SpecWrapper spec;
-  bin >> spec;
-  auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
-  PlanSpec plan;
-  plan.plan_id = spec.id;
-  plan.map_collection_id = p->map_collection_id;
-  plan.join_collection_id = p->join_collection_id;
-  LOG(INFO) << WorkerId() << "RunMap: " << spec.DebugString();
-  engine_elem_.partition_tracker->SetPlan(plan); // set plan before run partition tracker
-  auto type = spec.type;
-  int plan_id = spec.id;
-  engine_elem_.partition_tracker->RunAllMap(
-      [this, type, plan_id](ShuffleMeta meta, std::shared_ptr<AbstractPartition> p,
-                   std::shared_ptr<AbstractMapProgressTracker> pt) {
-        // func(meta, p, engine_elem_.intermediate_store, pt);
-        // 1. map
-        std::shared_ptr<AbstractMapOutput> map_output;
-        if (type == SpecWrapper::Type::kMapJoin) {
-          auto& map = engine_elem_.function_store->GetMap(plan_id);
-          map_output = map(p, pt); 
-        } else if (type == SpecWrapper::Type::kMapWithJoin){
-          auto& mapwith = engine_elem_.function_store->GetMapWith(plan_id);
-          map_output = mapwith(p, engine_elem_.fetcher, pt); 
-        } else {
-          CHECK(false);
-        }
-        // 2. serialize
-        auto bins = map_output->Serialize();
-        // 3. add to intermediate_store
-        for (int i = 0; i < bins.size(); ++ i) {
-          Message msg;
-          msg.meta.sender = 0;
-          CHECK(engine_elem_.collection_map);
-          msg.meta.recver = GetJoinActorQid(engine_elem_.collection_map->Lookup(meta.collection_id, i));
-          msg.meta.flag = Flag::kOthers;
-          SArrayBinStream ctrl_bin;
-          meta.part_id = i;  // set the part_id here
-          ctrl_bin << meta;
-          msg.AddData(ctrl_bin.ToSArray());
-          msg.AddData(bins[i].ToSArray());
-          engine_elem_.intermediate_store->Add(msg);
-        }
-  });
-}
 
 void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
@@ -221,14 +162,6 @@ void Worker::WritePartition(SArrayBinStream bin) {
 void Worker::Exit() { 
   LOG(INFO) << WorkerId() << "Exit";
   exit_promise_.set_value(); 
-}
-void Worker::MapFinish() {
-  LOG(INFO) << WorkerId() << "MapFinish";
-}
-void Worker::JoinFinish() {
-  LOG(INFO) << WorkerId() << "JoinFinish";
-  SArrayBinStream bin;
-  SendMsgToScheduler(ScheduleFlag::kJoinFinish, bin);
 }
 
 void Worker::SendMsgToScheduler(ScheduleFlag flag, SArrayBinStream bin) {

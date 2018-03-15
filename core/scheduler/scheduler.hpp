@@ -52,9 +52,6 @@ public:
     checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_);
   }
   virtual ~Scheduler() override {
-    // if (scheduler_thread_.joinable()) {
-    //   scheduler_thread_.join();
-    // }
     if (start_) {
       Stop();
     }
@@ -72,7 +69,7 @@ public:
    *
    * The initialization step includes:
    * 1. RegisterProgram <-
-   * 2. StartScheduling
+   * 2. TryRunPlan
    */
   virtual void Process(Message msg) override;
 
@@ -81,23 +78,10 @@ public:
 
   void RunDummy();
 
-  // void RunMap();
-
   void Exit();
-
-  // Send speculative command
-  void RunSpeculativeMap();
-
-  // void FinishJoin(SArrayBinStream bin);
 
   void RunPlan(int plan_id);
 
-private:
-  // void TryRunPlan();
-  void PrepareNextCollection();
-
-  // void RunNextSpec();
-  // void RunNextIteration();
 private:
   std::shared_ptr<SchedulerElem> elem_;
 
@@ -107,12 +91,6 @@ private:
 
   std::promise<void> exit_promise_;
   bool start_ = false;
-  // std::thread scheduler_thread_;
-
-  // int spec_count_ = 0;
-  // SpecWrapper currnet_spec_;
-  int num_workers_finish_a_plan_iteration_ = 0;
-  int cur_iters_ = 0;
 
   std::shared_ptr<BlockManager> block_manager_;
   std::shared_ptr<ControlManager> control_manager_;

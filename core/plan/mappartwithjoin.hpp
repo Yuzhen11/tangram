@@ -36,10 +36,12 @@ struct MapPartWithJoin : public PlanBase {
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
   // for internal use
-  using MapPartWithTempFuncT= 
-      std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractFetcher>,
-                                                       std::shared_ptr<AbstractMapProgressTracker>)>;
+  // using MapPartWithTempFuncT= 
+  //     std::function<std::shared_ptr<AbstractMapOutput>(std::shared_ptr<AbstractPartition>,
+  //                                                      std::shared_ptr<AbstractFetcher>,
+  //                                                      std::shared_ptr<AbstractMapProgressTracker>)>;
+
+  using MapPartWithTempFuncT = AbstractFunctionStore::MapWith;
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
           C2* _with_collection, C3* _join_collection)
@@ -73,10 +75,11 @@ struct MapPartWithJoin : public PlanBase {
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     auto map_part_with = GetMapPartWithFunc();
     function_store->AddMapWith(this->plan_id, [this, map_part_with](
+                int version,
                 std::shared_ptr<AbstractPartition> partition,
                 std::shared_ptr<AbstractFetcher> fetcher,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      auto map_output = map_part_with(partition, fetcher, tracker);
+      auto map_output = map_part_with(version, partition, fetcher, tracker);
       if (this->combine) {
         static_cast<TypedMapOutput<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
         map_output->Combine();
@@ -90,11 +93,9 @@ struct MapPartWithJoin : public PlanBase {
 
   MapPartWithTempFuncT GetMapPartWithFunc() {
     CHECK_NOTNULL(mappartwith);
-    return [this](std::shared_ptr<AbstractPartition> partition, 
+    return [this](int version, std::shared_ptr<AbstractPartition> partition, 
               std::shared_ptr<AbstractFetcher> fetcher,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      // TODO: Fix the version
-      int version = 0;
       TypedCache<ObjT2> typed_cache(plan_id, partition->id, with_collection->Id(), fetcher, this->with_collection->GetMapper());
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(this->join_collection->GetMapper());
