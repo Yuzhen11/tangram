@@ -54,6 +54,10 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->FinishFetch(bin);
     break;  
   }
+  case ControllerFlag::kFinishCheckpoint: {
+    plan_controllers_[plan_id]->FinishCheckpoint(bin);
+    break;  
+  }
   default: CHECK(false);
   }
 }

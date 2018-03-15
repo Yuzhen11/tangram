@@ -59,6 +59,7 @@ class PlanController : public AbstractPlanController {
   virtual void ReceiveJoin(Message msg) override;
   virtual void ReceiveFetchRequest(Message msg) override;
   virtual void FinishFetch(SArrayBinStream bin) override;
+  virtual void FinishCheckpoint(SArrayBinStream bin) override;
 
   void TryRunSomeMaps();
 
@@ -76,6 +77,9 @@ class PlanController : public AbstractPlanController {
   void SendMsgToScheduler(SArrayBinStream bin);
   void DisplayTime();
 
+  // checkpoint
+  bool TryCheckpoint(int part_id);
+
  private:
   Controller* controller_;
 
@@ -89,6 +93,7 @@ class PlanController : public AbstractPlanController {
   int num_local_join_part_;
   int num_local_map_part_;
   SpecWrapper::Type type_;
+  int checkpoint_interval_;
 
   int min_version_;
   int staleness_;

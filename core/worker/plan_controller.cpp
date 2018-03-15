@@ -22,6 +22,7 @@ void PlanController::Setup(SpecWrapper spec) {
   auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   map_collection_id_ = p->map_collection_id;
   join_collection_id_ = p->join_collection_id;
+  checkpoint_interval_ = p->checkpoint_interval;
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
   num_local_join_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(join_collection_id_);
@@ -184,9 +185,68 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
     join_tracker_[part_id].erase(version);
     join_versions_[part_id] += 1;
     TryUpdateJoinVersion();
+
+    bool runcp = TryCheckpoint(part_id);
+    if (runcp) {
+      return;
+    }
   }
   bool run = TryRunWaitingJoins(part_id);
+}
 
+bool PlanController::TryCheckpoint(int part_id) {
+  if (checkpoint_interval_ != 0 && join_versions_[part_id] % checkpoint_interval_ == 0) {
+    int checkpoint_iter = join_versions_[part_id] / checkpoint_interval_;
+    std::string dest_url = "/tmp/tmp/"
+        +std::to_string(join_collection_id_)
+        +"-"+std::to_string(part_id)
+        +"-"+std::to_string(checkpoint_iter);
+
+    CHECK(running_joins_.find(part_id) == running_joins_.end());
+    running_joins_.insert(part_id);
+    fetch_executor_->Add([this, part_id, dest_url]() {
+      std::promise<void> prom;
+      auto f = prom.get_future();
+      // io_wrapper_->Write(join_collection_id_, part_id, dest_url, 
+      //   [](std::shared_ptr<AbstractPartition> p, std::shared_ptr<AbstractWriter> writer, std::string url) { 
+      //     SArrayBinStream bin;
+      //     p->ToBin(bin);
+      //     bool rc = writer->Write(url, bin.GetPtr(), bin.Size());
+      //     CHECK_EQ(rc, 0);
+      //   }, 
+      //   [this, &prom](SArrayBinStream bin) {
+      //     prom.set_value();
+      //   }
+      // );
+      f.get();
+
+      // Send finish checkpoint
+      Message msg;
+      msg.meta.sender = 0;
+      msg.meta.recver = 0;
+      msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin, plan_bin, bin;
+      ctrl_bin << ControllerFlag::kFinishCheckpoint;
+      plan_bin << plan_id_; 
+      bin << part_id;
+
+      msg.AddData(ctrl_bin.ToSArray());
+      msg.AddData(plan_bin.ToSArray());
+      msg.AddData(bin.ToSArray());
+      controller_->GetWorkQueue()->Push(msg);
+    });
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void PlanController::FinishCheckpoint(SArrayBinStream bin) {
+  int part_id;
+  bin >> part_id;
+  LOG(INFO) << "finish checkpoint: " << part_id;
+  running_joins_.erase(part_id);
+  bool run = TryRunWaitingJoins(part_id);
 }
 
 void PlanController::TryUpdateMapVersion() {
