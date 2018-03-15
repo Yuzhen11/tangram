@@ -13,6 +13,7 @@ class AbstractPartition {
   virtual void ToBin(SArrayBinStream& bin) = 0;
 
   virtual size_t GetSize() const = 0;
+  int id;
 };
 
 template <typename ObjT>

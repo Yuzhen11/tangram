@@ -102,7 +102,7 @@ enum class ControllerFlag : char {
 
 struct FetchMeta {
   int plan_id; 
-  int app_thread_id;
+  int upstream_part_id;
   int collection_id;
   int partition_id; 
   int version;
@@ -110,7 +110,7 @@ struct FetchMeta {
   std::string DebugString() const {
     std::stringstream ss;
     ss << "plan_id: " << plan_id;
-    ss << ", app_thread_id: " << app_thread_id;
+    ss << ", upstream_part_id: " << upstream_part_id;
     ss << ", collection_id: " << collection_id;
     ss << ", partition_id: " << partition_id;
     ss << ", version: " << version;

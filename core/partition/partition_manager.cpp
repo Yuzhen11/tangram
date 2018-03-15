@@ -76,6 +76,7 @@ void PartitionManager::Insert(int collection_id, int partition_id, std::shared_p
   part->version = 0;
   part->partition = std::move(p);
   part->part_id = partition_id;
+  part->partition->id = partition_id;
   partitions_[collection_id][partition_id] = std::move(part);
 }
 

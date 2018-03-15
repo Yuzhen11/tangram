@@ -43,7 +43,7 @@ void Fetcher::FinishPart(FetchMeta meta) {
     SArrayBinStream ctrl_bin, plan_bin, bin;
     ctrl_bin << ControllerFlag::kFinishFetch;
     plan_bin << meta.plan_id;
-    bin << meta.partition_id << meta.app_thread_id;
+    bin << meta.partition_id << meta.upstream_part_id;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(plan_bin.ToSArray());
     msg.AddData(bin.ToSArray());
@@ -123,19 +123,19 @@ void Fetcher::FetchObjsReply(Message msg) {
   ctrl2_bin >> meta;
 
   std::unique_lock<std::mutex> lk(m_);
-  CHECK(recv_binstream_.find(meta.app_thread_id) != recv_binstream_.end());
-  CHECK_NOTNULL(recv_binstream_[meta.app_thread_id]);
-  recv_binstream_[meta.app_thread_id]->push_back(bin);
-  recv_finished_[meta.app_thread_id]++;
+  CHECK(recv_binstream_.find(meta.upstream_part_id) != recv_binstream_.end());
+  CHECK_NOTNULL(recv_binstream_[meta.upstream_part_id]);
+  recv_binstream_[meta.upstream_part_id]->push_back(bin);
+  recv_finished_[meta.upstream_part_id]++;
   cv_.notify_all();
 }
 
-void Fetcher::FetchObjs(int plan_id, int app_thread_id, int collection_id, 
+void Fetcher::FetchObjs(int plan_id, int upstream_part_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) {
 
   // 0. register rets
-  recv_binstream_[app_thread_id] = rets;//TODO: app_thread_id -> <plan_id, collection_id>
+  recv_binstream_[upstream_part_id] = rets;
       
   // 1. send requests
   for (auto const& pair : part_to_keys) {
@@ -147,11 +147,10 @@ void Fetcher::FetchObjs(int plan_id, int app_thread_id, int collection_id,
     ctrl_bin << ControllerFlag::kFetchRequest;// send to controller
     FetchMeta fetch_meta;
     fetch_meta.plan_id = plan_id;
-    fetch_meta.app_thread_id = app_thread_id;
+    fetch_meta.upstream_part_id = upstream_part_id;
     fetch_meta.collection_id = collection_id;
     fetch_meta.partition_id = pair.first;
     fetch_meta.version = -1;
-    // ctrl2_bin << plan_id << app_thread_id << collection_id << pair.first;
     ctrl2_bin << fetch_meta;
     auto& bin = pair.second;
     msg.AddData(ctrl_bin.ToSArray());
@@ -165,11 +164,11 @@ void Fetcher::FetchObjs(int plan_id, int app_thread_id, int collection_id,
   int recv_count = part_to_keys.size();
   {
     std::unique_lock<std::mutex> lk(m_);
-    cv_.wait(lk, [this, app_thread_id, recv_count] {
-      return recv_finished_[app_thread_id] == recv_count;
+    cv_.wait(lk, [this, upstream_part_id, recv_count] {
+      return recv_finished_[upstream_part_id] == recv_count;
     });
-    recv_binstream_.erase(app_thread_id);
-    recv_finished_.erase(app_thread_id);
+    recv_binstream_.erase(upstream_part_id);
+    recv_finished_.erase(upstream_part_id);
   }
   return;
 }

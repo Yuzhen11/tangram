@@ -13,19 +13,18 @@ namespace xyz {
 template <typename ObjT>
 class TypedCache : public AbstractCache {
  public:
-  TypedCache(int plan_id, int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 
+  TypedCache(int plan_id, int partition_id, int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 
           std::shared_ptr<AbstractKeyToPartMapper> mapper)
-      :plan_id_(plan_id), collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
+      :plan_id_(plan_id), partition_id_(partition_id), collection_id_(collection_id), fetcher_(fetcher), mapper_(mapper) {
     // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
   }
 
   std::vector<ObjT> Get(const std::vector<typename ObjT::KeyT>& keys) {
-    int app_thread_id = 0;//TODO
     // 1. sliced
     auto part_to_keys = Partition(keys);
     // 2. fetch
     std::vector<SArrayBinStream> rets;
-    fetcher_->FetchObjs(plan_id_, app_thread_id, collection_id_, part_to_keys, &rets);
+    fetcher_->FetchObjs(plan_id_, partition_id_, collection_id_, part_to_keys, &rets);
     // 3. organize the result
     CHECK_EQ(rets.size(), part_to_keys.size());
     auto objs = Organzie(rets);
@@ -37,7 +36,7 @@ class TypedCache : public AbstractCache {
   std::shared_ptr<AbstractPartition> GetPartition(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.app_thread_id = 0;  // TODO
+    meta.upstream_part_id = partition_id_;  // TODO
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
     meta.version = 0;  // TODO
@@ -49,7 +48,7 @@ class TypedCache : public AbstractCache {
   void ReleasePart(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.app_thread_id = 0;  // TODO
+    meta.upstream_part_id = partition_id_;  // TODO
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
     meta.version = 0;  // TODO
@@ -95,6 +94,7 @@ class TypedCache : public AbstractCache {
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
   int plan_id_;
   int collection_id_;
+  int partition_id_;
 
   // std::shared_ptr<AbstractPartitionCache> partition_cache_;
   // int collection_id_;

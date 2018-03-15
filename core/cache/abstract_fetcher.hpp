@@ -12,7 +12,7 @@ namespace xyz {
 
 struct AbstractFetcher {
   virtual ~AbstractFetcher() = default;
-  virtual void FetchObjs(int plan_id, int app_thread_id, int collection_id, 
+  virtual void FetchObjs(int plan_id, int upstream_part_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) = 0;
   virtual std::shared_ptr<AbstractPartition> FetchPart(FetchMeta meta) = 0;

@@ -34,7 +34,7 @@ class Fetcher : public Actor, public AbstractFetcher {
     Stop();
   }
 
-  virtual void FetchObjs(int plan_id, int app_thread_id, int collection_id, 
+  virtual void FetchObjs(int plan_id, int upstream_part_id, int collection_id, 
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) override;
 
@@ -60,9 +60,9 @@ class Fetcher : public Actor, public AbstractFetcher {
   std::mutex m_;
   std::condition_variable cv_;
   // for fetch objs
-  // app_thread_id -> recv_count
+  // upstream_part_id -> recv_count
   std::map<int, int> recv_finished_;
-  // app_thread_id -> (partition_id -> binstream)
+  // upstream_part_id -> (partition_id -> binstream)
   std::map<int, std::vector<SArrayBinStream>*> recv_binstream_;
 
   // for fetch partition

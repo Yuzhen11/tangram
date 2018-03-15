@@ -95,7 +95,7 @@ struct MapPartWithJoin : public PlanBase {
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       // TODO: Fix the version
       int version = 0;
-      TypedCache<ObjT2> typed_cache(plan_id, with_collection->Id(), fetcher, this->with_collection->GetMapper());
+      TypedCache<ObjT2> typed_cache(plan_id, partition->id, with_collection->Id(), fetcher, this->with_collection->GetMapper());
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(this->join_collection->GetMapper());
       auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(this->join_collection->GetMapper());

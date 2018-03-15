@@ -399,8 +399,6 @@ void PlanController::ReceiveFetchRequest(Message msg) {
   ctrl2_bin.FromSArray(msg.data[1]);
   bin.FromSArray(msg.data[2]);
   FetchMeta received_fetch_meta;
-  // int plan_id, app_thread_id, collection_id, partition_id;
-  // ctrl2_bin >> plan_id >> app_thread_id >> collection_id >> partition_id;//version?
   ctrl2_bin >> received_fetch_meta;
   CHECK(received_fetch_meta.plan_id == plan_id_);
   CHECK(controller_->engine_elem_.partition_manager->Has(received_fetch_meta.collection_id, received_fetch_meta.partition_id)) 
@@ -411,7 +409,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
   fetch_meta.meta.collection_id = received_fetch_meta.collection_id;
   CHECK(fetch_meta.meta.collection_id == fetch_collection_id_);
   fetch_meta.meta.part_id = received_fetch_meta.partition_id;
-  fetch_meta.meta.upstream_part_id = received_fetch_meta.app_thread_id;
+  fetch_meta.meta.upstream_part_id = received_fetch_meta.upstream_part_id;
   fetch_meta.meta.version = received_fetch_meta.version;  // version -1 means fetch objs, others means fetch part
   fetch_meta.meta.is_fetch = true;
   fetch_meta.meta.local_mode = received_fetch_meta.local_mode;
@@ -460,6 +458,8 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
   bool local_fetch = (GetNodeId(fetch_meta.meta.sender) == GetNodeId(fetch_meta.meta.recver));
   // LOG(INFO) << "run fetch: " << local_fetch << " " << fetch_meta.meta.version;
   if (fetch_meta.meta.local_mode && fetch_meta.meta.version != -1 && local_fetch) {  // for local fetch part
+    // grant access to the fetcher
+    // the fetcher should send kFinishFetch explicitly to release the fetch
     Message reply_msg;
     reply_msg.meta.sender = fetch_meta.meta.recver;
     reply_msg.meta.recver = fetch_meta.meta.sender;
@@ -468,7 +468,7 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
     ctrl_reply_bin << FetcherFlag::kFetchPartReplyLocal;
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.app_thread_id = fetch_meta.meta.upstream_part_id;
+    meta.upstream_part_id = fetch_meta.meta.upstream_part_id;
     meta.collection_id = fetch_meta.meta.collection_id;
     meta.partition_id = fetch_meta.meta.part_id;
     meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
@@ -476,6 +476,7 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
     reply_msg.AddData(ctrl_reply_bin.ToSArray());
     reply_msg.AddData(ctrl2_reply_bin.ToSArray());
     controller_->engine_elem_.sender->Send(std::move(reply_msg));
+    // fetcher should release the fetch
   } else {
     fetch_executor_->Add([this, fetch_meta] {
       Fetch(fetch_meta);
@@ -507,7 +508,7 @@ void PlanController::Fetch(VersionedJoinMeta fetch_meta) {
   }
   FetchMeta meta;
   meta.plan_id = plan_id_;
-  meta.app_thread_id = fetch_meta.meta.upstream_part_id;
+  meta.upstream_part_id = fetch_meta.meta.upstream_part_id;
   meta.collection_id = fetch_meta.meta.collection_id;
   meta.partition_id = fetch_meta.meta.part_id;
   meta.version = fetch_meta.meta.version;  // TODO: is the version correct?
