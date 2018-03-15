@@ -197,42 +197,38 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 bool PlanController::TryCheckpoint(int part_id) {
   if (checkpoint_interval_ != 0 && join_versions_[part_id] % checkpoint_interval_ == 0) {
     int checkpoint_iter = join_versions_[part_id] / checkpoint_interval_;
-    std::string dest_url = "/tmp/tmp/"
+    std::string dest_url = "/tmp/tmp/c"
         +std::to_string(join_collection_id_)
-        +"-"+std::to_string(part_id)
-        +"-"+std::to_string(checkpoint_iter);
+        +"-p"+std::to_string(part_id)
+        +"-cp"+std::to_string(checkpoint_iter);
 
     CHECK(running_joins_.find(part_id) == running_joins_.end());
     running_joins_.insert(part_id);
+    // TODO: is it ok to use the fetch_executor? can it be block due to other operations?
     fetch_executor_->Add([this, part_id, dest_url]() {
-      std::promise<void> prom;
-      auto f = prom.get_future();
-      // io_wrapper_->Write(join_collection_id_, part_id, dest_url, 
-      //   [](std::shared_ptr<AbstractPartition> p, std::shared_ptr<AbstractWriter> writer, std::string url) { 
-      //     SArrayBinStream bin;
-      //     p->ToBin(bin);
-      //     bool rc = writer->Write(url, bin.GetPtr(), bin.Size());
-      //     CHECK_EQ(rc, 0);
-      //   }, 
-      //   [this, &prom](SArrayBinStream bin) {
-      //     prom.set_value();
-      //   }
-      // );
-      f.get();
+      auto writer = controller_->io_wrapper_->GetWriter();
+      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, part_id));
+      auto part = controller_->engine_elem_.partition_manager->Get(join_collection_id_, part_id)->partition;
+
+      SArrayBinStream bin;
+      part->ToBin(bin);
+      bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
+      CHECK_EQ(rc, 0);
+      LOG(INFO) << "write checkpoint to " << dest_url;
 
       // Send finish checkpoint
       Message msg;
       msg.meta.sender = 0;
       msg.meta.recver = 0;
       msg.meta.flag = Flag::kOthers;
-      SArrayBinStream ctrl_bin, plan_bin, bin;
+      SArrayBinStream ctrl_bin, plan_bin, reply_bin;
       ctrl_bin << ControllerFlag::kFinishCheckpoint;
       plan_bin << plan_id_; 
-      bin << part_id;
+      reply_bin << part_id;
 
       msg.AddData(ctrl_bin.ToSArray());
       msg.AddData(plan_bin.ToSArray());
-      msg.AddData(bin.ToSArray());
+      msg.AddData(reply_bin.ToSArray());
       controller_->GetWorkQueue()->Push(msg);
     });
     return true;
@@ -245,6 +241,7 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   int part_id;
   bin >> part_id;
   LOG(INFO) << "finish checkpoint: " << part_id;
+  CHECK(running_joins_.find(part_id) != running_joins_.end());
   running_joins_.erase(part_id);
   bool run = TryRunWaitingJoins(part_id);
 }

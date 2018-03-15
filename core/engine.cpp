@@ -38,21 +38,8 @@ void Engine::Start() {
   mailbox_->RegisterQueue(fetcher_id, fetcher_->GetWorkQueue());
   engine_elem_.fetcher = fetcher_;  // set it to engine_elem_ as worker needs it
 
-  // create controller
-  const int controller_id = GetControllerActorQid(engine_elem_.node.id);
-  controller_ = std::make_shared<Controller>(controller_id, engine_elem_);
-  mailbox_->RegisterQueue(controller_id, controller_->GetWorkQueue());
-
-  // create worker actor
-  const int worker_id = GetWorkerQid(engine_elem_.node.id);
   const std::string namenode = engine_elem_.namenode;
   const int port = engine_elem_.port;
-  // set hdfs reader_wrapper
-  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
-      worker_id, engine_elem_.executor, engine_elem_.partition_manager,
-      engine_elem_.node,
-      [namenode, port]() { return std::make_shared<HdfsBlockReader>(namenode, port); });
-
   // set hdfs io_wrapper
   auto io_wrapper = std::make_shared<IOWrapper>(
       [namenode, port]() {
@@ -61,6 +48,19 @@ void Engine::Start() {
       [namenode, port]() {
         return std::make_shared<HdfsWriter>(namenode, port);
       });
+
+  // create controller
+  const int controller_id = GetControllerActorQid(engine_elem_.node.id);
+  controller_ = std::make_shared<Controller>(controller_id, engine_elem_, io_wrapper);
+  mailbox_->RegisterQueue(controller_id, controller_->GetWorkQueue());
+
+  // create worker actor
+  const int worker_id = GetWorkerQid(engine_elem_.node.id);
+  // set hdfs reader_wrapper
+  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
+      worker_id, engine_elem_.executor, engine_elem_.partition_manager,
+      engine_elem_.node,
+      [namenode, port]() { return std::make_shared<HdfsBlockReader>(namenode, port); });
 
   // create worker
   worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, io_wrapper);
