@@ -68,7 +68,7 @@ void PlanController::StartPlan() {
 void PlanController::UpdateVersion(SArrayBinStream bin) {
   int new_version;
   bin >> new_version;
-  if (new_version == -1) {
+  if (new_version == -1) { // finish plan
     SArrayBinStream bin;
     ControllerMsg ctrl;
     ctrl.flag = ControllerMsg::Flag::kFinish;
@@ -77,6 +77,8 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
     ctrl.plan_id = plan_id_;
     bin << ctrl;
     SendMsgToScheduler(bin);
+   
+    DisplayTime();
     return;
   }
   CHECK_EQ(new_version, min_version_+1);
@@ -181,6 +183,7 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
     TryUpdateJoinVersion();
   }
   bool run = TryRunWaitingJoins(part_id);
+
 }
 
 void PlanController::TryUpdateMapVersion() {
@@ -240,6 +243,7 @@ void PlanController::RunMap(int part_id, int version) {
   running_maps_.insert(part_id);
 
   controller_->engine_elem_.executor->Add([this, part_id, version]() {
+    auto start = std::chrono::system_clock::now();
     // 0. get partition
     CHECK(controller_->engine_elem_.partition_manager->Has(map_collection_id_, part_id));
     auto p = controller_->engine_elem_.partition_manager->Get(map_collection_id_, part_id)->partition;
@@ -256,6 +260,7 @@ void PlanController::RunMap(int part_id, int version) {
       CHECK(false);
     }
     // 2. serialize
+    auto start2 = std::chrono::system_clock::now();
     auto bins = map_output->Serialize();
     // 3. add to intermediate_store
     for (int i = 0; i < bins.size(); ++ i) {
@@ -295,6 +300,12 @@ void PlanController::RunMap(int part_id, int version) {
     msg.AddData(plan_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     controller_->GetWorkQueue()->Push(msg);
+    
+    auto end = std::chrono::system_clock::now();
+    {
+      std::unique_lock<std::mutex> lk(time_mu_);
+      map_time_[part_id] = std::make_tuple(start, start2, end);
+    }
   });
 }
 
@@ -342,6 +353,7 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
   CHECK(running_joins_.find(meta.meta.part_id) == running_joins_.end());
   running_joins_.insert(meta.meta.part_id);
   controller_->engine_elem_.executor->Add([this, meta]() {
+    auto start = std::chrono::system_clock::now();
     auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
     CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
     auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id)->partition;
@@ -360,6 +372,12 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     msg.AddData(plan_bin.ToSArray());
     msg.AddData(bin.ToSArray());
     controller_->GetWorkQueue()->Push(msg);
+    
+    auto end = std::chrono::system_clock::now();
+    {
+      std::unique_lock<std::mutex> lk(time_mu_);
+      join_time_[meta.meta.part_id][meta.meta.upstream_part_id] = std::make_pair(start, end);
+    }
   });
 }
 
@@ -493,6 +511,30 @@ void PlanController::FinishRunObjsRequest(SArrayBinStream bin) {
   running_fetches_[part_id].erase(upstream_part_id);
   bool run = TryRunWaitingJoins(part_id);
 }
+
+void PlanController::DisplayTime() {
+  double avg_map_time = 0;
+  double avg_map_stime = 0;
+  double avg_join_time = 0;
+  std::chrono::duration<double> duration;
+  for (auto& x : map_time_) {
+    duration = std::get<1>(x.second) - std::get<0>(x.second);
+    avg_map_time += duration.count();
+    duration = std::get<2>(x.second) - std::get<1>(x.second);
+    avg_map_stime += duration.count();
+  }
+  for (auto& x : join_time_) {
+    for (auto& y : x.second) {
+      duration = y.second.second - y.second.first;
+      avg_join_time += duration.count();
+    }
+  }
+  avg_map_time /= num_local_map_part_;
+  avg_map_stime /= num_local_map_part_;
+  avg_join_time = avg_join_time / num_local_join_part_;// num_upstream_part_;
+  // nan if num is zero
+  LOG(INFO) << "avg map time: " << avg_map_time << " ,avg map serialization time: " << avg_map_stime << " ,avg join time: " << avg_join_time;
+} 
 
 }  // namespace
 

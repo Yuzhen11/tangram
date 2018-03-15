@@ -98,7 +98,7 @@ void Fetcher::FetchObjs(int plan_id, int app_thread_id, int collection_id,
         std::vector<SArrayBinStream>* const rets) {
 
   // 0. register rets
-  recv_binstream_[app_thread_id] = rets;
+  recv_binstream_[app_thread_id] = rets;//TODO: app_thread_id -> <plan_id, collection_id>
       
   // 1. send requests
   for (auto const& pair : part_to_keys) {
