@@ -176,6 +176,7 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
 void PlanController::FinishJoin(SArrayBinStream bin) {
   int part_id, upstream_part_id, version;
   bin >> part_id >> upstream_part_id >> version;
+  // LOG(INFO) << "FinishJoin: partid, version: " << part_id << " " << version;
   running_joins_.erase(part_id);
 
   join_tracker_[part_id][version].insert(upstream_part_id);
@@ -318,7 +319,7 @@ void PlanController::ReceiveJoin(Message msg) {
   bin.FromSArray(msg.data[3]);
   VersionedShuffleMeta meta;
   ctrl2_bin >> meta;
-  // LOG(INFO) << meta.DebugString();
+  // LOG(INFO) << "ReceiveJoin: " << meta.DebugString();
 
   VersionedJoinMeta join_meta;
   join_meta.meta = meta;
@@ -352,9 +353,13 @@ void PlanController::ReceiveJoin(Message msg) {
 }
 
 void PlanController::RunJoin(VersionedJoinMeta meta) {
+  // LOG(INFO) << "RunJoin: " << meta.meta.DebugString();
   CHECK(running_joins_.find(meta.meta.part_id) == running_joins_.end());
   running_joins_.insert(meta.meta.part_id);
-  controller_->engine_elem_.executor->Add([this, meta]() {
+  // use the fetch_executor to avoid the case:
+  // map wait for fetch, fetch wait for join, join is in running_joins_
+  // but it cannot run because map does not finish and occupy the threadpool
+  fetch_executor_->Add([this, meta]() {
     auto start = std::chrono::system_clock::now();
     auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
     CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
@@ -546,6 +551,7 @@ void PlanController::Fetch(VersionedJoinMeta fetch_meta, int version) {
 void PlanController::FinishFetch(SArrayBinStream bin) {
   int part_id, upstream_part_id;
   bin >> part_id >> upstream_part_id;
+  // LOG(INFO) << "FinishFetch: " << part_id << " " << upstream_part_id;
   running_fetches_[part_id].erase(upstream_part_id);
   bool run = TryRunWaitingJoins(part_id);
 }

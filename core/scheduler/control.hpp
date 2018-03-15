@@ -102,7 +102,7 @@ struct FetchMeta {
     ss << ", collection_id: " << collection_id;
     ss << ", partition_id: " << partition_id;
     ss << ", version: " << version;
-    ss << ", local_mode: " << local_mode;
+    ss << ", local_mode: " << (local_mode ? "true":"false");
     return ss.str();
   }
 };

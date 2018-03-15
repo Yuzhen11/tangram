@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
     [](ObjT* obj, int m) {
       obj->b += m;
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    });
+    })->SetIter(10)->SetStaleness(2);
 
   Context::count(c1);
 

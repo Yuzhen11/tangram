@@ -41,6 +41,7 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
 }
 
 void Fetcher::FinishPart(FetchMeta meta) {
+  // TODO: should not send finish part every time.
   // for local part, do not forget to call FinishPart
   if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
     Message msg;
@@ -96,7 +97,7 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   ctrl2_bin.FromSArray(msg.data[1]);
   FetchMeta meta;
   ctrl2_bin >> meta;
-  // LOG(INFO) << "local: " << meta.DebugString();
+  // LOG(INFO) << "fetcher receives local: " << meta.DebugString();
   auto p = partition_manager_->Get(meta.collection_id, meta.partition_id)->partition;
 
   std::unique_lock<std::mutex> lk(m_);
@@ -113,6 +114,7 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   bin.FromSArray(msg.data[2]);
   FetchMeta meta;
   ctrl2_bin >> meta;
+  // LOG(INFO) << "fetcher receives remote: " << meta.DebugString();
 
   auto& func = function_store_->GetCreatePart(meta.collection_id);
   auto p = func();
