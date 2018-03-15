@@ -55,7 +55,6 @@ void Engine::Start() {
 
   // set hdfs io_wrapper
   auto io_wrapper = std::make_shared<IOWrapper>(
-      worker_id, engine_elem_.executor, engine_elem_.partition_manager, engine_elem_.function_store,
       [namenode, port]() {
         return std::make_shared<HdfsReader>(namenode, port);
       },

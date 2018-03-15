@@ -13,7 +13,7 @@ void WriteManager::Write(SpecWrapper s) {
   auto& collection_view = elem_->collection_map->Get(id);
   reply_count_map[id] = 0;
   expected_reply_count_map[id] = collection_view.mapper.GetNumParts();
-  LOG(INFO) << "[Scheduler] writing to " << expected_reply_count_map[s.id] << " partitions";
+  LOG(INFO) << "[Scheduler] writing to " << expected_reply_count_map[id] << " partitions";
   for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
     int node_id = collection_view.mapper.Get(i);
     SArrayBinStream bin;

@@ -121,17 +121,22 @@ void Worker::CheckPoint(SArrayBinStream bin) {
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  io_wrapper_->Write(collection_id, part_id, dest_url, 
-    [](std::shared_ptr<AbstractPartition> p, std::shared_ptr<AbstractWriter> writer, std::string url) { 
-      SArrayBinStream bin;
-      p->ToBin(bin);
-      bool rc = writer->Write(url, bin.GetPtr(), bin.Size());
-      CHECK_EQ(rc, 0);
-    }, 
-    [this](SArrayBinStream bin) {
-      SendMsgToScheduler(ScheduleFlag::kFinishCheckpoint, bin);
-    }
-  );
+  engine_elem_.executor->Add([this, collection_id, part_id, dest_url]() {
+    // 1. write
+    auto writer = io_wrapper_->GetWriter();
+    CHECK(engine_elem_.partition_manager->Has(collection_id, part_id));
+    auto part = engine_elem_.partition_manager->Get(collection_id, part_id)->partition;
+
+    SArrayBinStream bin;
+    part->ToBin(bin);
+    bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
+    CHECK_EQ(rc, 0);
+
+    // 2. reply
+    SArrayBinStream reply_bin;
+    reply_bin << Qid() << collection_id;
+    SendMsgToScheduler(ScheduleFlag::kFinishCheckpoint, reply_bin);
+  });
 }
 
 void Worker::LoadCheckPoint(SArrayBinStream bin) {
@@ -139,11 +144,32 @@ void Worker::LoadCheckPoint(SArrayBinStream bin) {
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  io_wrapper_->Read(collection_id, part_id, dest_url, 
-    [this](SArrayBinStream bin) {
-      SendMsgToScheduler(ScheduleFlag::kFinishLoadCheckpoint, bin);
-    }
-  );
+  engine_elem_.executor->Add([this, collection_id, part_id, dest_url]() {
+    // 1. read
+    auto reader = io_wrapper_->GetReader();
+    reader->Init(dest_url);
+    size_t file_size = reader->GetFileSize();
+    CHECK_NE(file_size, 0);
+    LOG(INFO) << "file_size: " << std::to_string(file_size);
+    char *data = new char[file_size];
+    reader->Read(data, file_size);
+    std::string str(data);
+    LOG(INFO) << "data: " << str;
+
+    // 2. put readed data into partition_manager
+    auto get_func = engine_elem_.function_store->GetCreatePart(collection_id);
+    auto p = get_func();
+    SArrayBinStream bin;
+    bin.AddBin(data, file_size);
+    delete [] data;
+    p->FromBin(bin);
+    engine_elem_.partition_manager->Insert(collection_id, part_id, std::move(p));
+
+    // 3. reply
+    SArrayBinStream reply_bin;
+    reply_bin << Qid() << collection_id << part_id;
+    SendMsgToScheduler(ScheduleFlag::kFinishLoadCheckpoint, reply_bin);
+  });
 }
 
 void Worker::WritePartition(SArrayBinStream bin) {
@@ -151,12 +177,24 @@ void Worker::WritePartition(SArrayBinStream bin) {
   std::string dest_url;
   bin >> collection_id >> part_id >> dest_url;
 
-  io_wrapper_->Write(collection_id, part_id, dest_url, 
-    engine_elem_.function_store->GetWritePartFunc(collection_id),  // get the write_part_func from function_store
-    [this](SArrayBinStream bin) {
-      SendMsgToScheduler(ScheduleFlag::kFinishWritePartition, bin);
-    }
-  );
+  engine_elem_.executor->Add([this, collection_id, part_id, dest_url]() {
+    // 1. write
+    auto writer = io_wrapper_->GetWriter();
+    CHECK(engine_elem_.partition_manager->Has(collection_id, part_id));
+    auto part = engine_elem_.partition_manager->Get(collection_id, part_id)->partition;
+    auto write_part_func = engine_elem_.function_store->GetWritePartFunc(collection_id);
+    write_part_func(part, writer, dest_url);
+
+    SArrayBinStream bin;
+    part->ToBin(bin);
+    bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
+    CHECK_EQ(rc, 0);
+
+    // 2. reply
+    SArrayBinStream reply_bin;
+    reply_bin << Qid() << collection_id;
+    SendMsgToScheduler(ScheduleFlag::kFinishWritePartition, reply_bin);
+  });
 }
 
 void Worker::Exit() { 
