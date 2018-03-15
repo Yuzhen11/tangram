@@ -51,6 +51,7 @@ class TypedPartition : public AbstractPartition {
    */
   struct Iterator {
     virtual ObjT& Deref() = 0; 
+    virtual ObjT* Ref() = 0; 
     virtual void SubAdvance() = 0;
     virtual bool SubUnequal(const std::unique_ptr<Iterator>& other) = 0;
   };
@@ -58,6 +59,9 @@ class TypedPartition : public AbstractPartition {
     std::unique_ptr<Iterator> iter;
     ObjT& operator*() {
       return iter->Deref();
+    }
+    ObjT* operator->() {
+      return iter->Ref();
     }
     IterWrapper& operator++() {
       iter->SubAdvance();

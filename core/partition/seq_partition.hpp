@@ -32,6 +32,9 @@ class SeqPartition : public TypedPartition<ObjT> {
     virtual ObjT& Deref() {
       return ptr_[pos_];
     }
+    virtual ObjT* Ref() {
+      return &ptr_[pos_];
+    }
     virtual void SubAdvance()  {
       ++ pos_;
     }

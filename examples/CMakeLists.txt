@@ -28,6 +28,13 @@ target_link_libraries(PageRank ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET PageRank PROPERTY CXX_STANDARD 14)
 add_dependencies(PageRank ${external_project_dependencies})
 
+# PageRankWith
+add_executable(PageRankWith pagerank_with.cpp)
+target_link_libraries(PageRankWith xyz)
+target_link_libraries(PageRankWith ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET PageRankWith PROPERTY CXX_STANDARD 14)
+add_dependencies(PageRankWith ${external_project_dependencies})
+
 # SchedulerMain
 add_executable(SchedulerMain scheduler_main.cpp)
 target_link_libraries(SchedulerMain xyz)
