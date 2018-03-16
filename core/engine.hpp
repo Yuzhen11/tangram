@@ -3,6 +3,7 @@
 #include <map>
 #include <memory>
 #include <sstream>
+#include <iterator>
 
 #include "core/executor/executor.hpp"
 #include "core/partition/partition_manager.hpp"
@@ -16,10 +17,6 @@
 #include "core/cache/fetcher.hpp"
 #include "comm/worker_mailbox.hpp"
 #include "comm/sender.hpp"
-
-#include "io/hdfs_block_reader.hpp"
-#include "io/hdfs_reader.hpp"
-#include "io/hdfs_writer.hpp"
 
 #include "core/worker/controller.hpp"
 

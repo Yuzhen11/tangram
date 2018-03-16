@@ -16,7 +16,6 @@
 #include "core/program_context.hpp"
 
 #include "glog/logging.h"
-#include "io/block_reader_wrapper.hpp"
 #include "io/io_wrapper.hpp"
 #include "io/io_wrapper.hpp"
 
@@ -24,10 +23,12 @@ namespace xyz {
 
 class Worker : public Actor {
 public:
-  Worker(int qid, EngineElem engine_elem, std::shared_ptr<BlockReaderWrapper> block_reader_wrapper,
-         std::shared_ptr<IOWrapper> io_wrapper)
-      : Actor(qid), engine_elem_(engine_elem), block_reader_wrapper_(block_reader_wrapper),
-        io_wrapper_(io_wrapper) {
+  Worker(int qid, EngineElem engine_elem,
+         std::shared_ptr<IOWrapper> io_wrapper,
+         std::function<std::shared_ptr<AbstractBlockReader>()> block_reader_getter)
+      : Actor(qid), engine_elem_(engine_elem),
+        io_wrapper_(io_wrapper),
+        block_reader_getter_(block_reader_getter){
     Start();
   }
   virtual ~Worker() override { Stop(); }
@@ -70,8 +71,8 @@ private:
     return ss.str();
   }
   EngineElem engine_elem_;
-  std::shared_ptr<BlockReaderWrapper> block_reader_wrapper_;
   std::shared_ptr<IOWrapper> io_wrapper_;
+  std::function<std::shared_ptr<AbstractBlockReader>()> block_reader_getter_;
 
   std::promise<void> exit_promise_;
 

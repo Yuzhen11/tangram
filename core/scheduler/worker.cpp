@@ -2,6 +2,7 @@
 #include "core/plan/collection_spec.hpp"
 #include "core/queue_node_map.hpp"
 #include "core/shuffle_meta.hpp"
+#include "io/meta.hpp"
 
 #include "core/plan/spec_wrapper.hpp"
 
@@ -94,12 +95,23 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
-  block_reader_wrapper_->ReadBlock(block, 
-  engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id),
-  [this](SArrayBinStream bin) {
-    SendMsgToScheduler(ScheduleFlag::kFinishBlock, bin);
-  }
-  );
+  engine_elem_.executor->Add([this, block]() {
+    // read
+    CHECK(block_reader_getter_);
+    auto block_reader = block_reader_getter_();
+    block_reader->Init(block.url, block.offset);
+    auto read_func = engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id); 
+    auto part = read_func(block_reader);
+    engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+
+    // 2. reply
+    SArrayBinStream reply_bin;
+    FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
+                    block.collection_id};
+    reply_bin << b;
+    VLOG(1) << "Finish block: " << b.DebugString();
+    SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
+  });
 }
 
 void Worker::Distribute(SArrayBinStream bin) {

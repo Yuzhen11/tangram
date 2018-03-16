@@ -1,6 +1,10 @@
 #include "core/engine.hpp"
 #include "core/queue_node_map.hpp"
 
+#include "io/hdfs_reader.hpp"
+#include "io/hdfs_writer.hpp"
+#include "io/hdfs_block_reader.hpp"
+
 #include <chrono>
 
 namespace xyz {
@@ -56,14 +60,11 @@ void Engine::Start() {
 
   // create worker actor
   const int worker_id = GetWorkerQid(engine_elem_.node.id);
-  // set hdfs reader_wrapper
-  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
-      worker_id, engine_elem_.executor, engine_elem_.partition_manager,
-      engine_elem_.node,
-      [namenode, port]() { return std::make_shared<HdfsBlockReader>(namenode, port); });
 
   // create worker
-  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, block_reader_wrapper, io_wrapper);
+  worker_ = std::make_shared<Worker>(worker_id, engine_elem_, 
+          io_wrapper,
+          [namenode, port]() { return std::make_shared<HdfsBlockReader>(namenode, port); });
   worker_->SetProgram(program_);
   mailbox_->RegisterQueue(worker_id, worker_->GetWorkQueue());
 

@@ -5,6 +5,7 @@
 #include "io/fake_block_reader.hpp"
 #include "io/fake_reader.hpp"
 #include "io/fake_writer.hpp"
+#include "io/meta.hpp"
 #include "core/scheduler/worker.hpp"
 
 #include "core/partition/seq_partition.hpp"
@@ -65,28 +66,24 @@ AssignedBlock GetAssignedBlock() {
 TEST_F(TestWorker, Create) {
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
-      qid, engine_elem.executor, engine_elem.partition_manager,
-      engine_elem.node,
-      []() { return std::make_shared<FakeBlockReader>(); });
   auto io_wrapper = std::make_shared<IOWrapper>(
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
+  Worker worker(qid, engine_elem, io_wrapper,
+          []() { return std::make_shared<FakeBlockReader>(); }
+          );
 }
 
 TEST_F(TestWorker, Wait) {
   // worker
   const int qid = 0;
   EngineElem engine_elem = GetEngineElem();
-  auto block_reader_wrapper = std::make_shared<BlockReaderWrapper>(
-      qid, engine_elem.executor, engine_elem.partition_manager,
-      engine_elem.node,
-      []() { return std::make_shared<FakeBlockReader>(); });
   auto io_wrapper = std::make_shared<IOWrapper>(
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
-  Worker worker(qid, engine_elem, block_reader_wrapper, io_wrapper);
+  Worker worker(qid, engine_elem, io_wrapper,
+          []() { return std::make_shared<FakeBlockReader>(); }
+          );
   auto *q = worker.GetWorkQueue();
 
   std::thread th([=]() {
