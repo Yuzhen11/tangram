@@ -33,7 +33,7 @@ struct MapJoinMergeCombine : MapJoin<C1, C2, ObjT1, ObjT2, MsgT> {
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part(partition, tracker);
       if (this->combine) {
-        static_cast<TypedMapOutput<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
+        static_cast<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
       }
       return map_output;
     });

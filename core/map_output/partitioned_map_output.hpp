@@ -15,13 +15,21 @@ namespace xyz {
  * Not thread-safe
  */
 template<typename KeyT, typename MsgT>
-class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
+class PartitionedMapOutput : public AbstractMapOutput {
  public:
   PartitionedMapOutput(std::shared_ptr<AbstractKeyToPartMapper> mapper)
       :key_to_part_mapper_(mapper), buffer_(mapper->GetNumPart()) {}
   virtual ~PartitionedMapOutput() {}
 
-  virtual void Add(std::pair<KeyT, MsgT> msg) override {
+  using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
+  void SetCombineFunc(CombineFuncT combine_func) {
+    combine_func_ = std::move(combine_func);
+  }
+  CombineFuncT GetCombineFunc() const {
+    return combine_func_;
+  }
+
+  void Add(std::pair<KeyT, MsgT> msg) {
     auto* typed_mapper = static_cast<TypedKeyToPartMapper<KeyT>*>(key_to_part_mapper_.get());
     DCHECK(typed_mapper);
     auto part_id = typed_mapper->Get(msg.first);
@@ -29,19 +37,19 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
     buffer_[part_id].push_back(std::move(msg));
   }
 
-  virtual void Add(std::vector<std::pair<KeyT, MsgT>> msgs) override {
+  void Add(std::vector<std::pair<KeyT, MsgT>> msgs) {
     for (auto& msg : msgs) {
       Add(std::move(msg));
     }
   }
 
   virtual void Combine() override {
-    if (!this->combine_func_) 
+    if (!combine_func_) 
       return;
     for (auto& buffer : buffer_) {
       std::sort(buffer.begin(), buffer.end(), 
         [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
-      CombineOneBuffer(buffer, this->combine_func_);
+      CombineOneBuffer(buffer, combine_func_);
     }
   }
 
@@ -94,6 +102,8 @@ class PartitionedMapOutput : public TypedMapOutput<KeyT, MsgT> {
  private:
   std::vector<std::vector<std::pair<KeyT, MsgT>>> buffer_;
   std::shared_ptr<AbstractKeyToPartMapper> key_to_part_mapper_;
+
+  std::function<MsgT(const MsgT&, const MsgT&)> combine_func_;  // optional
 };
 
 }  // namespace

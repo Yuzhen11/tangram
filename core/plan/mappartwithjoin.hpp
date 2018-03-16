@@ -85,7 +85,7 @@ struct MapPartWithJoin : public PlanBase {
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part_with(version, partition, fetcher, tracker);
       if (this->combine) {
-        static_cast<TypedMapOutput<typename ObjT3::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
+        static_cast<PartitionedMapOutput<typename ObjT3::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
         map_output->Combine();
       }
       return map_output;
