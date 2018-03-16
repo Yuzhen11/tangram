@@ -93,6 +93,7 @@ struct MapPartWithJoin : public PlanBase {
 
     CHECK_NOTNULL(join);
     function_store->AddJoin(plan_id, GetJoinPartFunc<ObjT3, MsgT>(join));
+    function_store->AddJoin2(plan_id, GetJoinPartFunc2<ObjT3, MsgT>(join));
   }
 
   MapPartWithTempFuncT GetMapPartWithFunc() {

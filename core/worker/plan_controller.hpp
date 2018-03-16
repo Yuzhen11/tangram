@@ -7,6 +7,7 @@
 #include "core/worker/controller.hpp"
 #include "core/worker/abstract_plan_controller.hpp"
 #include "base/message.hpp"
+#include "core/map_output/map_output_stream_store.hpp"
 
 namespace xyz {
 
@@ -90,6 +91,7 @@ class PlanController : public AbstractPlanController {
   int fetch_collection_id_ = -1; 
   int plan_id_;
   int num_upstream_part_;
+  int num_join_part_;
   int num_local_join_part_;
   int num_local_map_part_;
   SpecWrapper::Type type_;
@@ -124,6 +126,9 @@ class PlanController : public AbstractPlanController {
   std::mutex time_mu_;  
   std::map<int, std::tuple<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> map_time_;//part id
   std::map<int, std::map<int, std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>>> join_time_;//part id
+
+  bool local_map_mode_ = false;  // TODO: turn it on
+  MapOutputStreamStore stream_store_;
 };
 
 }  // namespace

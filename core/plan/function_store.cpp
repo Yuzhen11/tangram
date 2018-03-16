@@ -21,6 +21,10 @@ const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
   CHECK(joins_.find(id) != joins_.end());
   return joins_[id];
 }
+const FunctionStore::JoinFunc2T& FunctionStore::GetJoin2(int id) {
+  CHECK(joins2_.find(id) != joins2_.end());
+  return joins2_[id];
+}
 
 const FunctionStore::CreatePartFromBinFuncT& FunctionStore::GetCreatePartFromBin(int id) {
   CHECK(create_part_from_bin_.find(id) != create_part_from_bin_.end()) << id;
@@ -65,6 +69,9 @@ void FunctionStore::AddMergeCombine(int id, MergeCombineFuncT merge_combine) {
 
 void FunctionStore::AddJoin(int id, JoinFuncT func) {
   joins_.insert({id, func});
+}
+void FunctionStore::AddJoin2(int id, JoinFunc2T func) {
+  joins2_.insert({id, func});
 }
 
 void FunctionStore::AddMapWith(int id, MapWith func) {

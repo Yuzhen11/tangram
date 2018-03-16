@@ -19,6 +19,7 @@ class FunctionStore : public AbstractFunctionStore {
   using MapFuncT = AbstractFunctionStore::MapFuncT;
   using MergeCombineFuncT = AbstractFunctionStore::MergeCombineFuncT;
   using JoinFuncT = AbstractFunctionStore::JoinFuncT;
+  using JoinFunc2T = AbstractFunctionStore::JoinFunc2T;
   using MapWith = AbstractFunctionStore::MapWith;
   using CreatePartFromBinFuncT = AbstractFunctionStore::CreatePartFromBinFuncT;
   using WritePartFuncT = AbstractFunctionStore::WritePartFuncT;
@@ -29,6 +30,7 @@ class FunctionStore : public AbstractFunctionStore {
   const MapFuncT& GetMap(int id);
   const MapWith& GetMapWith(int id);
   const JoinFuncT& GetJoin(int id);
+  const JoinFunc2T& GetJoin2(int id);
   const CreatePartFromBinFuncT& GetCreatePartFromBin(int id);
   const CreatePartFromBlockReaderFuncT& GetCreatePartFromBlockReader(int id);
   const WritePartFuncT& GetWritePartFunc(int id);
@@ -39,6 +41,7 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddMap(int id, MapFuncT func) override;
   virtual void AddMergeCombine(int id, MergeCombineFuncT func) override;
   virtual void AddJoin(int id, JoinFuncT func) override;
+  virtual void AddJoin2(int id, JoinFunc2T func) override;
   virtual void AddMapWith(int id, MapWith func) override;
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) override;
   virtual void AddCreatePartFromBlockReaderFunc(int id, CreatePartFromBlockReaderFuncT func) override;
@@ -50,6 +53,7 @@ class FunctionStore : public AbstractFunctionStore {
   std::map<int, MapFuncT> maps_;
   std::map<int, MergeCombineFuncT> merge_combines_;
   std::map<int, JoinFuncT> joins_;
+  std::map<int, JoinFunc2T> joins2_;
   std::map<int, MapWith> mapwiths_;
 
   std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;

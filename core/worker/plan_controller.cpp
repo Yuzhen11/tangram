@@ -25,6 +25,7 @@ void PlanController::Setup(SpecWrapper spec) {
   checkpoint_interval_ = p->checkpoint_interval;
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
+  num_join_part_ = controller_->engine_elem_.collection_map->GetNumParts(join_collection_id_);
   num_local_join_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(join_collection_id_);
   num_local_map_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(map_collection_id_);
   min_version_ = 0;
@@ -321,9 +322,10 @@ void PlanController::RunMap(int part_id, int version) {
     }
     // 2. serialize
     auto start2 = std::chrono::system_clock::now();
-    auto bins = map_output->Serialize();
-    // 3. add to intermediate_store
-    for (int i = 0; i < bins.size(); ++ i) {
+
+    int buffer_size = map_output->GetBufferSize();
+    CHECK_EQ(buffer_size, num_join_part_);
+    for (int i = 0; i < buffer_size; ++ i) {
       Message msg;
       msg.meta.sender = controller_->Qid();
       CHECK(controller_->engine_elem_.collection_map);
@@ -340,13 +342,25 @@ void PlanController::RunMap(int part_id, int version) {
       meta.upstream_part_id = part_id;
       meta.part_id = i;
       meta.version = version;
+      // now I reuse the local_mode variable used by fetch
+      meta.local_mode = (msg.meta.recver == msg.meta.sender);  
       ctrl2_bin << meta;
 
       msg.AddData(ctrl_bin.ToSArray());
       msg.AddData(plan_bin.ToSArray());
       msg.AddData(ctrl2_bin.ToSArray());
-      msg.AddData(bins[i].ToSArray());
-      controller_->engine_elem_.intermediate_store->Add(msg);
+
+      if (local_map_mode_ && msg.meta.recver == msg.meta.sender) {
+        auto k = std::make_tuple(i, part_id, version);
+        stream_store_.Insert(k, map_output->Get(i));
+        SArrayBinStream dummy_bin;
+        msg.AddData(dummy_bin.ToSArray());
+        controller_->GetWorkQueue()->Push(msg);
+      } else {
+        auto bin = map_output->Get(i)->Serialize();
+        msg.AddData(bin.ToSArray());
+        controller_->engine_elem_.intermediate_store->Add(msg);
+      }
     }
     Message msg;
     msg.meta.sender = 0;
@@ -418,6 +432,12 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
   // but it cannot run because map does not finish and occupy the threadpool
   fetch_executor_->Add([this, meta]() {
     auto start = std::chrono::system_clock::now();
+
+    if (local_map_mode_ && meta.meta.local_mode) {
+      auto k = std::make_tuple(meta.meta.part_id, meta.meta.upstream_part_id, meta.meta.version);
+      auto stream = stream_store_.Get(k);
+      stream_store_.Remove(k);
+    }
     auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
     CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
     auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);

@@ -30,6 +30,14 @@ class PartitionedMapOutput : public AbstractMapOutput {
   }
   virtual ~PartitionedMapOutput() {}
 
+  virtual int GetBufferSize() {
+    return buffer_.size();
+  }
+  virtual std::shared_ptr<AbstractMapOutputStream> Get(int i) {
+    CHECK_LT(i, buffer_.size());
+    return buffer_[i];
+  }
+
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
 
   void SetCombineFunc(CombineFuncT combine_func) {

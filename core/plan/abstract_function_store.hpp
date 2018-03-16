@@ -5,6 +5,7 @@
 
 #include "core/intermediate/abstract_intermediate_store.hpp"
 #include "core/map_output/abstract_map_output.hpp"
+#include "core/map_output/map_output_stream.hpp"
 #include "core/partition/abstract_partition.hpp"
 #include "core/cache/abstract_fetcher.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
@@ -20,6 +21,7 @@ class AbstractFunctionStore {
           std::shared_ptr<AbstractMapProgressTracker>)>;
   using MergeCombineFuncT = std::function<SArrayBinStream(const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id)>;
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
+  using JoinFunc2T = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutputStream>)>;
   using MapWith = 
       std::function<std::shared_ptr<AbstractMapOutput>(int,
                                                        std::shared_ptr<AbstractPartition>,
@@ -37,6 +39,7 @@ class AbstractFunctionStore {
   virtual void AddMap(int id, MapFuncT func) = 0;
   virtual void AddMergeCombine(int id, MergeCombineFuncT func) = 0;
   virtual void AddJoin(int id, JoinFuncT func) = 0;
+  virtual void AddJoin2(int id, JoinFunc2T func) = 0;
   virtual void AddMapWith(int id, MapWith func) = 0;
 
   virtual void AddCreatePartFromBinFunc(int id, CreatePartFromBinFuncT func) = 0;

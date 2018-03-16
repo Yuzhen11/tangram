@@ -20,5 +20,20 @@ AbstractFunctionStore::JoinFuncT GetJoinPartFunc(std::function<void(T*, const Ms
   };
 }
 
+template<typename T, typename MsgT>
+AbstractFunctionStore::JoinFunc2T GetJoinPartFunc2(std::function<void(T*, const MsgT&)> join) {
+  return [join] (std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractMapOutputStream> stream) {
+    auto* p = dynamic_cast<Indexable<T>*>(partition.get());
+    auto* s = static_cast<MapOutputStream<typename T::KeyT, MsgT>*>(stream.get());
+    CHECK_NOTNULL(p);
+    CHECK_NOTNULL(s);
+    const auto& buffer = s->GetBuffer();
+    for (auto& kv : buffer) {
+      auto* obj = p->FindOrCreate(kv.first);
+      join(obj, kv.second);
+    }
+  };
+}
+
 }  // namespace xyz
 
