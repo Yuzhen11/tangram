@@ -46,6 +46,10 @@ struct MapPartJoin : public PlanBase {
     checkpoint_interval = cp;
     return this;
   }
+  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetCombine(CombineFuncT combine_func) {
+    combine = std::move(combine_func);
+    return this;
+  }
 
   virtual SpecWrapper GetSpec() override {
     SpecWrapper w;

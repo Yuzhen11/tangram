@@ -129,11 +129,12 @@ int main(int argc, char** argv) {
       },
       [](Vertex* vertex, float m){
         vertex->pr += 0.85*m;
-      })->SetIter(5)->SetStaleness(2);
-  
-  p->combine = [](float a, float b){
+      })
+  ->SetIter(5)
+  ->SetStaleness(2)
+  ->SetCombine([](float a, float b){
     return a+b;
-  };
+  });
   
 
   Context::count(dataset);
