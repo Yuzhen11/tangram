@@ -52,7 +52,7 @@ TEST_F(TestPartitionedMapOutput, CombineOneBuffer) {
   std::vector<std::pair<int, int>> buffer{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
   auto combine = [](int a, int b) { return a + b; };
   const std::vector<std::pair<int, int>> expected{{3, 1}, {2, 2}, {3, 5}};
-  PartitionedMapOutput<int, int>::CombineOneBuffer(buffer, combine);
+  MapOutputStream<int, int>::CombineOneBuffer(buffer, combine);
   ASSERT_EQ(buffer.size(), expected.size());
   for (int i = 0; i < buffer.size(); ++ i) {
     EXPECT_EQ(buffer[i], expected[i]);
@@ -76,7 +76,7 @@ TEST_F(TestPartitionedMapOutput, Combine) {
 
 TEST_F(TestPartitionedMapOutput, SerializeOneBuffer) {
   std::vector<std::pair<std::string, int>> v{{"abc", 1}, {"hello", 2}};
-  SArrayBinStream bin = PartitionedMapOutput<std::string, int>::SerializeOneBuffer(v);
+  SArrayBinStream bin = MapOutputStream<std::string, int>::SerializeOneBuffer(v);
   std::string s;
   int a;
   bin >> s >> a;

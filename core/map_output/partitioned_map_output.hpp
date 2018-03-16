@@ -3,6 +3,8 @@
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/index/abstract_key_to_part_mapper.hpp"
 
+#include "core/map_output/map_output_stream.hpp"
+
 #include <memory>
 #include <vector>
 #include <algorithm>
@@ -18,10 +20,18 @@ template<typename KeyT, typename MsgT>
 class PartitionedMapOutput : public AbstractMapOutput {
  public:
   PartitionedMapOutput(std::shared_ptr<AbstractKeyToPartMapper> mapper)
-      :key_to_part_mapper_(mapper), buffer_(mapper->GetNumPart()) {}
+      :key_to_part_mapper_(mapper), buffer_(mapper->GetNumPart()), 
+       buffer_pointers_(mapper->GetNumPart()) {
+    for (int i = 0; i < buffer_.size(); ++ i) {
+      buffer_[i] = std::make_shared<MapOutputStream<KeyT, MsgT>>();
+      buffer_pointers_[i] = static_cast<MapOutputStream<KeyT, MsgT>*>(buffer_[i].get());
+    }
+    typed_mapper_ = static_cast<TypedKeyToPartMapper<KeyT>*>(key_to_part_mapper_.get());
+  }
   virtual ~PartitionedMapOutput() {}
 
   using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
+
   void SetCombineFunc(CombineFuncT combine_func) {
     combine_func_ = std::move(combine_func);
   }
@@ -30,11 +40,10 @@ class PartitionedMapOutput : public AbstractMapOutput {
   }
 
   void Add(std::pair<KeyT, MsgT> msg) {
-    auto* typed_mapper = static_cast<TypedKeyToPartMapper<KeyT>*>(key_to_part_mapper_.get());
-    DCHECK(typed_mapper);
-    auto part_id = typed_mapper->Get(msg.first);
+    DCHECK(typed_mapper_);
+    auto part_id = typed_mapper_->Get(msg.first);
     DCHECK_LT(part_id, key_to_part_mapper_->GetNumPart());
-    buffer_[part_id].push_back(std::move(msg));
+    buffer_pointers_[part_id]->Add(std::move(msg));
   }
 
   void Add(std::vector<std::pair<KeyT, MsgT>> msgs) {
@@ -46,10 +55,8 @@ class PartitionedMapOutput : public AbstractMapOutput {
   virtual void Combine() override {
     if (!combine_func_) 
       return;
-    for (auto& buffer : buffer_) {
-      std::sort(buffer.begin(), buffer.end(), 
-        [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
-      CombineOneBuffer(buffer, combine_func_);
+    for (auto* buffer : buffer_pointers_) {
+      buffer->Combine(combine_func_);
     }
   }
 
@@ -60,48 +67,33 @@ class PartitionedMapOutput : public AbstractMapOutput {
   virtual std::vector<SArrayBinStream> Serialize() override {
     std::vector<SArrayBinStream> rets;
     rets.reserve(buffer_.size());
-    for (int i = 0; i < buffer_.size(); ++ i) {
-      rets.push_back(SerializeOneBuffer(buffer_[i]));
+    for (auto& buffer : buffer_) {
+      rets.push_back(buffer->Serialize());
     }
     return rets;
   }
 
-  static SArrayBinStream SerializeOneBuffer(const std::vector<std::pair<KeyT, MsgT>>& buffer) {
-    SArrayBinStream bin;
-    for (auto& p : buffer) {
-      bin << p.first << p.second;
-    }
-    return bin;
-  }
-
-  static void CombineOneBuffer(std::vector<std::pair<KeyT, MsgT>>& buffer, 
-          const std::function<MsgT(const MsgT&, const MsgT&)>& combine) {
-    int l = 0;
-    for (int r = 1; r < buffer.size(); ++ r) {
-      if (buffer[l].first == buffer[r].first) {
-        buffer[l].second = combine(buffer[l].second, buffer[r].second);
-      } else {
-        l += 1;
-        if (l != r) {
-          buffer[l] = buffer[r];
-        }
-      }
-    }
-    if (!buffer.empty()) {
-      buffer.resize(l+1);
-    }
-  }
-
   const std::vector<std::pair<KeyT, MsgT>>& GetBuffer(int part_id) const {
-    CHECK_LE(part_id, buffer_.size());
-    return buffer_[part_id];
+    CHECK_LE(part_id, buffer_pointers_.size());
+    return buffer_pointers_[part_id]->GetBuffer();
   }
 
   // For test use only.
-  std::vector<std::vector<std::pair<KeyT, MsgT>>> GetBuffer() { return buffer_; }
+  std::vector<std::vector<std::pair<KeyT, MsgT>>> GetBuffer() { 
+    std::vector<std::vector<std::pair<KeyT, MsgT>>> ret;
+    for (auto* buffer: buffer_pointers_) {
+      ret.push_back(buffer->GetBuffer());
+    }
+    return ret; 
+  }
  private:
-  std::vector<std::vector<std::pair<KeyT, MsgT>>> buffer_;
+  // std::vector<std::vector<std::pair<KeyT, MsgT>>> buffer_;
+  std::vector<std::shared_ptr<AbstractMapOutputStream>> buffer_;
+  // use buffer_pointers_ with cautions
+  std::vector<MapOutputStream<KeyT, MsgT>*> buffer_pointers_;  
+
   std::shared_ptr<AbstractKeyToPartMapper> key_to_part_mapper_;
+  TypedKeyToPartMapper<KeyT>* typed_mapper_ = nullptr;
 
   std::function<MsgT(const MsgT&, const MsgT&)> combine_func_;  // optional
 };

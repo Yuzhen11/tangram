@@ -21,8 +21,8 @@ SArrayBinStream MergeCombineMultipleMapOutput(
   const auto& combine_func = static_cast<PartitionedMapOutput<KeyT, MsgT>*>(map_outputs[0].get())->GetCombineFunc();
   std::sort(buffer.begin(), buffer.end(), 
     [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
-  PartitionedMapOutput<KeyT, MsgT>::CombineOneBuffer(buffer, combine_func);
-  auto bin = PartitionedMapOutput<KeyT, MsgT>::SerializeOneBuffer(buffer);
+  MapOutputStream<KeyT, MsgT>::CombineOneBuffer(buffer, combine_func);
+  auto bin = MapOutputStream<KeyT, MsgT>::SerializeOneBuffer(buffer);
   return bin;
 }
 
