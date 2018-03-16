@@ -19,21 +19,12 @@ PartitionManager::~PartitionManager() {
   }
 }
 
-std::shared_ptr<VersionedPartition> PartitionManager::Get(int collection_id, int partition_id) {
+std::shared_ptr<AbstractPartition> PartitionManager::Get(int collection_id, int partition_id) {
   std::lock_guard<std::mutex> lk(mu_);
   CHECK(partitions_[collection_id].find(partition_id) != partitions_[collection_id].end());
   return partitions_[collection_id][partition_id];
 }
 
-std::shared_ptr<VersionedPartition> PartitionManager::Get(int collection_id, int partition_id, int version) {
-  std::lock_guard<std::mutex> lk(mu_);
-  CHECK(partitions_[collection_id].find(partition_id) != partitions_[collection_id].end());
-  // TODO Now do not allow requested version to be smaller
-  CHECK_LE(version, partitions_[collection_id][partition_id]->version);
-  return partitions_[collection_id][partition_id];
-}
-
-// For test
 bool PartitionManager::Has(int collection_id, int partition_id) {
   std::lock_guard<std::mutex> lk(mu_);
   if (partitions_.find(collection_id) == partitions_.end()
@@ -44,19 +35,9 @@ bool PartitionManager::Has(int collection_id, int partition_id) {
   }
 }
 
-bool PartitionManager::Has(int collection_id, int partition_id, int version) {
+std::vector<std::shared_ptr<AbstractPartition>> PartitionManager::Get(int collection_id) {
   std::lock_guard<std::mutex> lk(mu_);
-  if (partitions_.find(collection_id) == partitions_.end()
-          || partitions_[collection_id].find(partition_id) == partitions_[collection_id].end()) {
-    return false;
-  } else {
-    return version <= partitions_[collection_id][partition_id]->version;
-  }
-}
-
-std::vector<std::shared_ptr<VersionedPartition>> PartitionManager::Get(int collection_id) {
-  std::lock_guard<std::mutex> lk(mu_);
-  std::vector<std::shared_ptr<VersionedPartition>> ret;
+  std::vector<std::shared_ptr<AbstractPartition>> ret;
   for (auto& part : partitions_[collection_id]) {
     ret.push_back(part.second);
   }
@@ -72,12 +53,8 @@ void PartitionManager::Insert(int collection_id, int partition_id, std::shared_p
   std::lock_guard<std::mutex> lk(mu_);
   CHECK(partitions_[collection_id].find(partition_id) == partitions_[collection_id].end());
   CHECK_EQ(p.use_count(), 1) << "the partition has only one reference.";
-  auto part = std::make_shared<VersionedPartition>();
-  part->version = 0;
-  part->partition = std::move(p);
-  part->part_id = partition_id;
-  part->partition->id = partition_id;
-  partitions_[collection_id][partition_id] = std::move(part);
+  p->id = partition_id;
+  partitions_[collection_id][partition_id] = std::move(p);
 }
 
 void PartitionManager::Remove(int collection_id, int partition_id) {

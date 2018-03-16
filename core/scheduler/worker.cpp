@@ -125,7 +125,7 @@ void Worker::CheckPoint(SArrayBinStream bin) {
     // 1. write
     auto writer = io_wrapper_->GetWriter();
     CHECK(engine_elem_.partition_manager->Has(collection_id, part_id));
-    auto part = engine_elem_.partition_manager->Get(collection_id, part_id)->partition;
+    auto part = engine_elem_.partition_manager->Get(collection_id, part_id);
 
     SArrayBinStream bin;
     part->ToBin(bin);
@@ -181,7 +181,7 @@ void Worker::WritePartition(SArrayBinStream bin) {
     // 1. write
     auto writer = io_wrapper_->GetWriter();
     CHECK(engine_elem_.partition_manager->Has(collection_id, part_id));
-    auto part = engine_elem_.partition_manager->Get(collection_id, part_id)->partition;
+    auto part = engine_elem_.partition_manager->Get(collection_id, part_id);
     auto write_part_func = engine_elem_.function_store->GetWritePartFunc(collection_id);
     write_part_func(part, writer, dest_url);
 

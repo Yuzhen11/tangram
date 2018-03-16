@@ -57,7 +57,7 @@ TEST_F(TestBlockReaderWrapper, ReadBlock) {
   EXPECT_EQ(finished_block.hostname, node.hostname);
   EXPECT_EQ(finished_block.collection_id, collection_id);
 
-  auto part = partition_manager->Get(collection_id, block_id)->partition;
+  auto part = partition_manager->Get(collection_id, block_id);
   auto *p = static_cast<SeqPartition<std::string> *>(part.get());
   auto v = p->GetStorage();
   ASSERT_EQ(v.size(), 3);

@@ -6,7 +6,6 @@
 #include "core/intermediate/abstract_intermediate_store.hpp"
 #include "core/map_output/abstract_map_output.hpp"
 #include "core/partition/abstract_partition.hpp"
-#include "core/cache/abstract_partition_cache.hpp"
 #include "core/cache/abstract_fetcher.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
 #include "io/abstract_block_reader.hpp"

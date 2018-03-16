@@ -98,7 +98,7 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   FetchMeta meta;
   ctrl2_bin >> meta;
   // LOG(INFO) << "fetcher receives local: " << meta.DebugString();
-  auto p = partition_manager_->Get(meta.collection_id, meta.partition_id)->partition;
+  auto p = partition_manager_->Get(meta.collection_id, meta.partition_id);
 
   std::unique_lock<std::mutex> lk(m_);
   // TODO: work with plan_controller for the version

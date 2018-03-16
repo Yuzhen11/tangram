@@ -1,17 +1,13 @@
 #pragma once
 
-#include "core/cache/abstract_cache.hpp"
 #include "core/index/abstract_key_to_part_mapper.hpp"
-// #include "core/cache/abstract_partition_cache.hpp"
-// #include "core/partition/indexed_seq_partition.hpp"
-
 #include "core/cache/abstract_fetcher.hpp"
 #include "core/scheduler/control.hpp"
 
 namespace xyz {
 
 template <typename ObjT>
-class TypedCache : public AbstractCache {
+class TypedCache {
  public:
   TypedCache(int plan_id, int partition_id, int version, 
           int collection_id, std::shared_ptr<AbstractFetcher> fetcher, 

@@ -2,8 +2,6 @@
 
 #include "core/partition/abstract_partition.hpp"
 
-#include "core/partition/versioned_partition.hpp"
-
 #include "glog/logging.h"
 
 #include <mutex>
@@ -18,12 +16,9 @@ class PartitionManager {
   ~PartitionManager();
 
   bool Has(int collection_id, int partition_id);
-  std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id);
+  std::shared_ptr<AbstractPartition> Get(int collection_id, int partition_id);
 
-  bool Has(int collection_id, int partition_id, int version);
-  std::shared_ptr<VersionedPartition> Get(int collection_id, int partition_id, int version);
-
-  std::vector<std::shared_ptr<VersionedPartition>> Get(int collection_id);
+  std::vector<std::shared_ptr<AbstractPartition>> Get(int collection_id);
   int GetNumLocalParts(int collection_id);
 
   void Insert(int collection_id, int partition_id, std::shared_ptr<AbstractPartition>&&);
@@ -32,7 +27,7 @@ class PartitionManager {
  private:
   // <collection_id, <partition_id, partition>>
   // Let PartitionManager own the partition.
-  std::map<int, std::map<int, std::shared_ptr<VersionedPartition>>> partitions_;
+  std::map<int, std::map<int, std::shared_ptr<AbstractPartition>>> partitions_;
   // Make it thread-safe
   std::mutex mu_;
 };

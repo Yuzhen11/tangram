@@ -41,11 +41,11 @@ void PlanController::Setup(SpecWrapper spec) {
 
   auto parts = controller_->engine_elem_.partition_manager->Get(map_collection_id_);
   for (auto& part : parts) {
-    map_versions_[part->part_id] = 0;
+    map_versions_[part->id] = 0;
   }
   parts = controller_->engine_elem_.partition_manager->Get(join_collection_id_);
   for (auto& part : parts) {
-    join_versions_[part->part_id] = 0;
+    join_versions_[part->id] = 0;
   }
 
   SArrayBinStream reply_bin;
@@ -208,7 +208,7 @@ bool PlanController::TryCheckpoint(int part_id) {
     fetch_executor_->Add([this, part_id, dest_url]() {
       auto writer = controller_->io_wrapper_->GetWriter();
       CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, part_id));
-      auto part = controller_->engine_elem_.partition_manager->Get(join_collection_id_, part_id)->partition;
+      auto part = controller_->engine_elem_.partition_manager->Get(join_collection_id_, part_id);
 
       SArrayBinStream bin;
       part->ToBin(bin);
@@ -306,7 +306,7 @@ void PlanController::RunMap(int part_id, int version) {
     auto start = std::chrono::system_clock::now();
     // 0. get partition
     CHECK(controller_->engine_elem_.partition_manager->Has(map_collection_id_, part_id));
-    auto p = controller_->engine_elem_.partition_manager->Get(map_collection_id_, part_id)->partition;
+    auto p = controller_->engine_elem_.partition_manager->Get(map_collection_id_, part_id);
     auto pt = std::make_shared<FakeTracker>();
     // 1. map
     std::shared_ptr<AbstractMapOutput> map_output;
@@ -420,7 +420,7 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     auto start = std::chrono::system_clock::now();
     auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
     CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
-    auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id)->partition;
+    auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
     join_func(p, meta.bin);
 
     Message msg;
@@ -563,9 +563,9 @@ void PlanController::Fetch(VersionedJoinMeta fetch_meta, int version) {
   SArrayBinStream reply_bin;
   if (fetch_meta.meta.version == -1) {  // fetch objs
     auto& func = controller_->engine_elem_.function_store->GetGetter(fetch_meta.meta.collection_id);
-    reply_bin = func(fetch_meta.bin, part->partition);
+    reply_bin = func(fetch_meta.bin, part);
   } else {  // fetch part
-    part->partition->ToBin(reply_bin);
+    part->ToBin(reply_bin);
   }
   // reply, send to fetcher
   Message reply_msg;
