@@ -10,7 +10,6 @@
 #include "core/plan/load.hpp"
 #include "core/plan/write.hpp"
 #include "core/plan/checkpoint.hpp"
-#include "core/plan/load_checkpoint.hpp"
 
 #include "core/plan/dag.hpp"
 
@@ -129,14 +128,14 @@ class Context {
 
   template<typename C>
   static void checkpoint(C* c, std::string url, std::string name = "") {
-    auto* p = plans_.make<Checkpoint>(c->Id(), url);
+    auto* p = plans_.make<Checkpoint>(c->Id(), url, Checkpoint::Type::checkpoint);
     p->name = name+"::checkpoint";
     dag_.AddDagNode(p->plan_id, {c->Id()}, {});
   }
 
   template<typename C>
   static void loadcheckpoint(C* c, std::string url, std::string name = "") {
-    auto* p = plans_.make<LoadCheckpoint>(c->Id(), url);
+    auto* p = plans_.make<Checkpoint>(c->Id(), url, Checkpoint::Type::loadcheckpoint);
     p->name = name+"::loadcheckpoint";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
   }
