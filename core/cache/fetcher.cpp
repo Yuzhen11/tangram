@@ -68,11 +68,10 @@ void Fetcher::FetchPartRequest(Message msg) {
   FetchMeta meta;
   bin >> meta;
   auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
-  // check whether there are pending requests for this version
-  // TODO: add the request logic
-  
-  // now I send fetch part directly
-  SendFetchPart(meta);
+  if(!q.empty() && q.back() < meta.version){
+    q.push_back(meta.version);
+    SendFetchPart(meta);
+  }
 }
 
 void Fetcher::SendFetchPart(FetchMeta meta) {
@@ -104,11 +103,12 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   // TODO: work with plan_controller for the version
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
+  FinishPart(meta);
   cv_.notify_all();
 }
 
 void Fetcher::FetchPartReplyRemote(Message msg) {
-  CHECK_EQ(msg.data.size(), 3);
+  CHECK_EQ(msg.data.size(), 3); 
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[1]);
   bin.FromSArray(msg.data[2]);
@@ -122,6 +122,8 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   // TODO remove from requesting_versions_
   std::unique_lock<std::mutex> lk(m_);
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
+  auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
+  q.erase(std::remove(q.begin(), q.end(), meta.version), q.end());
   partition_cache_[meta.collection_id][meta.partition_id] = p;
   cv_.notify_all();
 }
