@@ -67,12 +67,44 @@ class Context {
   }
 
   template<typename D>
-  static auto* distribute(std::vector<D>&& data, int num_parts = 1) {
+  static auto* distribute(std::vector<D> data, int num_parts = 1) {
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>(num_parts);
     auto* p = plans_.make<Distribute<D>>(c->Id(), num_parts);
     p->data = std::move(data);
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
+  }
+
+  // distribute a std::vector by key.
+  // The user-defined type should have Key() function and is serializable.
+  // Users should make sure there is only one key per object.
+  template<typename D>
+  static auto* distribute_by_key(std::vector<D> data, int num_parts = 1) {
+    auto* tmp_c = distribute(data, 1);
+    auto* c = placeholder<D>(num_parts);
+    mapjoin(tmp_c, c, 
+      [](const D& d) {
+        return std::pair<typename D::KeyT, D>(d.Key(), d);
+      }, 
+      [](D* d, const D& msg) {
+        *d = msg;
+      });
+    // TODO, remove tmp_c
+    return c;
+  }
+
+  template<typename C, typename F>
+  static void foreach(C* c, F f) {
+    auto* tmp_c = placeholder<CountObjT>(1);
+    mapjoin(c, tmp_c, 
+      [f](const typename C::ObjT& c) {
+        f(c);
+        return std::make_pair(0, 0);
+      },
+      [](CountObjT*, int) {
+        // dummy
+      });
+    // TODO: remove tmp_c
   }
 
   template<typename Parse>

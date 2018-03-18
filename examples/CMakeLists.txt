@@ -55,3 +55,10 @@ target_link_libraries(TestFetch xyz)
 target_link_libraries(TestFetch ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestFetch PROPERTY CXX_STANDARD 14)
 add_dependencies(TestFetch ${external_project_dependencies})
+
+# Crawler
+add_executable(Crawler crawler.cpp)
+target_link_libraries(Crawler xyz)
+target_link_libraries(Crawler ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET Crawler PROPERTY CXX_STANDARD 14)
+add_dependencies(Crawler ${external_project_dependencies})
