@@ -48,3 +48,10 @@ target_link_libraries(A xyz)
 target_link_libraries(A ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET A PROPERTY CXX_STANDARD 14)
 add_dependencies(A ${external_project_dependencies})
+
+# TestFetch
+add_executable(TestFetch test_fetch.cpp)
+target_link_libraries(TestFetch xyz)
+target_link_libraries(TestFetch ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestFetch PROPERTY CXX_STANDARD 14)
+add_dependencies(TestFetch ${external_project_dependencies})

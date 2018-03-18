@@ -25,6 +25,7 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
     std::unique_lock<std::mutex> lk(m_);
     if (IsVersionSatisfied(meta)) {
       TryAccessLocal(meta);
+      // LOG(INFO) << "[FetchPart] accessing from process cache";
       return partition_cache_[meta.collection_id][meta.partition_id];
     }
   }
@@ -54,16 +55,22 @@ void Fetcher::FinishPart(FetchMeta meta) {
     std::unique_lock<std::mutex> lk(m_);
     local_access_count_[{meta.collection_id, meta.partition_id}] -= 1;
     // when no one is accessing this part, SendFinishPart
+    // TODO: the reference count of local part will drop to 0 even
+    // when fetch_collection != join_collection (fetch_collection 
+    // is immutable), and thus local part need to be refetched.
+    // But it should be fast
     if (local_access_count_[{meta.collection_id, meta.partition_id}] == 0) {
       SendFinishPart(meta);
+      int version = partition_versions_[meta.collection_id][meta.partition_id];
       partition_versions_[meta.collection_id].erase(meta.partition_id);
       partition_cache_[meta.collection_id].erase(meta.partition_id);
-      TryFetchNextVersion(meta);
+      TryFetchNextVersion(meta, version);
     }
   }
 }
 
 void Fetcher::SendFinishPart(const FetchMeta& meta) {
+  // LOG(INFO) << "SendFinishPart: " << meta.DebugString();
   Message msg;
   msg.meta.sender = Qid();
   msg.meta.recver = GetControllerActorQid(GetNodeId(Qid()));
@@ -133,8 +140,6 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
   cv_.notify_all();
-
-  // TryFetchNextVersion(meta);
 }
 
 void Fetcher::FetchPartReplyRemote(Message msg) {
@@ -154,13 +159,15 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   partition_cache_[meta.collection_id][meta.partition_id] = p;
   cv_.notify_all();
 
-  TryFetchNextVersion(meta);
+  TryFetchNextVersion(meta, meta.version);
 }
 
 // lock required
-void Fetcher::TryFetchNextVersion(const FetchMeta& meta) {
+void Fetcher::TryFetchNextVersion(const FetchMeta& meta, int version) {
   auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
-  q.erase(std::remove(q.begin(), q.end(), meta.version), q.end());
+  q.erase(std::remove_if(q.begin(), q.end(), 
+              [version](int v){ return v <= version; } )
+          , q.end());
   // send new request for next version if any
   if (!q.empty()) {
     int next_version = q.front();

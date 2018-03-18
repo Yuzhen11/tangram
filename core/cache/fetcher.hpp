@@ -46,7 +46,7 @@ class Fetcher : public Actor, public AbstractFetcher {
   void FetchPartRequest(Message msg);
   void SendFetchPart(FetchMeta meta);
   void SendFinishPart(const FetchMeta& meta);
-  void TryFetchNextVersion(const FetchMeta& meta);
+  void TryFetchNextVersion(const FetchMeta& meta, int version);
   void TryAccessLocal(const FetchMeta& meta);
 
   // for Process
