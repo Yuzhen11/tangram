@@ -36,7 +36,7 @@ class TypedCache {
   std::shared_ptr<AbstractPartition> GetPartition(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.upstream_part_id = partition_id_;
+    meta.upstream_part_id = -1;  // TODO: upstream_part_id may not be useful
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
     meta.version = std::max(version_ - staleness_, 0);
@@ -48,7 +48,7 @@ class TypedCache {
   void ReleasePart(int partition_id) {
     FetchMeta meta;
     meta.plan_id = plan_id_;
-    meta.upstream_part_id = partition_id_;
+    meta.upstream_part_id = -1;  // TODO: upstream_part_id may not be useful
     meta.collection_id = collection_id_;
     meta.partition_id = partition_id;
     meta.version = std::max(version_ - staleness_, 0);

@@ -117,7 +117,8 @@ class PlanController : public AbstractPlanController {
 
   std::set<int> running_maps_;
   std::set<int> running_joins_;
-  std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
+  // std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
+  std::map<int, int> running_fetches_;  // part_id, count
   // part -> join, some joins are waiting as there is a join writing that part
   std::map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
 

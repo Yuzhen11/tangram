@@ -160,7 +160,7 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
   }
 
   // see whether there is any fetch running
-  if (fetch_collection_id_ == join_collection_id_ && !running_fetches_[part_id].empty()) {
+  if (fetch_collection_id_ == join_collection_id_ && running_fetches_[part_id] > 0) {
     return false;
   }
   // see whether there is any waiting joins
@@ -415,7 +415,7 @@ void PlanController::ReceiveJoin(Message msg) {
     return;
   }
 
-  if (fetch_collection_id_ == join_collection_id_ && !running_fetches_[meta.part_id].empty()) {
+  if (fetch_collection_id_ == join_collection_id_ && running_fetches_[meta.part_id] > 0) {
     // someone is fetching this part
     waiting_joins_[meta.part_id].push_back(join_meta);
     return;
@@ -535,9 +535,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
 }
 
 void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
-  CHECK(running_fetches_[fetch_meta.meta.part_id].find(fetch_meta.meta.upstream_part_id) ==
-          running_fetches_[fetch_meta.meta.part_id].end());
-  running_fetches_[fetch_meta.meta.part_id].insert(fetch_meta.meta.upstream_part_id);
+  running_fetches_[fetch_meta.meta.part_id] += 1;
 
   // identify the version
   int version = -1;
@@ -629,7 +627,7 @@ void PlanController::FinishFetch(SArrayBinStream bin) {
   int part_id, upstream_part_id;
   bin >> part_id >> upstream_part_id;
   // LOG(INFO) << "FinishFetch: " << part_id << " " << upstream_part_id;
-  running_fetches_[part_id].erase(upstream_part_id);
+  running_fetches_[part_id] -= 1;
   bool run = TryRunWaitingJoins(part_id);
 }
 

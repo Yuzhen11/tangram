@@ -12,11 +12,19 @@ bool Fetcher::IsVersionSatisfied(const FetchMeta& meta) {
   }
 }
 
+// required to have lock first
+void Fetcher::TryAccessLocal(const FetchMeta& meta) {
+  if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
+    local_access_count_[{meta.collection_id, meta.partition_id}] += 1;
+  }
+}
+
 std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
   {
     // check partition cache
     std::unique_lock<std::mutex> lk(m_);
     if (IsVersionSatisfied(meta)) {
+      TryAccessLocal(meta);
       return partition_cache_[meta.collection_id][meta.partition_id];
     }
   }
@@ -36,29 +44,40 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
     });
   }
   std::unique_lock<std::mutex> lk(m_);
+  TryAccessLocal(meta);
   auto p = partition_cache_[meta.collection_id][meta.partition_id];
   return partition_cache_[meta.collection_id][meta.partition_id];
 }
 
 void Fetcher::FinishPart(FetchMeta meta) {
-  // TODO: should not send finish part every time.
-  // for local part, do not forget to call FinishPart
   if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
-    Message msg;
-    msg.meta.sender = Qid();
-    msg.meta.recver = GetControllerActorQid(GetNodeId(Qid()));
-    CHECK_EQ(msg.meta.recver, 
-      GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id)));
-    msg.meta.flag = Flag::kOthers;
-    SArrayBinStream ctrl_bin, plan_bin, bin;
-    ctrl_bin << ControllerFlag::kFinishFetch;
-    plan_bin << meta.plan_id;
-    bin << meta.partition_id << meta.upstream_part_id;
-    msg.AddData(ctrl_bin.ToSArray());
-    msg.AddData(plan_bin.ToSArray());
-    msg.AddData(bin.ToSArray());
-    sender_->Send(msg);
+    std::unique_lock<std::mutex> lk(m_);
+    local_access_count_[{meta.collection_id, meta.partition_id}] -= 1;
+    // when no one is accessing this part, SendFinishPart
+    if (local_access_count_[{meta.collection_id, meta.partition_id}] == 0) {
+      SendFinishPart(meta);
+      partition_versions_[meta.collection_id].erase(meta.partition_id);
+      partition_cache_[meta.collection_id].erase(meta.partition_id);
+      TryFetchNextVersion(meta);
+    }
   }
+}
+
+void Fetcher::SendFinishPart(const FetchMeta& meta) {
+  Message msg;
+  msg.meta.sender = Qid();
+  msg.meta.recver = GetControllerActorQid(GetNodeId(Qid()));
+  CHECK_EQ(msg.meta.recver, 
+    GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id)));
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, plan_bin, bin;
+  ctrl_bin << ControllerFlag::kFinishFetch;
+  plan_bin << meta.plan_id;
+  bin << meta.partition_id << meta.upstream_part_id;  // TODO: upstream_part_id may not be useful
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(plan_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  sender_->Send(msg);
 }
 
 void Fetcher::FetchPartRequest(Message msg) {
@@ -67,10 +86,20 @@ void Fetcher::FetchPartRequest(Message msg) {
   bin.FromSArray(msg.data[1]);
   FetchMeta meta;
   bin >> meta;
+
+  std::lock_guard<std::mutex> lk(m_);
   auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
-  if(!q.empty() && q.back() < meta.version){
+  // if q is empty,
+  //    then push to q and fetch it!
+  // else if the current pending requesting version is smaller,
+  //    then push to q, may fetch it later if the response does not satisfy
+  // else
+  //    just waiting for the response
+  if (q.empty()) {
     q.push_back(meta.version);
     SendFetchPart(meta);
+  } else if (q.back() < meta.version) {
+    q.push_back(meta.version);
   }
 }
 
@@ -97,14 +126,15 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   FetchMeta meta;
   ctrl2_bin >> meta;
   // LOG(INFO) << "fetcher receives local: " << meta.DebugString();
+  // directly get the partition from partition_manager_
   auto p = partition_manager_->Get(meta.collection_id, meta.partition_id);
 
   std::unique_lock<std::mutex> lk(m_);
-  // TODO: work with plan_controller for the version
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
-  FinishPart(meta);
   cv_.notify_all();
+
+  // TryFetchNextVersion(meta);
 }
 
 void Fetcher::FetchPartReplyRemote(Message msg) {
@@ -119,13 +149,26 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   auto& func = function_store_->GetCreatePart(meta.collection_id);
   auto p = func();
   p->FromBin(bin);
-  // TODO remove from requesting_versions_
   std::unique_lock<std::mutex> lk(m_);
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
-  auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
-  q.erase(std::remove(q.begin(), q.end(), meta.version), q.end());
   partition_cache_[meta.collection_id][meta.partition_id] = p;
   cv_.notify_all();
+
+  TryFetchNextVersion(meta);
+}
+
+// lock required
+void Fetcher::TryFetchNextVersion(const FetchMeta& meta) {
+  auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
+  q.erase(std::remove(q.begin(), q.end(), meta.version), q.end());
+  // send new request for next version if any
+  if (!q.empty()) {
+    int next_version = q.front();
+    CHECK_GT(next_version, meta.version);
+    FetchMeta next_meta = meta;
+    next_meta.version = next_version;
+    SendFetchPart(next_meta);
+  }
 }
 
 void Fetcher::FetchObjsReply(Message msg) {

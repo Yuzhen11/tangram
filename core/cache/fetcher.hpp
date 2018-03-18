@@ -45,6 +45,9 @@ class Fetcher : public Actor, public AbstractFetcher {
 
   void FetchPartRequest(Message msg);
   void SendFetchPart(FetchMeta meta);
+  void SendFinishPart(const FetchMeta& meta);
+  void TryFetchNextVersion(const FetchMeta& meta);
+  void TryAccessLocal(const FetchMeta& meta);
 
   // for Process
   // void FetchObjsRequest(Message msg);
@@ -75,6 +78,10 @@ class Fetcher : public Actor, public AbstractFetcher {
 
   std::shared_ptr<FunctionStore> function_store_;
   std::shared_ptr<PartitionManager> partition_manager_;
+
+  // for local mode
+  // collection_id, part_id -> count
+  std::map<std::pair<int, int>, int> local_access_count_;
 };
 
 }  // namespace xyz
