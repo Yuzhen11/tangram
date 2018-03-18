@@ -66,13 +66,18 @@ struct MapPartWithJoin : public PlanBase {
     combine = std::move(combine_func);
     return this;
   }
+  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCombine(std::string n) {
+    name = std::move(n);
+    return this;
+  }
 
   virtual SpecWrapper GetSpec() override {
     // TODO the with collection
     SpecWrapper w;
-    w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin, 
+    w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin,
             map_collection->Id(), join_collection->Id(), num_iter, 
             staleness, checkpoint_interval, with_collection->Id());
+    w.name = name;
     return w;
   }
 

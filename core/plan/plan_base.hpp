@@ -12,6 +12,7 @@ struct PlanBase {
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) = 0;
 
   int plan_id;
+  std::string name = "";
 };
 
 }  // namespace xyz

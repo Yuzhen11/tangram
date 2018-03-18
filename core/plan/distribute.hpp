@@ -17,6 +17,7 @@ struct Distribute : public PlanBase {
     SpecWrapper w;
     w.SetSpec<DistributeSpec>(plan_id, SpecWrapper::Type::kDistribute, 
             collection_id, num_parts, bin);
+    w.name = name;
     return w;
   }
 

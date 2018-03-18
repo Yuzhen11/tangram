@@ -12,6 +12,7 @@ struct Checkpoint : public PlanBase {
     SpecWrapper w;
     w.SetSpec<CheckpointSpec>(plan_id, SpecWrapper::Type::kCheckpoint, 
             cid, url);
+    w.name = name;
     return w;
   }
 

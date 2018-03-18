@@ -67,10 +67,11 @@ class Context {
   }
 
   template<typename D>
-  static auto* distribute(std::vector<D> data, int num_parts = 1) {
+  static auto* distribute(std::vector<D> data, int num_parts = 1, std::string name = "") {
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>(num_parts);
     auto* p = plans_.make<Distribute<D>>(c->Id(), num_parts);
     p->data = std::move(data);
+    p->name = name + "::distribute";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
@@ -79,23 +80,25 @@ class Context {
   // The user-defined type should have Key() function and is serializable.
   // Users should make sure there is only one key per object.
   template<typename D>
-  static auto* distribute_by_key(std::vector<D> data, int num_parts = 1) {
-    auto* tmp_c = distribute(data, 1);
-    auto* c = placeholder<D>(num_parts);
+  static auto* distribute_by_key(std::vector<D> data, int num_parts = 1, std::string name = "") {
+    std::string prefix = name+"::distribute_by_key";
+    auto* tmp_c = distribute(data, 1, prefix);
+    auto* c = placeholder<D>(num_parts, prefix);
     mapjoin(tmp_c, c, 
       [](const D& d) {
         return std::pair<typename D::KeyT, D>(d.Key(), d);
       }, 
       [](D* d, const D& msg) {
         *d = msg;
-      });
+      })->SetName(prefix+"::mapjoin");
     // TODO, remove tmp_c
     return c;
   }
 
   template<typename C, typename F>
-  static void foreach(C* c, F f) {
-    auto* tmp_c = placeholder<CountObjT>(1);
+  static void foreach(C* c, F f, std::string name = "") {
+    std::string prefix = name + "::foreach";
+    auto* tmp_c = placeholder<CountObjT>(1, prefix);
     mapjoin(c, tmp_c, 
       [f](const typename C::ObjT& c) {
         f(c);
@@ -103,118 +106,113 @@ class Context {
       },
       [](CountObjT*, int) {
         // dummy
-      });
+      })->SetName(prefix+"::mapjoin");
     // TODO: remove tmp_c
   }
 
   template<typename Parse>
-  static auto* load(std::string url, Parse parse) {
+  static auto* load(std::string url, Parse parse, std::string name = "") {
     using D = decltype(parse(*(std::string*)nullptr));
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
     auto* p = plans_.make<Load<D>>(c->Id(), url, parse);
+    p->name = name+"::load";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
   template<typename C, typename F>
-  static void write(C* c, std::string url, F write) {
+  static void write(C* c, std::string url, F write, std::string name = "") {
     auto* p = plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);
+    p->name = name+"::write";
     dag_.AddDagNode(p->plan_id, {c->Id()}, {});
   }
 
   template<typename C>
-  static void checkpoint(C* c, std::string url) {
+  static void checkpoint(C* c, std::string url, std::string name = "") {
     auto* p = plans_.make<Checkpoint>(c->Id(), url);
+    p->name = name+"::checkpoint";
     dag_.AddDagNode(p->plan_id, {c->Id()}, {});
   }
 
   template<typename C>
-  static void loadcheckpoint(C* c, std::string url) {
+  static void loadcheckpoint(C* c, std::string url, std::string name = "") {
     auto* p = plans_.make<LoadCheckpoint>(c->Id(), url);
+    p->name = name+"::loadcheckpoint";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
   }
 
   template<typename D>
-  static auto* placeholder(int num_parts = 1) {
+  static auto* placeholder(int num_parts = 1, std::string name = "") {
     auto* c = collections_.make<Collection<D>>(num_parts);
     c->SetMapper(std::make_shared<HashKeyToPartMapper<typename D::KeyT>>(num_parts));
     auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), num_parts);
+    p->name = name+"::placeholder";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
   template<typename D>
-  static auto* placeholder(std::vector<third_party::Range> ranges) {
+  static auto* placeholder(std::vector<third_party::Range> ranges, std::string name = "") {
     auto* c = collections_.make<Collection<D>>(ranges.size());
     c->SetMapper(std::make_shared<RangeKeyToPartMapper<typename D::KeyT>>(ranges));
     auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), ranges.size());
+    p->name = name+"placeholder range";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
 
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mapjoin(C1* c1, C2* c2, M m, J j, int num_iter = 1, 
+  static auto* mapjoin(C1* c1, C2* c2, M m, J j,
     typename std::enable_if_t<std::is_object<typename return_type<M>::type::second_type>::value>* = 0) {
     using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::second_type;
     auto *p = plans_.make<MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->map = m;
     p->join = j;
-    p->num_iter = num_iter;
     dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mapjoin(C1* c1, C2* c2, M m, J j, int num_iter = 1, 
+  static auto* mapjoin(C1* c1, C2* c2, M m, J j,
     typename std::enable_if_t<std::is_object<typename return_type<M>::type::value_type>::value >* = 0) {
     using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::value_type::second_type;
     auto *p = plans_.make<MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->map_vec = m;
     p->join = j;
-    p->num_iter = num_iter;
     dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
   
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mappartjoin(C1* c1, C2* c2, M m, J j, int num_iter = 1) {
+  static auto* mappartjoin(C1* c1, C2* c2, M m, J j) {
     using MsgT = typename decltype(m((TypedPartition<typename C1::ObjT>*)nullptr, (AbstractMapProgressTracker*)nullptr))::value_type::second_type;
     auto *p = plans_.make<MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->mappart = m;
     p->join = j;
-    p->num_iter = num_iter;
     dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
 
   template<typename C1>
-  static void count(C1* c1) {
-    auto *count_collection = placeholder<CountObjT>(1);
-    auto *p = plans_.make<MapJoin<C1, Collection<CountObjT>, typename C1::ObjT, CountObjT, int>>(c1, count_collection);
-    p->map = [](const typename C1::ObjT& obj) {
-      return std::make_pair(0, 1);
-    };
-    p->join = [](CountObjT* a, int b) {
-      a->b += b;
-    };
-    dag_.AddDagNode(p->plan_id, {c1->Id()}, {count_collection->Id()});
-
-    p->num_iter = 1;
-    auto *p2 = plans_.make<MapJoin<Collection<CountObjT>, Collection<CountObjT>, 
-         CountObjT, CountObjT, int>>(count_collection, count_collection);
-    p2->map = [](const CountObjT& obj) {
+  static void count(C1* c1, std::string name = "") {
+    std::string prefix = name + "::count";
+    auto *count_collection = placeholder<CountObjT>(1, prefix);
+    mapjoin(c1, count_collection, 
+      [](const typename C1::ObjT& obj) {
+        return std::make_pair(0, 1);
+      }, 
+      [](CountObjT* a, int b) {
+        a->b += b;
+      })->SetName(prefix+"::mapjoin");
+    foreach(count_collection, [](const CountObjT& obj) {
       LOG(INFO) << "********** count: " << obj.b << " *********";
-      return std::make_pair(0, 0);
-    };
-    p2->join = [](CountObjT* a, int b) {
-    };
-    p2->num_iter = 1;
-    dag_.AddDagNode(p2->plan_id, {count_collection->Id()}, {count_collection->Id()});
+    });
+    // TODO: remove count_collection
   }
 
   template<typename C1, typename C2, typename C3, typename M, typename J>
-  static auto* mappartwithjoin(C1* c1, C2* c2, C3* c3, M m, J j, int num_iter = 1) {
+  static auto* mappartwithjoin(C1* c1, C2* c2, C3* c3, M m, J j) {
     using MsgT = typename decltype(
             m((TypedPartition<typename C1::ObjT>*)nullptr, 
               (TypedCache<typename C2::ObjT>*)nullptr, 
@@ -223,7 +221,6 @@ class Context {
     auto *p = plans_.make<MapPartWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT>>(c1, c2, c3);
     p->mappartwith = m;
     p->join = j;
-    p->num_iter = num_iter;
     dag_.AddDagNode(p->plan_id, {c1->Id(), c2->Id()}, {c3->Id()});
     return p;
   }

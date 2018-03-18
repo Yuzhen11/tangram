@@ -41,7 +41,7 @@ struct UrlElem {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
   std::vector<UrlElem> seeds{UrlElem("url1"), UrlElem("url2")};
-  auto url_table = Context::distribute_by_key(seeds, 1);
+  auto url_table = Context::distribute_by_key(seeds, 1, "distribute the seed");
 
   Context::mapjoin(url_table, url_table, 
     [](const UrlElem& url_elem) {
@@ -58,10 +58,10 @@ int main(int argc, char** argv) {
       if (s == UrlElem::Status::Done) {
         url_elem->status = UrlElem::Status::Done;
       }
-    })->SetIter(2);
+    })->SetIter(2)->SetName("crawler main logic");
   Context::foreach(url_table, [](const UrlElem& url_elem) {
     LOG(INFO) << url_elem.DebugString();
-  });
+  }, "print all status");
   Context::count(url_table);
 
   Runner::Run();

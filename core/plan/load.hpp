@@ -14,6 +14,7 @@ struct Load : public PlanBase {
     SpecWrapper w;
     w.SetSpec<LoadSpec>(plan_id, SpecWrapper::Type::kLoad, 
             collection_id, url);
+    w.name = name;
     return w;
   }
 

@@ -184,11 +184,13 @@ struct SpecWrapper {
   };
   Type type;
   int id;
+  std::string name;
   std::shared_ptr<Spec> spec;
   std::string DebugString() const {
     std::stringstream ss;
     ss << "type: " << TypeName[static_cast<int>(type)];
     ss << ", id: " << id;
+    ss << ", name: " << name;
     ss << ", spec: " << spec->DebugString();
     return ss.str();
   }
@@ -202,13 +204,13 @@ struct SpecWrapper {
 
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const SpecWrapper& s) {
-    stream << s.type << s.id;
+    stream << s.type << s.id << s.name;
     s.spec->ToBin(stream);
   	return stream;
   }
   
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, SpecWrapper& s) {
-    stream >> s.type >> s.id;
+    stream >> s.type >> s.id >> s.name;
     if (s.type == Type::kDistribute) {
       s.spec = std::make_shared<DistributeSpec>();
       s.spec->FromBin(stream);

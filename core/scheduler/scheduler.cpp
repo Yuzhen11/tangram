@@ -120,7 +120,7 @@ void Scheduler::TryRunPlan() {
 void Scheduler::RunPlan(int plan_id) {
   CHECK_LT(plan_id, program_.specs.size());
   auto spec = program_.specs[plan_id];
-  LOG(INFO) << "[Scheduler] " << YELLOW("Running plan "+std::to_string(spec.id)+" ") << spec.DebugString();
+  LOG(INFO) << "[Scheduler] " << YELLOW("Running plan "+std::to_string(spec.id)+" "+spec.name+" ") << spec.DebugString();
   if (spec.type == SpecWrapper::Type::kDistribute) {
     LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
     distribute_manager_->Distribute(spec);

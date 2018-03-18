@@ -14,6 +14,7 @@ struct Write : public PlanBase {
     SpecWrapper w;
     w.SetSpec<WriteSpec>(plan_id, SpecWrapper::Type::kWrite, 
             collection_id, url);
+    w.name = name;
     return w;
   }
 
