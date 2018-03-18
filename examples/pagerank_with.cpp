@@ -52,10 +52,27 @@ struct Links {
 
 };
 
+struct TopK {
+  using KeyT = int;
+  TopK() = default;
+  TopK(KeyT id) : id(id) {}
+  KeyT Key()  const { return id; }
+  KeyT id;
+  std::vector<Vertex> vertices;
+
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const TopK& topk) {
+    stream << topk.id << topk.vertices;
+    return stream; 
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, TopK& topk) {
+    stream >> topk.id >> topk.vertices;
+    return stream; 
+  }
+};
+
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  // load and generate two collections?
   auto dataset = Context::load(FLAGS_url, [](std::string& s) {
     Links obj;
     
@@ -119,7 +136,7 @@ int main(int argc, char** argv) {
           while(iter1 != p->end()) {
             CHECK_EQ(iter1->vertex_id, iter2->vertex_id);
             for (auto outlink: iter2->outlinks){
-              kvs.push_back({outlink, iter1->pr});
+              kvs.push_back({outlink, iter1->pr/iter2->outlinks.size()});
             }
             ++iter1;
             ++iter2;
@@ -131,12 +148,58 @@ int main(int argc, char** argv) {
         vertex->pr += 0.85*m;
       })
   ->SetIter(5)
-  ->SetStaleness(2)
+  ->SetStaleness(3)
   ->SetCombine([](float a, float b){
     return a+b;
   });
-  
 
-  Context::count(dataset);
+  auto topk = Context::placeholder<TopK>(num_part);
+  Context::mapjoin(vertex, topk,
+      [](const Vertex& vertex){
+        std::vector<Vertex> vertices;
+        vertices.push_back(vertex);
+        return std::make_pair(0, vertices);
+      },
+      [](TopK* topk, const std::vector<Vertex>& vertices){
+        std::vector<Vertex> v;
+        int k1 = 0;
+        int k2 = 0;
+        for (int i = 0; i < 10; i++) { // top 10
+          if (k1 != topk->vertices.size() && (k2 == vertices.size() || topk->vertices.at(k1).pr > vertices.at(k2).pr)) {
+            v.push_back(topk->vertices.at(k1++));
+          }
+          else if (k2 != vertices.size() && (k1 == topk->vertices.size() || topk->vertices.at(k1).pr <= vertices.at(k2).pr)) {
+            v.push_back(vertices.at(k2++));
+          } else { break; }
+        }
+        topk->vertices = v;
+      })
+    ->SetCombine([](const std::vector<Vertex>& v1, const std::vector<Vertex>& v2){
+        std::vector<Vertex> v;
+        int k1 = 0;
+        int k2 = 0;
+        for (int i = 0; i < 10; i++) { // top 10
+          if (k1 != v1.size() && (k2 == v2.size() || v1.at(k1).pr > v2.at(k2).pr)) {
+            v.push_back(v1.at(k1++));
+          }
+          else if (k2 != v2.size() && (k1 == v1.size() || v1.at(k1).pr <= v2.at(k2).pr)) {
+            v.push_back(v2.at(k2++));
+          } else { break; }
+        }
+        return v;  
+      });
+  Context::mapjoin(topk, topk, // print top 10
+      [](const TopK& topk){
+        CHECK_EQ(topk.vertices.size(), 10);
+        LOG(INFO) << "Top K:";
+        for (int i = 0; i < 10; i ++) {
+          LOG(INFO) << "vertex: " <<topk.vertices.at(i).vertex_id << "  pr: " << topk.vertices.at(i).pr;
+        }
+        return std::make_pair(0,0);
+      },
+      [](TopK* topk, int){}
+      );
+  
+  //Context::count(dataset);
   Runner::Run();
 }

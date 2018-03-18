@@ -1,5 +1,6 @@
 #pragma once
 
+#include <chrono>
 #include "core/scheduler/scheduler_elem.hpp"
 #include "core/scheduler/control.hpp"
 
@@ -26,6 +27,7 @@ class ControlManager {
   std::map<int, int> expected_versions_;
   std::map<int, std::set<int>> is_setup_;
   std::map<int, std::set<int>> is_finished_;
+  std::map<int, std::vector<std::chrono::system_clock::time_point>> version_time_;
 };
 
 

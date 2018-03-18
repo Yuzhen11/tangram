@@ -2,6 +2,8 @@
 
 #include "core/queue_node_map.hpp"
 
+#include "base/color.hpp"
+
 namespace xyz {
 
 void ControlManager::Control(SArrayBinStream bin) {
@@ -14,6 +16,7 @@ void ControlManager::Control(SArrayBinStream bin) {
       LOG(INFO) << "[ControlManager] Setup all nodes, startPlan: " << ctrl.plan_id;
       SArrayBinStream reply_bin;
       SendToAllWorkers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
+      version_time_[ctrl.plan_id].push_back(std::chrono::system_clock::now());  
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kMap) {
     CHECK_EQ(map_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
@@ -29,6 +32,12 @@ void ControlManager::Control(SArrayBinStream bin) {
       SArrayBinStream reply_bin;
       reply_bin << ctrl.plan_id;
       ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+
+      // print version intervals
+      for (int i = 0; i < version_time_[ctrl.plan_id].size()-1; i++) {
+        std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
+        LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
+      }
     }
   }
 }
@@ -46,6 +55,9 @@ void ControlManager::TryUpdateVersion(int plan_id) {
     }
   }
   versions_[plan_id] ++;
+  //record time 
+  version_time_[plan_id].push_back(std::chrono::system_clock::now());
+  
   if (versions_[plan_id] == expected_versions_[plan_id]) {
     LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id] << " for plan " << plan_id;
     // send finish
