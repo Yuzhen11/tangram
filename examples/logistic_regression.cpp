@@ -1,8 +1,8 @@
 #include "base/color.hpp"
 #include "core/plan/runner.hpp"
-#include "gflags/gflags.h"
-#include "glog/logging.h"
+
 #include <string>
+#include <cmath>
 
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
