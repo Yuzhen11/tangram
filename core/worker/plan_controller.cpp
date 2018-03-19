@@ -437,11 +437,16 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
       auto k = std::make_tuple(meta.meta.part_id, meta.meta.upstream_part_id, meta.meta.version);
       auto stream = stream_store_.Get(k);
       stream_store_.Remove(k);
+      auto& join_func = controller_->engine_elem_.function_store->GetJoin2(plan_id_);
+      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
+      auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
+      join_func(p, stream);
+    } else {
+      auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
+      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
+      auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
+      join_func(p, meta.bin);
     }
-    auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
-    CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
-    auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
-    join_func(p, meta.bin);
 
     Message msg;
     msg.meta.sender = 0;

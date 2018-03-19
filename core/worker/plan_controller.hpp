@@ -128,7 +128,7 @@ class PlanController : public AbstractPlanController {
   std::map<int, std::tuple<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> map_time_;//part id
   std::map<int, std::map<int, std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>>> join_time_;//part id
 
-  bool local_map_mode_ = false;  // TODO: turn it on
+  bool local_map_mode_ = true;  // TODO: turn it on
   MapOutputStreamStore stream_store_;
 };
 
