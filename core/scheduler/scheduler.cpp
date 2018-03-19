@@ -75,6 +75,10 @@ void Scheduler::Process(Message msg) {
     TryRunPlan();
     break;
   }
+  case ScheduleFlag::kRecovery: {
+    // TODO: get most recent checkpoint from control_manager_, run load checkpoint
+    break;
+  }
   default:
     CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }

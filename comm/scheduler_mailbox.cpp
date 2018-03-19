@@ -207,6 +207,15 @@ void SchedulerMailbox::CheckHeartbeat(int time_out) {
     if (!deadnodes.empty()) {
       // TODO: start a new worker node
       VLOG(1) << "Detected " << std::to_string(deadnodes.size()) << " deadnode";
+      Message msg;
+      msg.meta.recver = 0;
+      msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin, bin;
+      ctrl_bin << ScheduleFlag::kRecovery;
+      bin << deadnodes;
+      msg.AddData(ctrl_bin.ToSArray());
+      msg.AddData(bin.ToSArray());
+      Send(msg);
     }
   }
 }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "comm/basic_mailbox.hpp"
+#include "core/scheduler/control.hpp"
 
 namespace xyz {
 

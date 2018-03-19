@@ -62,3 +62,10 @@ target_link_libraries(Crawler xyz)
 target_link_libraries(Crawler ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET Crawler PROPERTY CXX_STANDARD 14)
 add_dependencies(Crawler ${external_project_dependencies})
+
+# LRExample
+add_executable(LRExample logistic_regression.cpp)
+target_link_libraries(LRExample xyz)
+target_link_libraries(LRExample ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET LRExample PROPERTY CXX_STANDARD 14)
+add_dependencies(LRExample ${external_project_dependencies})

@@ -22,7 +22,8 @@ enum class ScheduleFlag : char {
   kControl,
   kFinishPlan,
   kUpdateCollection,
-  kUpdateCollectionReply
+  kUpdateCollectionReply,
+  kRecovery
 };
 
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
@@ -41,7 +42,8 @@ static const char *ScheduleFlagName[] = {"kRegisterProgram",
                                          "kControl",
                                          "kFinishPlan",
                                          "kUpdateCollection",
-                                         "kUpdateCollectionReply"
+                                         "kUpdateCollectionReply",
+                                         "kRecovery"
 };
 
 enum class FetcherFlag : char{
