@@ -66,7 +66,7 @@ struct MapPartWithJoin : public PlanBase {
     combine = std::move(combine_func);
     return this;
   }
-  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCombine(std::string n) {
+  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetName(std::string n) {
     name = std::move(n);
     return this;
   }
