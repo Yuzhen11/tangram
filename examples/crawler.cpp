@@ -1,5 +1,6 @@
 #include "core/plan/runner.hpp"
 
+DEFINE_string(url, "", "The url to fetch");
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "proj10", "The namenode of hdfs");
@@ -40,18 +41,32 @@ struct UrlElem {
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
-  std::vector<UrlElem> seeds{UrlElem("url1"), UrlElem("url2")};
+  std::vector<UrlElem> seeds{UrlElem(FLAGS_url)};
   auto url_table = Context::distribute_by_key(seeds, 1, "distribute the seed");
 
   Context::mapjoin(url_table, url_table, 
     [](const UrlElem& url_elem) {
       std::vector<std::pair<std::string, UrlElem::Status>> ret;
       if (url_elem.status == UrlElem::Status::ToFetch) {
+    	std::string cmd = "python crawler_util.py " + url_elem.url;
+		std::array<char, 128> buffer;
+    	std::string result;
+    	std::shared_ptr<FILE> pipe(popen(cmd.c_str(), "r"), pclose);
+    	if (!pipe) throw std::runtime_error("popen() failed!");
+    	while (!feof(pipe.get())) {
+          if (fgets(buffer.data(), 128, pipe.get()) != nullptr)
+            result += buffer.data();
+		}
+		std::stringstream ss(result);
+		std::istream_iterator<std::string> begin(ss);
+		std::istream_iterator<std::string> end;
+		std::vector<std::string> urls(begin, end);
         // TODO: download the page and extract url
         ret.push_back({url_elem.url, UrlElem::Status::Done});
-        ret.push_back({"url3", UrlElem::Status::ToFetch});
-        ret.push_back({"url4", UrlElem::Status::ToFetch});
-      }
+		for(auto fetched_url : urls){
+          ret.push_back({fetched_url, UrlElem::Status::ToFetch});
+        }
+	  }
       return ret;
     },
     [](UrlElem* url_elem, UrlElem::Status s) {
