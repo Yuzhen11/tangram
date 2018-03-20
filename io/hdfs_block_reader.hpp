@@ -5,13 +5,19 @@
 #include "boost/utility/string_ref.hpp"
 #include "hdfs/hdfs.h"
 
+#include "glog/logging.h"
+
 namespace xyz {
 
 class HdfsBlockReader : public AbstractBlockReader {
 public:
   HdfsBlockReader(std::string namenode, int port)
       : namenode_(namenode), port_(port) {}
-  ~HdfsBlockReader() { delete[] data_; }
+  ~HdfsBlockReader() { 
+    delete[] data_;
+    int rc = hdfsCloseFile(fs_, file_);
+    CHECK(rc == 0) << "close file fails";
+  }
   virtual std::vector<std::string> ReadBlock() override;
 
   virtual void Init(std::string url, size_t offset) override;

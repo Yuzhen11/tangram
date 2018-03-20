@@ -2,6 +2,10 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+#ifdef USE_PROFILER
+#include <google/profiler.h>
+#endif
+
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
@@ -201,5 +205,11 @@ int main(int argc, char** argv) {
       );
   
   //Context::count(dataset);
+#ifdef USE_PROFILER
+  ProfilerStart("/tmp/a.prof");
+#endif
   Runner::Run();
+#ifdef USE_PROFILER
+  ProfilerStop();
+#endif
 }

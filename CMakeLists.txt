@@ -27,6 +27,13 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wno-deprecated-declarations")
 endif()
 
+# enable this by `cmake .. -DUSE_PROFILER=ON`
+option(USE_PROFILER "Use profiler" OFF)
+if(USE_PROFILER)
+    add_definitions(-DUSE_PROFILER)
+    message("Compiled with USE_PROFILER on")
+endif()
+
 find_package(Threads)
 find_package(Boost 1.58.0 COMPONENTS thread)
 

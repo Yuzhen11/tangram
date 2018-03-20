@@ -1,5 +1,4 @@
 #include "io/hdfs_block_reader.hpp"
-#include "glog/logging.h"
 
 namespace xyz {
 
