@@ -38,6 +38,7 @@ template<typename T, typename PartitionT = IndexedSeqPartition<T>>
 class Collection : public CollectionBase {
  public:
   using ObjT = T;
+  using PartT = PartitionT;
   Collection(int id): Collection(id, 1) {}
   Collection(int id, int num_part): 
     id_(id), num_partition_(num_part) {

@@ -235,6 +235,30 @@ class Context {
     return p;
   }
 
+  // sort each partition in a collection.
+  // this can be used in pagerank which requires each vextex and links
+  // objects correspond to each other.
+  template<typename C>
+  static void sort_each_partition(C* c,
+    typename std::enable_if_t<std::is_base_of<Indexable<typename C::ObjT>, typename C::PartT>::value >* = 0) {
+    // map c, join c. even though map should not update the partition,
+    // we can still update the partition as we are saying we will join c
+    // meaning that no other plan can access c. This makes updating in c
+    // safe.
+    mappartjoin(c, c,
+      [](TypedPartition<typename C::ObjT>* p,
+         AbstractMapProgressTracker* t) {
+        auto* indexed_seq_partition = dynamic_cast<Indexable<typename C::ObjT>*>(p);
+        CHECK_NOTNULL(indexed_seq_partition);
+        indexed_seq_partition->Sort();
+        std::vector<std::pair<typename C::ObjT::KeyT, int>> ret;
+        return ret;
+      },
+      [](typename C::ObjT*, int) {
+        // dummy
+      });
+  }
+
   static auto get_allplans() {
     return plans_.all();
   }

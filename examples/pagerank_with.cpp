@@ -125,6 +125,8 @@ int main(int argc, char** argv) {
         links->outlinks.push_back(outlink);
       }
     });
+  Context::sort_each_partition(vertex);
+  Context::sort_each_partition(links);
   
   auto p = Context::mappartwithjoin(vertex, links, vertex,
       [](TypedPartition<Vertex>* p,
