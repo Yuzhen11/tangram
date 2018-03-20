@@ -107,7 +107,8 @@ int main(int argc, char** argv) {
     },
     [](Vertex* v, int msg) {
       v->pr = 0.15;
-    });
+    })
+  ->SetCombine([](int* msg1, int msg2){});
  
   auto links = Context::placeholder<Links>(num_part);
   auto p2 = Context::mapjoin(dataset, links,
@@ -124,7 +125,10 @@ int main(int argc, char** argv) {
       for (auto outlink : outlinks) {
         links->outlinks.push_back(outlink);
       }
-    });
+    })
+  ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
+    for (int value : msg2) msg1->push_back(value); 
+  });
   Context::sort_each_partition(vertex);
   Context::sort_each_partition(links);
   
@@ -155,8 +159,8 @@ int main(int argc, char** argv) {
       })
   ->SetIter(5)
   ->SetStaleness(3)
-  ->SetCombine([](float a, float b){
-    return a+b;
+  ->SetCombine([](float* a, float b){
+   *a = *a + b; 
   });
 
   auto topk = Context::placeholder<TopK>(num_part);
@@ -180,19 +184,19 @@ int main(int argc, char** argv) {
         }
         topk->vertices = v;
       })
-    ->SetCombine([](const std::vector<Vertex>& v1, const std::vector<Vertex>& v2){
+    ->SetCombine([](std::vector<Vertex>* v1, const std::vector<Vertex>& v2){
         std::vector<Vertex> v;
         int k1 = 0;
         int k2 = 0;
         for (int i = 0; i < 10; i++) { // top 10
-          if (k1 != v1.size() && (k2 == v2.size() || v1.at(k1).pr > v2.at(k2).pr)) {
-            v.push_back(v1.at(k1++));
+          if (k1 != v1->size() && (k2 == v2.size() || v1->at(k1).pr > v2.at(k2).pr)) {
+            v.push_back(v1->at(k1++));
           }
-          else if (k2 != v2.size() && (k1 == v1.size() || v1.at(k1).pr <= v2.at(k2).pr)) {
+          else if (k2 != v2.size() && (k1 == v1->size() || v1->at(k1).pr <= v2.at(k2).pr)) {
             v.push_back(v2.at(k2++));
           } else { break; }
         }
-        return v;  
+        *v1 = v; 
       });
   Context::mapjoin(topk, topk, // print top 10
       [](const TopK& topk){

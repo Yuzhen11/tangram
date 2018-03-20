@@ -50,7 +50,7 @@ TEST_F(TestPartitionedMapOutput, AddVector) {
 
 TEST_F(TestPartitionedMapOutput, CombineOneBuffer) {
   std::vector<std::pair<int, int>> buffer{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
-  auto combine = [](int a, int b) { return a + b; };
+  auto combine = [](int* a, int b) { *a = *a + b; };
   const std::vector<std::pair<int, int>> expected{{3, 1}, {2, 2}, {3, 5}};
   MapOutputStream<int, int>::CombineOneBuffer(buffer, combine);
   ASSERT_EQ(buffer.size(), expected.size());
@@ -64,7 +64,7 @@ TEST_F(TestPartitionedMapOutput, Combine) {
   PartitionedMapOutput<int, int> output(mapper);
   std::vector<std::pair<int, int>> v{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
   output.Add(v);
-  output.SetCombineFunc([](int a, int b) { return a + b; });
+  output.SetCombineFunc([](int* a, int b) { *a = *a + b; });
   output.Combine();
   auto buffer = output.GetBuffer();
   ASSERT_EQ(buffer.size(), 1);

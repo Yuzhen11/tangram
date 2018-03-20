@@ -36,18 +36,18 @@ class MapOutputStream : public AbstractMapOutputStream {
     return bin;
   }
 
-  void Combine(const std::function<MsgT(const MsgT&, const MsgT&)>& combine_func) {
+  void Combine(const std::function<void(MsgT*, const MsgT&)>& combine_func) {
     std::sort(buffer_.begin(), buffer_.end(), 
       [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
     CombineOneBuffer(buffer_, combine_func);
   }
 
   static void CombineOneBuffer(std::vector<std::pair<KeyT, MsgT>>& buffer, 
-          const std::function<MsgT(const MsgT&, const MsgT&)>& combine) {
+          const std::function<void(MsgT*, const MsgT&)>& combine) {
     int l = 0;
     for (int r = 1; r < buffer.size(); ++ r) {
       if (buffer[l].first == buffer[r].first) {
-        buffer[l].second = combine(buffer[l].second, buffer[r].second);
+        combine(&(buffer[l].second), buffer[r].second);
       } else {
         l += 1;
         if (l != r) {

@@ -38,6 +38,13 @@ endif (USE_PROFILER)
 set_property(TARGET PageRankWith PROPERTY CXX_STANDARD 14)
 add_dependencies(PageRankWith ${external_project_dependencies})
 
+# GraphMatching 
+add_executable(GraphMatching graph_matching.cpp)
+target_link_libraries(GraphMatching xyz)
+target_link_libraries(GraphMatching ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET GraphMatching PROPERTY CXX_STANDARD 14)
+add_dependencies(GraphMatching ${external_project_dependencies})
+
 # SchedulerMain
 add_executable(SchedulerMain scheduler_main.cpp)
 target_link_libraries(SchedulerMain xyz)

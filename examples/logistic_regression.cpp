@@ -155,7 +155,7 @@ int main(int argc, char **argv) {
           [](Param *param, float val) { param->val += val; })
           ->SetIter(FLAGS_num_iter)
           ->SetStaleness(FLAGS_staleness)
-          ->SetCombine([](float a, float b) { return a + b; });
+          ->SetCombine([](float* a, float b) { *a = *a + b; });
 
   Context::count(params);
   Context::count(dataset);

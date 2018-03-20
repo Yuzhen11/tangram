@@ -38,7 +38,7 @@ class PartitionedMapOutput : public AbstractMapOutput {
     return buffer_[i];
   }
 
-  using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
+  using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   void SetCombineFunc(CombineFuncT combine_func) {
     combine_func_ = std::move(combine_func);
@@ -103,7 +103,7 @@ class PartitionedMapOutput : public AbstractMapOutput {
   std::shared_ptr<AbstractKeyToPartMapper> key_to_part_mapper_;
   TypedKeyToPartMapper<KeyT>* typed_mapper_ = nullptr;
 
-  std::function<MsgT(const MsgT&, const MsgT&)> combine_func_;  // optional
+  std::function<void(MsgT*, const MsgT&)> combine_func_;  // optional
 };
 
 }  // namespace

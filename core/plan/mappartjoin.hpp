@@ -25,7 +25,7 @@ struct MapPartJoin : public PlanBase {
   using MapPartFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
           TypedPartition<ObjT1>* p, AbstractMapProgressTracker* t)>;
   using JoinFuncT = std::function<void(ObjT2*, const MsgT&)>;
-  using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
+  using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   // for internal use
   using MapFuncTempT = std::function<std::shared_ptr<AbstractMapOutput>(

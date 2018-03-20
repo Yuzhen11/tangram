@@ -33,7 +33,7 @@ struct MapPartWithJoin : public PlanBase {
           TypedCache<ObjT2>* c, 
           AbstractMapProgressTracker* t)>;
   using JoinFuncT = std::function<void(ObjT3*, const MsgT&)>;
-  using CombineFuncT = std::function<MsgT(const MsgT&, const MsgT&)>;
+  using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   // for internal use
   // using MapPartWithTempFuncT= 
