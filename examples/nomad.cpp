@@ -20,6 +20,7 @@ DEFINE_double(eta, 0.1, "");
 DEFINE_double(lambda, 0.1, "");
 DEFINE_int32(iter, 1, "num of iters");
 DEFINE_int32(staleness, 0, "staleness");
+DEFINE_int32(num_line_per_part, -1, "num_line_per_part");
 
 using namespace xyz;
 
@@ -170,7 +171,7 @@ int main(int argc, char** argv) {
     r.item = std::stoi(*it++);
     r.rating = std::stoi(*it++);
     return r;
-  }, 1000);
+  }, FLAGS_num_line_per_part);
 
   // distribute the ratings to data_blocks
   auto data_blocks = Context::placeholder<DataBlock, RoundRobinKeyToPartMapper<int>>(FLAGS_kNumPartition);
