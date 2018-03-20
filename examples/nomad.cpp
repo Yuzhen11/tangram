@@ -19,6 +19,7 @@ DEFINE_int32(kNumUser, 3, "");
 DEFINE_double(eta, 0.1, "");
 DEFINE_double(lambda, 0.1, "");
 DEFINE_int32(iter, 1, "num of iters");
+DEFINE_int32(staleness, 0, "staleness");
 
 using namespace xyz;
 
@@ -28,8 +29,17 @@ struct Item {
   using KeyT = int;
   KeyT key;
   float latent[kNumLatent];
-  Item() = default;
-  Item(KeyT _key):key(_key) {}
+  void ClearLatent() {
+    for (auto& l : latent) {
+      l = 0;
+    }
+  }
+  Item() {
+    ClearLatent();
+  }
+  Item(KeyT _key):key(_key) {
+    ClearLatent();
+  }
   KeyT Key() const { return key; }
   void Init() {
     for (auto& i : latent) {
@@ -160,7 +170,7 @@ int main(int argc, char** argv) {
     r.item = std::stoi(*it++);
     r.rating = std::stoi(*it++);
     return r;
-  });
+  }, 1000);
 
   // distribute the ratings to data_blocks
   auto data_blocks = Context::placeholder<DataBlock, RoundRobinKeyToPartMapper<int>>(FLAGS_kNumPartition);
@@ -200,9 +210,11 @@ int main(int argc, char** argv) {
     })->SetName("init the collector");
 
   // print info
+  /*
   Context::foreach(data_blocks, [](const DataBlock& d) {
     LOG(INFO) << d.DebugString();
   });
+  */
 
   // main logic
   Context::mappartwithjoin(data_blocks, collectors, collectors,
@@ -220,6 +232,8 @@ int main(int argc, char** argv) {
       migrate_items.num_item_processed = -1;
       update_users.num_item_processed = 0;
       auto& items = with_iter->items;
+      int c = 0;
+      int sample = 5;
       for (auto& item : items) {
         // LOG(INFO) << "item: " << item.DebugString();
         update_users.num_item_processed += 1;
@@ -228,8 +242,11 @@ int main(int argc, char** argv) {
         for (auto& u_r: iter->points[item.key]) {
           auto& user = with_iter->users[u_r.first];
           // LOG(INFO) << "user: " << user.DebugString();
-          // LOG(INFO) << "estimated, real: " << std::inner_product(user.latent, user.latent+kNumLatent, item.latent, 0.0) << ", " << u_r.second;
           float diff = -std::inner_product(user.latent, user.latent+kNumLatent, item.latent, -u_r.second);
+          if (c < sample) {
+            LOG(INFO) << "uid, iid: " << user.key << "," << item.key << ", estimated, real: " << std::inner_product(user.latent, user.latent+kNumLatent, item.latent, 0.0) << ", " << u_r.second;
+          }
+          c += 1;
           auto& user_update = update_users.dict[user.key];
           for (int i = 0; i < kNumLatent; ++ i) {
             migrate_item.latent[i] += FLAGS_eta*(user.latent[i]*diff - FLAGS_lambda*item.latent[i]);
@@ -241,6 +258,11 @@ int main(int argc, char** argv) {
       std::vector<std::pair<int, Msg>> ret;
       ret.emplace_back(p->id, std::move(update_users));
       ret.emplace_back((p->id+1)%FLAGS_kNumPartition, std::move(migrate_items));
+      // each map send out two Msgs, one to the collector in this part and the other to the collector in next part.
+      // e.g. id = 0, send update_users to 0, and send migrate_items to 1.
+      // the system should make sure local update will apply before next map 
+      // (this will be ensured by local_map_mode, as in local_map_mode, the local message will
+      // send to local controller queue before the finish map signal).
       return ret;
     },
     [](Collector* collector, const Msg& msg) {
@@ -262,7 +284,7 @@ int main(int argc, char** argv) {
           collector->items.pop_front();
         }
       }
-    })->SetName("main loop")->SetIter(FLAGS_iter);
+    })->SetName("main loop")->SetIter(FLAGS_iter)->SetStaleness(FLAGS_staleness);
 
   // rmse
   // this mse only calculate a part of the training samples!

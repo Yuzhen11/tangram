@@ -110,10 +110,10 @@ class Context {
   }
 
   template<typename Parse>
-  static auto* load(std::string url, Parse parse, std::string name = "") {
+  static auto* load(std::string url, Parse parse, int max_line_per_part = -1, std::string name = "") {
     using D = decltype(parse(*(std::string*)nullptr));
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
-    auto* p = plans_.make<Load<D>>(c->Id(), url, parse);
+    auto* p = plans_.make<Load<D>>(c->Id(), url, parse, max_line_per_part);
     p->name = name+"::load";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;

@@ -4,8 +4,8 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
-progfile = "debug/Nomad"
-schedulerfile = "debug/SchedulerMain"
+progfile = "release/Nomad"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
@@ -14,14 +14,30 @@ common_params = {
     "hdfs_port" : 9000,
 }
 
-program_params = {
+toy_data = {
     "url" : "/yuzhen/als_toy.txt",
-    "iter": 5, 
-    "kNumItem" : 3,
     "kNumUser" : 3,
-    "eta" : 0.1,
-    "lambda" : 0.1,
-    "kNumPartition" : 2,
+    "kNumItem" : 3,
+}
+netflix_data = {
+    "url" : "/datasets/ml/netflix",
+    "kNumUser" : 480189,
+    "kNumItem" : 17770,
+}
+
+dataset = netflix_data 
+# dataset = toy_data 
+
+program_params = {
+    "num_local_threads": 20,
+    "url" : dataset["url"],
+    "kNumItem" : dataset["kNumItem"],
+    "kNumUser" : dataset["kNumUser"],
+    "iter": 100, 
+    "eta" : 0.01,
+    "lambda" : 0.05,
+    "kNumPartition" : 20,
+    "staleness": 0,
 }
 
 scheduler_params = {
