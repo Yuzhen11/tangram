@@ -92,10 +92,10 @@ int main(int argc, char** argv) {
     }
 
     return obj;
-  });
+  })->SetName("dataset");
 
   int num_part = 10;
-  auto vertex = Context::placeholder<Vertex>(num_part);
+  auto vertex = Context::placeholder<Vertex>(num_part)->SetName("vertex");
   auto p1 = Context::mapjoin(dataset, vertex,
     [](const Links& obj) {
       std::vector<std::pair<int,int>> all;
@@ -108,9 +108,10 @@ int main(int argc, char** argv) {
     [](Vertex* v, int msg) {
       v->pr = 0.15;
     })
-  ->SetCombine([](int* msg1, int msg2){});
+    ->SetCombine([](int* msg1, int msg2){})
+    ->SetName("construct vertex from dataset");
  
-  auto links = Context::placeholder<Links>(num_part);
+  auto links = Context::placeholder<Links>(num_part)->SetName("links");
   auto p2 = Context::mapjoin(dataset, links,
     [](const Links& obj) {
       std::vector<std::pair<int, std::vector<int>>> all;
@@ -128,7 +129,9 @@ int main(int argc, char** argv) {
     })
   ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
     for (int value : msg2) msg1->push_back(value); 
-  });
+  })
+  ->SetName("construct links from dataset");
+
   Context::sort_each_partition(vertex);
   Context::sort_each_partition(links);
   
@@ -157,13 +160,14 @@ int main(int argc, char** argv) {
       [](Vertex* vertex, float m){
         vertex->pr += 0.85*m;
       })
-  ->SetIter(5)
-  ->SetStaleness(3)
   ->SetCombine([](float* a, float b){
    *a = *a + b; 
-  });
+   })
+  ->SetIter(5)
+  ->SetStaleness(3)
+  ->SetName("pagerank main logic");
 
-  auto topk = Context::placeholder<TopK>(num_part);
+  auto topk = Context::placeholder<TopK>(num_part)->SetName("topk");
   Context::mapjoin(vertex, topk,
       [](const Vertex& vertex){
         std::vector<Vertex> vertices;
@@ -197,7 +201,9 @@ int main(int argc, char** argv) {
           } else { break; }
         }
         *v1 = v; 
-      });
+      })
+    ->SetName("find topk");
+
   Context::mapjoin(topk, topk, // print top 10
       [](const TopK& topk){
         CHECK_EQ(topk.vertices.size(), 10);
@@ -208,7 +214,8 @@ int main(int argc, char** argv) {
         return std::make_pair(0,0);
       },
       [](TopK* topk, int){}
-      );
+      )
+  ->SetName("print topk");
   
   //Context::count(dataset);
 #ifdef USE_PROFILER

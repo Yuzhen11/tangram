@@ -42,10 +42,19 @@ class Collection : public CollectionBase {
   Collection(int id): Collection(id, 1) {}
   Collection(int id, int num_part): 
     id_(id), num_partition_(num_part) {
+    name_ = std::to_string(id);
   }
 
   int Id() const {
     return id_;
+  }
+
+  Collection<T, PartitionT>* SetName(std::string s) {
+    name_ = std::move(s);
+    return this;
+  }
+  std::string Name() const {
+    return name_;
   }
   
   void SetMapper(std::shared_ptr<AbstractKeyToPartMapper> mapper) {
@@ -77,6 +86,7 @@ class Collection : public CollectionBase {
 
  private:
   int id_;
+  std::string name_;
   int num_partition_;
   std::shared_ptr<AbstractKeyToPartMapper> mapper_;
 };

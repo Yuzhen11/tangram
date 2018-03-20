@@ -53,9 +53,9 @@ int main(int argc, char** argv) {
     }
 
     return v;
-  });
+  })->SetName("dataset");
 
-  auto c2 = Context::placeholder<Vertex>(100);
+  auto c2 = Context::placeholder<Vertex>(100)->SetName("vertex");
 
   auto p1 = Context::mapjoin(c1, c2,
     [](const Vertex& v) {
@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
         v->outlinks.push_back(outlink);
       }
       v->pr = 0.15;
-    });
+    })->SetName("construct vertex");
   auto p2 = Context::mapjoin(c2, c2,
     [](const Vertex& v) {
       std::vector<std::pair<int, float>> contribs;
@@ -74,12 +74,16 @@ int main(int argc, char** argv) {
         contribs.push_back(std::pair<int, float>(outlink, v.pr/v.outlinks.size()));
       }
       return contribs;
-    }, [](Vertex* v, float contrib) {
+    }, 
+    [](Vertex* v, float contrib) {
       v->pr += 0.85 * contrib;
-    })->SetIter(5)->SetStaleness(2);
-  p2->combine = [](float* a, float b) {
-    *a = *a + b;
-  };
+    })
+    ->SetCombine([](float* a, float b) {
+      *a = *a + b;
+    })
+    ->SetIter(5)
+    ->SetStaleness(2)
+    ->SetName("pagerank main logic");
 
   Context::count(c1);
   Runner::Run();

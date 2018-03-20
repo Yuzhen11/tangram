@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 #include "core/plan/plan_base.hpp"
 
 #include "core/cache/typed_cache.hpp"
@@ -47,6 +49,13 @@ struct MapPartWithJoin : public PlanBase {
           C2* _with_collection, C3* _join_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), 
        with_collection(_with_collection), join_collection(_join_collection) {
+    std::stringstream ss;
+    ss << "{";
+    ss << "map collection: " << map_collection->Name();
+    ss << ", with collection: " << with_collection->Name();
+    ss << ", join collection: " << join_collection->Name();
+    ss << "}";
+    description_ = ss.str();
   }
 
   // TODO: may make MapPartWithJoin a subclass of MapPartJoin
@@ -76,7 +85,8 @@ struct MapPartWithJoin : public PlanBase {
     SpecWrapper w;
     w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin,
             map_collection->Id(), join_collection->Id(), num_iter, 
-            staleness, checkpoint_interval, with_collection->Id());
+            staleness, checkpoint_interval, with_collection->Id(),
+            description_);
     w.name = name;
     return w;
   }
@@ -131,6 +141,7 @@ struct MapPartWithJoin : public PlanBase {
   int num_iter = 1;
   int staleness = 0;
   int checkpoint_interval = 0;
+  std::string description_;
 };
 
 }  // namespace xyz

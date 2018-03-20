@@ -82,7 +82,7 @@ class Context {
   static auto* distribute_by_key(std::vector<D> data, int num_parts = 1, std::string name = "") {
     std::string prefix = name+"::distribute_by_key";
     auto* tmp_c = distribute(data, 1, prefix);
-    auto* c = placeholder<D>(num_parts, prefix);
+    auto* c = placeholder<D>(num_parts, prefix)->SetName("tmp collection in distribute_by_key");
     mapjoin(tmp_c, c, 
       [](const D& d) {
         return std::pair<typename D::KeyT, D>(d.Key(), d);
@@ -96,8 +96,8 @@ class Context {
 
   template<typename C, typename F>
   static void foreach(C* c, F f, std::string name = "") {
-    std::string prefix = name + "::foreach";
-    auto* tmp_c = placeholder<CountObjT>(1, prefix);
+    std::string prefix = name + "::foreach collection " + c->Name();
+    auto* tmp_c = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in foreach");
     mapjoin(c, tmp_c, 
       [f](const typename C::ObjT& c) {
         f(c);
@@ -207,7 +207,7 @@ class Context {
   template<typename C1>
   static void count(C1* c1, std::string name = "") {
     std::string prefix = name + "::count";
-    auto *count_collection = placeholder<CountObjT>(1, prefix);
+    auto *count_collection = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in count");
     mapjoin(c1, count_collection, 
       [](const typename C1::ObjT& obj) {
         return std::make_pair(0, 1);
@@ -256,7 +256,7 @@ class Context {
       },
       [](typename C::ObjT*, int) {
         // dummy
-      });
+      })->SetName("sort each part for "+c->Name());
   }
 
   static auto get_allplans() {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <sstream>
+
 #include "core/plan/plan_base.hpp"
 
 #include "core/map_output/partitioned_map_output.hpp"
@@ -32,7 +34,14 @@ struct MapPartJoin : public PlanBase {
           std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapProgressTracker>)>;
 
   MapPartJoin(int _plan_id, C1* _map_collection, C2* _join_collection)
-      : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {}
+      : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {
+    std::stringstream ss;
+    ss << "{";
+    ss << "map collection: " << map_collection->Name();
+    ss << ", join collection: " << join_collection->Name();
+    ss << "}";
+    description_ = ss.str();
+  }
 
   MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetStaleness(int s) {
     staleness = s;
@@ -59,7 +68,7 @@ struct MapPartJoin : public PlanBase {
     SpecWrapper w;
     w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin,
             map_collection->Id(), join_collection->Id(), num_iter, 
-            staleness, checkpoint_interval);
+            staleness, checkpoint_interval, description_);
     w.name = name;
     return w;
   }
@@ -105,6 +114,7 @@ struct MapPartJoin : public PlanBase {
   int num_iter = 1;
   int staleness = 0;
   int checkpoint_interval = 0;
+  std::string description_;
 };
 
 }  // namespace xyz
