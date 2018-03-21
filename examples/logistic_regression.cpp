@@ -1,5 +1,6 @@
 #include "base/color.hpp"
 #include "core/plan/runner.hpp"
+#include "boost/tokenizer.hpp"
 
 #include <string>
 #include <cmath>
@@ -64,15 +65,13 @@ int main(int argc, char **argv) {
   // load and generate two collections
   auto dataset = Context::load(FLAGS_url, [](std::string &s) {
     Point point;
+    boost::char_separator<char> sep(" \t");
+    boost::tokenizer<boost::char_separator<char>> tok(s, sep);
+    boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
 
-    std::stringstream ss(s);
-    std::istream_iterator<std::string> begin(ss);
-    std::istream_iterator<std::string> end;
-    std::vector<std::string> split(begin, end);
-
-    std::vector<std::string>::iterator it = split.begin();
     point.y = std::stoi(*it);
-    for (it += 1; it != split.end(); ++it) {
+    it ++;
+    for (; it != tok.end(); ++it) {
       std::vector<std::string> fea_val;
       std::istringstream ss2(*it);
       std::string token;

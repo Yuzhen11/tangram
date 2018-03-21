@@ -1,6 +1,7 @@
 #include "core/plan/runner.hpp"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "boost/tokenizer.hpp"
 
 #ifdef USE_PROFILER
 #include <google/profiler.h>
@@ -77,24 +78,21 @@ struct TopK {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  auto dataset = Context::load(FLAGS_url, [](std::string& s) {
-    Links obj;
-    
-    std::stringstream ss(s);
-    std::istream_iterator<std::string> begin(ss);
-    std::istream_iterator<std::string> end;
-    std::vector<std::string> split(begin, end);
-
-    std::vector<std::string>::iterator it = split.begin();
-    obj.vertex_id = std::stoi(*it);
-    for ( it += 2; it != split.end(); ++it) {
-      obj.outlinks.push_back(std::stoi(*it));
+  auto dataset = Context::load(FLAGS_url, [](std::string& s) {//s cannot be empty 
+    boost::char_separator<char> sep(" \t");
+    boost::tokenizer<boost::char_separator<char>> tok(s, sep);
+    boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
+    int id = stoi(*it++);
+    it++;
+    Links obj(id);
+    while (it != tok.end()) {
+      obj.outlinks.push_back(std::stoi(*it++));
     }
 
     return obj;
   })->SetName("dataset");
 
-  int num_part = 10;
+  int num_part = 100;
   auto vertex = Context::placeholder<Vertex>(num_part)->SetName("vertex");
   auto p1 = Context::mapjoin(dataset, vertex,
     [](const Links& obj) {

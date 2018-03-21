@@ -1,6 +1,7 @@
 #include "core/plan/runner.hpp"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+#include "boost/tokenizer.hpp"
 
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
@@ -39,17 +40,16 @@ int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
   auto c1 = Context::load(FLAGS_url, [](std::string& s) {
-    Vertex v;
-    
-    std::stringstream ss(s);
-    std::istream_iterator<std::string> begin(ss);
-    std::istream_iterator<std::string> end;
-    std::vector<std::string> split(begin, end);
 
-    std::vector<std::string>::iterator it = split.begin();
-    v.vertex = std::stoi(*it);
-    for ( it += 2; it != split.end(); ++it) {
-      v.outlinks.push_back(std::stoi(*it));
+    Vertex v;
+    boost::char_separator<char> sep(" \t");
+    boost::tokenizer<boost::char_separator<char>> tok(s, sep);
+    boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
+
+    v.vertex = std::stoi(*it++);
+    it++;
+    while (it != tok.end()) {
+      v.outlinks.push_back(std::stoi(*it++));
     }
 
     return v;

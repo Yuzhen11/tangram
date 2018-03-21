@@ -4,6 +4,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "base/color.hpp"
+#include "boost/tokenizer.hpp"
 
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
@@ -124,16 +125,14 @@ int main(int argc, char** argv) {
 
   // dataset from file
   auto dataset = Context::load(FLAGS_url, [](std::string& s) {
-    std::stringstream ss(s);
-    std::istream_iterator<std::string> begin(ss);
-    std::istream_iterator<std::string> end;
-    std::vector<std::string> split(begin, end);
+    boost::char_separator<char> sep(" \t");
+    boost::tokenizer<boost::char_separator<char>> tok(s, sep);
+    boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
 
-    std::vector<std::string>::iterator it = split.begin();
     int id = std::stoi(*(it++));
     std::string label = *(it++);
     Vertex obj(id, label);
-    for ( ; it != split.end(); ) {
+    while (it != tok.end()) {
       id = std::stoi(*(it++));
       label = *(it++);
       obj.AddOutlink(Vertex(id, label));  
