@@ -10,6 +10,11 @@ namespace xyz {
 struct FakeTracker : public AbstractMapProgressTracker {
   virtual void Report(int) override {}
 };
+
+PlanController::PlanController(Controller* controller)
+  : controller_(controller) {
+  fetch_executor_ = std::make_shared<Executor>(5);
+}
  
 void PlanController::Setup(SpecWrapper spec) {
   type_ = spec.type;

@@ -219,10 +219,10 @@ int main(int argc, char** argv) {
   
   //Context::count(dataset);
 #ifdef USE_PROFILER
-  ProfilerStart("/tmp/a.prof");
+  // ProfilerStart("/tmp/a.prof");
 #endif
   Runner::Run();
 #ifdef USE_PROFILER
-  ProfilerStop();
+  // ProfilerStop();
 #endif
 }

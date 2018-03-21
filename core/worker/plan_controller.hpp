@@ -13,10 +13,7 @@ namespace xyz {
 
 class PlanController : public AbstractPlanController {
  public:
-  PlanController(Controller* controller)
-    : controller_(controller) {
-    fetch_executor_ = std::make_shared<Executor>(1);
-  }
+  PlanController(Controller* controller);
 
   ~PlanController() = default;
 
