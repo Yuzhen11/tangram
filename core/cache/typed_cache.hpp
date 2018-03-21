@@ -18,6 +18,9 @@ class TypedCache {
        staleness_(staleness), local_mode_(local_mode) {
     // LOG(INFO) << "Created TypedCache: cid: " << collection_id_;
   }
+  int GetVersion() const {
+    return version_;
+  }
 
   std::vector<ObjT> Get(const std::vector<typename ObjT::KeyT>& keys) {
     // 1. sliced

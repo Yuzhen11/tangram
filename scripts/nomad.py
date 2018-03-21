@@ -9,7 +9,7 @@ schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
-    "scheduler_port" : "33214",
+    "scheduler_port" : "38214",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }
@@ -55,11 +55,26 @@ netflix_data2 = {
     "staleness": 0,
 }
 
-dataset_param = netflix_data2
+debug = {
+    "url" : "/datasets/ml/netflix",
+    "kNumUser" : 480189,
+    "kNumItem" : 17770,
+    # "kNumRating" : 100480507,
+    "eta" : 0.00005,
+    "lambda" : 0.01,
+    "num_line_per_part": -1,
+    "kNumPartition" : 20,
+    "iter": 400, 
+    "staleness": 100,
+}
+
+dataset_param = debug 
 # dataset_param = toy_data 
 
 program_params = {
     "num_local_threads": 20,
+    "backoff_time" : 100,
+    "max_sample_item_size_each_round": 1000,
 }
 program_params.update(dataset_param)
 

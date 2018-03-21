@@ -2,6 +2,8 @@
 
 #include "base/color.hpp"
 
+#include <boost/tokenizer.hpp>
+
 #include <cmath>
 
 DEFINE_string(scheduler, "", "The host of scheduler");
@@ -21,6 +23,8 @@ DEFINE_double(lambda, 0.1, "");
 DEFINE_int32(iter, 1, "num of iters");
 DEFINE_int32(staleness, 0, "staleness");
 DEFINE_int32(num_line_per_part, -1, "num_line_per_part");
+DEFINE_int32(backoff_time, 100, "backoff time if there is no item in ms");
+DEFINE_int32(max_sample_item_size_each_round, -1, "");
 
 using namespace xyz;
 
@@ -101,6 +105,7 @@ struct Collector {
   // and the temporary item latent factors 
   std::map<int, User> users;
   std::deque<Item> items;
+  int version;
 
   Collector() = default;
   Collector(KeyT _key):key(_key) {}
@@ -119,18 +124,20 @@ struct Msg {
   int num_item_processed = -1;  // -1 for item migration, 
                                 // others for user updates and a number saying how many items have been processed
   std::map<int, UserOrItem> dict;
+  int version;  // debug
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Msg& m) {
-    stream << m.num_item_processed << m.dict;
+    stream << m.num_item_processed << m.dict << m.version;
     return stream;
   }
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Msg& m) {
-    stream >> m.num_item_processed >> m.dict; 
+    stream >> m.num_item_processed >> m.dict >> m.version; 
     return stream;
   }
   std::string DebugString() const {
     std::stringstream ss;
     ss << "num_item_processed: " << num_item_processed;
     ss << ", dict size: " << dict.size();
+    ss << ", version: " << version;
     return ss.str();
   }
 };
@@ -162,14 +169,12 @@ int main(int argc, char** argv) {
 
   auto load_collection = Context::load(FLAGS_url, [](std::string& s) {
     Record r;
-    std::stringstream ss(s);
-    std::istream_iterator<std::string> begin(ss);
-    std::istream_iterator<std::string> end;
-    std::vector<std::string> split(begin, end);
-    std::vector<std::string>::iterator it = split.begin();
+    boost::char_separator<char> sep(" \t");
+    boost::tokenizer<boost::char_separator<char>> tok(s, sep);
+    auto it = tok.begin();
     r.user = std::stoi(*it++);
     r.item = std::stoi(*it++);
-    r.rating = std::stoi(*it++);
+    r.rating = std::stof(*it++);
     return r;
   }, FLAGS_num_line_per_part);
 
@@ -227,15 +232,28 @@ int main(int argc, char** argv) {
       CHECK_EQ(with_part->GetSize(), 1);
       auto iter = p->begin();
       auto with_iter = static_cast<TypedPartition<Collector>*>(with_part.get())->begin();
+      int version = typed_cache->GetVersion();
 
       Msg update_users;
       Msg migrate_items;
+      update_users.version = version;
       migrate_items.num_item_processed = -1;
       update_users.num_item_processed = 0;
       auto& items = with_iter->items;
+      if (version > 0)
+        CHECK_EQ(version, with_iter->version + 1);
       int c = 0;
-      int sample = 5;
+      int sample = 2;
+      int item_count = 0;
+      LOG(INFO) << "item count: " << items.size() << " on " << p->id;
+      if (items.empty()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(FLAGS_backoff_time));
+      }
       for (auto& item : items) {
+        item_count += 1;
+        if (item_count == FLAGS_max_sample_item_size_each_round) {
+          break;
+        }
         // LOG(INFO) << "item: " << item.DebugString();
         update_users.num_item_processed += 1;
         migrate_items.dict[item.key] = item;
@@ -273,6 +291,7 @@ int main(int argc, char** argv) {
           collector->items.push_back(kv.second);
         }
       } else {  // update users
+        collector->version = msg.version;
         for (auto& kv : msg.dict) {
           auto& user = collector->users[kv.first].latent;
           auto& update = kv.second.latent;
