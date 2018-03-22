@@ -19,7 +19,7 @@ class CollectionMap : public AbstractCollectionMap {
     std::lock_guard<std::mutex> lk(mu_);
     collection_map_[cv.collection_id] = cv;
   }
-  const CollectionView& Get(int cid) {
+  CollectionView& Get(int cid) {
     std::lock_guard<std::mutex> lk(mu_);
     CHECK(collection_map_.find(cid) != collection_map_.end());
     return collection_map_[cid];

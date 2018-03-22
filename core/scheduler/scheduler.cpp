@@ -78,26 +78,36 @@ void Scheduler::Process(Message msg) {
   }
   case ScheduleFlag::kRecovery: {
     // TODO: get most recent checkpoint from control_manager_, run load checkpoint
-    CHECK_LT(cur_plan_ids_.size(), 0);
-    CHECK(program_.specs[*cur_plan_ids_.begin()].type == SpecWrapper::Type::kMapJoin);
-    int cur_version = control_manager_->GetCurVersion(*cur_plan_ids_.begin());
+    CHECK_EQ(cur_plan_ids_.size(), 1);  // TODO: now only handle 1 running plan.
+    int current_plan_id = *cur_plan_ids_.begin();
+    auto spec_wrapper = program_.specs[current_plan_id];
+    CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
+         || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
+    int cur_version = control_manager_->GetCurVersion(current_plan_id);
 
-    auto spec_wrapper = program_.specs[*cur_plan_ids_.begin()];
+    // identify the mutable and immutable collection.
+    std::set<int> mutable_collection;
+    std::set<int> immutable_collection;
+    auto map_join_spec = static_cast<MapJoinSpec*>(spec_wrapper.spec.get());
+    mutable_collection.insert(map_join_spec->join_collection_id);
 
-    // make sure the collection that is being updated in mutable (join_collection)
-    int cid;
-    if (strcmp(spec_wrapper.TypeName[static_cast<int>(spec_wrapper.type)], "kMapJoin")) {
-      auto spec = dynamic_cast<MapJoinSpec&>(*spec_wrapper.spec);
-      cid = spec.join_collection_id;
+    // check whether map_collection is immutable
+    int mid = map_join_spec->map_collection_id;
+    if (mutable_collection.find(mid) == mutable_collection.end()) {
+      immutable_collection.insert(mid);
     }
-    else if (strcmp(spec_wrapper.TypeName[static_cast<int>(spec_wrapper.type)], "kMapWithJoin")) {
-      auto spec = dynamic_cast<MapWithJoinSpec&>(*spec_wrapper.spec);
-      cid = spec.with_collection_id;
+    // check whether if there is with collection and whether it is immutable
+    if (spec_wrapper.type == SpecWrapper::Type::kMapWithJoin) {
+      auto mwj_spec = dynamic_cast<MapWithJoinSpec*>(map_join_spec); 
+      CHECK_NOTNULL(mwj_spec);
+      int wid = mwj_spec->with_collection_id;
+      if (mutable_collection.find(wid) == mutable_collection.end()) {
+        immutable_collection.insert(wid);
+      }
     }
-    else
-        CHECK(false);
 
-    std::vector<int> dead_nodes;
+    // remove dead_nodes
+    std::set<int> dead_nodes;
     bin >> dead_nodes;
     for (auto node : dead_nodes)
       elem_->nodes.erase(node);
@@ -107,9 +117,9 @@ void Scheduler::Process(Message msg) {
       remaining_nodes.push_back(it->first);
     }
 
-    auto& collection_view = elem_->collection_map->Get(cid);
-    int num_partition = collection_view.num_partition;
-    // collection_view.mapper.BuildRandomMapFromNodeList(num_partition, remaining_nodes);
+    recover_manager_->Recover(mutable_collection, 
+            immutable_collection, 
+            dead_nodes);
 
     break;
   }

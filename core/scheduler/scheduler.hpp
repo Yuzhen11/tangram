@@ -11,6 +11,7 @@
 #include "core/scheduler/distribute_manager.hpp"
 #include "core/scheduler/collection_manager.hpp"
 #include "core/scheduler/checkpoint_manager.hpp"
+#include "core/scheduler/recover_manager.hpp"
 
 #include "core/scheduler/dag_runner.hpp"
 
@@ -50,6 +51,7 @@ public:
     write_manager_ = std::make_shared<WriteManager>(elem_);
     collection_manager_ = std::make_shared<CollectionManager>(elem_);
     checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_);
+    recover_manager_ = std::make_shared<RecoverManager>(elem_);
   }
   virtual ~Scheduler() override {
     if (start_) {
@@ -98,6 +100,7 @@ private:
   std::shared_ptr<WriteManager> write_manager_;
   std::shared_ptr<CollectionManager> collection_manager_;
   std::shared_ptr<CheckpointManager> checkpoint_manager_;
+  std::shared_ptr<RecoverManager> recover_manager_;
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;
