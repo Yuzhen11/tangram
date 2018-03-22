@@ -72,11 +72,45 @@ void Scheduler::Process(Message msg) {
     bin >> plan_id;
     LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
     dag_runner_->Finish(plan_id);
+    cur_plan_ids_.erase(plan_id);
     TryRunPlan();
     break;
   }
   case ScheduleFlag::kRecovery: {
     // TODO: get most recent checkpoint from control_manager_, run load checkpoint
+    CHECK_LT(cur_plan_ids_.size(), 0);
+    CHECK(program_.specs[*cur_plan_ids_.begin()].type == SpecWrapper::Type::kMapJoin);
+    int cur_version = control_manager_->GetCurVersion(*cur_plan_ids_.begin());
+
+    auto spec_wrapper = program_.specs[*cur_plan_ids_.begin()];
+
+    // make sure the collection that is being updated in mutable (join_collection)
+    int cid;
+    if (strcmp(spec_wrapper.TypeName[static_cast<int>(spec_wrapper.type)], "kMapJoin")) {
+      auto spec = dynamic_cast<MapJoinSpec&>(*spec_wrapper.spec);
+      cid = spec.join_collection_id;
+    }
+    else if (strcmp(spec_wrapper.TypeName[static_cast<int>(spec_wrapper.type)], "kMapWithJoin")) {
+      auto spec = dynamic_cast<MapWithJoinSpec&>(*spec_wrapper.spec);
+      cid = spec.with_collection_id;
+    }
+    else
+        CHECK(false);
+
+    std::vector<int> dead_nodes;
+    bin >> dead_nodes;
+    for (auto node : dead_nodes)
+      elem_->nodes.erase(node);
+
+    std::vector<int> remaining_nodes;
+    for( auto it = elem_->nodes.begin(); it != elem_->nodes.end(); ++it) {
+      remaining_nodes.push_back(it->first);
+    }
+
+    auto& collection_view = elem_->collection_map->Get(cid);
+    int num_partition = collection_view.num_partition;
+    // collection_view.mapper.BuildRandomMapFromNodeList(num_partition, remaining_nodes);
+
     break;
   }
   default:
@@ -123,6 +157,7 @@ void Scheduler::TryRunPlan() {
 
 void Scheduler::RunPlan(int plan_id) {
   CHECK_LT(plan_id, program_.specs.size());
+  cur_plan_ids_.insert(plan_id);
   auto spec = program_.specs[plan_id];
   LOG(INFO) << "[Scheduler] " << YELLOW("Running plan "+std::to_string(spec.id)+" "+spec.name+" ") << spec.DebugString();
   if (spec.type == SpecWrapper::Type::kDistribute) {

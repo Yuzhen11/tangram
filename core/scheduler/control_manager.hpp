@@ -17,6 +17,7 @@ class ControlManager {
   void TryUpdateVersion(int plan_id);
   void SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
+  int GetCurVersion(int plan_id);
   
  private:
   std::shared_ptr<SchedulerElem> elem_;

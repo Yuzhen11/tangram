@@ -104,6 +104,8 @@ private:
 
   std::unique_ptr<AbstractDagRunner> dag_runner_;
   std::string dag_runner_type_;
+
+  std::set<int> cur_plan_ids_;
 };
 
 } // namespace xyz

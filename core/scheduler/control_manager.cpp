@@ -113,4 +113,8 @@ void ControlManager::SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBi
   }
 }
 
+int ControlManager::GetCurVersion(int plan_id) {
+  return versions_[plan_id];
+}
+
 } // namespace xyz
