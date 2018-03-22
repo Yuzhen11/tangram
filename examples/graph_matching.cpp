@@ -18,72 +18,46 @@ using namespace xyz;
 
 struct Vertex {
   using KeyT = int;
+  
+  KeyT id;
+  std::string label;
+  std::vector<Vertex> outlinks;
+  bool is_matched = false;
 
   Vertex() = default;
   Vertex(KeyT id) : id(id) {}
   Vertex(KeyT id, std::string label) : id(id), label(label) {} 
   KeyT Key() const { return id; }
   
-  KeyT id;
-  std::string label;
-  std::vector<Vertex> outlinks;
-  int round = 0;
-  int matched_round = 0;
-  bool match_failed = false;
-
-  void AddOutlink(Vertex outlink) {
-    outlink.round = round + 1;
-    outlinks.push_back(outlink);
-  }
+  void AddOutlink(Vertex v) { outlinks.push_back(v); }
   
-  Vertex& GetOutlink(int i) {
-    return outlinks.at(i);
-  }
- 
-  bool FindLabel(std::string label) {
-    for ( auto outlink : outlinks ) {
-      if (outlink.label == label)
-        return true;
-    }
-    return false;
-  }
-
-  Vertex Get(std::string label) {
-    for ( auto outlink : outlinks) {
-      if (outlink.label == label)
-        return outlink;
-    }
-    return Vertex(-1);
-  }
- 
-  std::deque<Vertex> GetRound(int i) {
-    CHECK(i >= 0);
+  std::deque<Vertex> GetRound(int round) {
     std::deque<Vertex> result;
     result.push_back(*this);
-    if (i) {
-      for (int k = 0; k < i; k++) {
-        int size = result.size();
-        for (int j = 0; j < size; j++) {
-          Vertex outlink = result.front();
-          result.pop_front(); 
-          for (Vertex tmp : outlink.outlinks) {
-            result.push_back(tmp);
-          }
+    if (round == 0) return result;
+    for (int i = 0; i < round; i++) {
+      int size = result.size();
+      for (int j = 0; j < size; j++) {
+        Vertex v = result.front();
+        result.pop_front();
+        for (Vertex outlink : v.outlinks) {
+          result.push_back(outlink);
         }
-      } 
+      }
     }
-    CHECK_NE(result.size(), 0);
     return result;
   }
 
-  Vertex* GetById(int id) {
-    if (this->id == id) return this;
-    else {
-      for (Vertex outlink : outlinks) return outlink.GetById(id);
+  int GetDepth() {
+    if (outlinks.empty()) return 1;
+    int max = outlinks[0].GetDepth();
+    for ( int i = 1; i < outlinks.size(); i++ ) {
+      int depth = outlinks[i].GetDepth();
+      if (depth > max) max = depth;
     }
-    return nullptr;
+    return max+1;
   }
-  
+
   void Display() const {
     std::deque<Vertex> to_display;
     to_display.push_back(*this);
@@ -91,7 +65,7 @@ struct Vertex {
       Vertex v = to_display.front();
       to_display.pop_front(); 
       std::stringstream ss;
-      ss << "round " << v.round << ": (" << v.id << ", " << v.label << ") ->";
+      ss << "(" << v.id << ", " << v.label << ") ->";
       for (Vertex adj : v.outlinks) {
         to_display.push_back(adj); 
         ss << " (" << adj.id << ", " << adj.label << ")";
@@ -110,6 +84,55 @@ struct Vertex {
   }
 };
 
+struct Matcher {
+  using KeyT = int;
+
+  KeyT id;
+  int matched_round = -1;
+  bool is_match_failed = false;
+  std::map<int, std::map<int, std::vector<Vertex>>> result; // round, pattern pos, vertices 
+  
+  Matcher() = default;
+  Matcher(int id) : id(id) {}
+  KeyT Key() const { return id; }
+
+  void CheckRound(Vertex pattern) {
+    CHECK(matched_round >= 0);
+    if (result[matched_round].size() != pattern.GetRound(matched_round).size()){
+      is_match_failed = true;
+      //LOG(INFO) << "matcher " << id << " failed at round " << matched_round;
+      //LOG(INFO) << result[matched_round].size() << " " << pattern.GetRound(matched_round).size();
+      matched_round -= 1;
+    } else {
+      //LOG(INFO) << "matcher " << id << " round " << matched_round; 
+    }
+  }
+  
+  void Display() {// find all matched pattern
+    //TODO
+    std::stringstream ss;
+    ss << "[match pattern]\n";
+    for ( auto round : result ) {
+      ss << " round: " << round.first << "\n";
+      for ( auto pos : round.second ) {
+        ss << " pos: " << pos.first;
+        for ( auto vertex : pos.second ) {
+         ss << " (" << vertex.id << ", " << vertex.label << ")";
+        }
+        ss << "\n";
+      }
+    }
+    LOG(INFO) << ss.str();
+  }
+
+  friend SArrayBinStream& operator << (SArrayBinStream& stream, const Matcher& matcher) {
+    stream << matcher.id << matcher.matched_round << matcher.result;
+  }
+  friend SArrayBinStream& operator >> (SArrayBinStream& stream, Matcher& matcher) {
+    stream >> matcher.id >> matcher.matched_round >> matcher.result;
+  }
+};
+
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
@@ -118,10 +141,10 @@ int main(int argc, char** argv) {
   Vertex pattern(0, "a");
   pattern.AddOutlink(Vertex(1, "b"));
   pattern.AddOutlink(Vertex(2, "c"));
-  //pattern.outlinks.at(0).AddOutlink(Vertex(3, "b"));
+  //pattern.outlinks.at(0).AddOutlink(Vertex(3, "d"));
   LOG(INFO) << "pattern:";
   pattern.Display();
-  int iteration = 1;
+  int iteration = pattern.GetDepth();
 
   // dataset from file
   auto dataset = Context::load(FLAGS_url, [](std::string& s) {
@@ -139,88 +162,122 @@ int main(int argc, char** argv) {
     }
     return obj;
   });
-  
+ 
+  //vertices without outlinks considered
   auto graph = Context::placeholder<Vertex>(1);
   Context::mapjoin(dataset, graph,
     [](const Vertex& vertex){
-      return std::make_pair(vertex.id, std::make_pair(vertex.label, vertex.outlinks));
+      using MsgT = std::pair<int, std::pair<std::string, std::vector<Vertex>>>;
+      std::vector<MsgT> kvs;
+      kvs.push_back(std::make_pair(vertex.id, std::make_pair(vertex.label, vertex.outlinks)));
+    
+      std::vector<Vertex> empty;
+      for (Vertex outlink : vertex.outlinks) {
+        kvs.push_back(std::make_pair(outlink.id, std::make_pair(outlink.label, empty)));
+      }
+      return kvs;
     },
     [](Vertex* vertex, std::pair<std::string, std::vector<Vertex>> msg){
       vertex->label = msg.first;
       for (auto outlink : msg.second)
         vertex->AddOutlink(outlink);
-    });
+    })
+  ->SetCombine([](std::pair<std::string, std::vector<Vertex>>* msg1, std::pair<std::string, std::vector<Vertex>> msg2){
+        CHECK_EQ(msg1->first, msg2.first);
+        for (Vertex vertex : msg2.second) msg1->second.push_back(vertex);
+      });
 
-  int num_part = 10;
-  auto matcher = Context::placeholder<Vertex>(num_part);
+  //TODO: vertices without outlinks not considered -> pattern round>0
+  auto matcher = Context::placeholder<Matcher>(5);
   Context::mapjoin(dataset, matcher,
       [](const Vertex& vertex){
-        return std::make_pair(vertex.id, vertex.label);
+        std::vector<std::pair<int, int>> msg;
+        msg.push_back(std::make_pair(vertex.id, 0));
+        for ( Vertex outlink : vertex.outlinks ) {
+          msg.push_back(std::make_pair(outlink.id, 0));
+        }
+        return msg;
       },
-      [](Vertex* matcher, std::string msg){
-        matcher->label = msg;
-      });
-  
+      [](Matcher* matcher, int msg){
+      })
+  ->SetCombine([](int* msg1, int msg2){});
+
+  using MsgT = std::pair<int, std::vector<std::tuple<int, int, Vertex>>>;//matcher id, (round id, postition id, vertex)
   Context::mappartwithjoin(matcher, graph, matcher,
-      [&pattern](TypedPartition<Vertex>* p,
+      [&pattern](TypedPartition<Matcher>* p,
         TypedCache<Vertex>* typed_cache,
         AbstractMapProgressTracker* t){
-        std::vector<std::pair<int, std::vector< std::pair<int, std::vector<Vertex>> >>> kvs;
+        std::vector<MsgT> kvs;
       
         auto part = typed_cache->GetPartition(0);
         auto* with_p = static_cast<IndexedSeqPartition<Vertex>*>(part.get());
         CHECK(with_p->GetSize());
         for (auto matcher : *p) {
-          std::vector< std::pair<int, std::vector<Vertex>> > MSG;
+          if ( matcher.is_match_failed ) continue;
           
-          if (matcher.match_failed) continue;//match failed and skip
-          if ((matcher.matched_round == 0) && (matcher.label != pattern.label)) {//root match failed
-            kvs.push_back(std::make_pair(matcher.id, MSG));
-            continue;
-          }
+          MsgT MSG;
+          MSG.first = matcher.id;
           
-          //root matched
-          auto sub_matcher = matcher.GetRound(matcher.matched_round);
-          auto sub_pattern = pattern.GetRound(matcher.matched_round);
-          CHECK_EQ(sub_matcher.size(), sub_pattern.size()) << matcher.matched_round;
-          for (int i = 0; i < sub_matcher.size(); i++){
-            if (sub_pattern.at(i).outlinks.size() == 0) continue;
-            std::pair<int, std::vector<Vertex>> msg;
-            msg.first = sub_matcher.at(i).id;
-            MSG.push_back(msg);
-            auto v = with_p->Find(sub_matcher.at(i).id);
-            for (Vertex next : sub_pattern.at(i).outlinks) {
-              Vertex candidate = v->Get(next.label);//TODO
-
-              if ( candidate.id == -1 ){// match failed
-                MSG.clear();//empty - this matcher failed
-                break;
-              } else {
-                MSG.back().second.push_back(candidate); 
-              }
+          if ( matcher.matched_round == -1 ) {
+            Vertex* root = with_p->Find(matcher.id); // BLOCKED IF CANNOT FIND
+            if ( root->label != pattern.label ) { // root matching failed
+              kvs.push_back(MSG);// send empty msg
+              continue;
             }
+            else {
+              MSG.second.push_back(std::make_tuple(0, 0, *root));
+              kvs.push_back(MSG);
+              continue; 
+            } 
           }
-          kvs.push_back(std::make_pair(matcher.id, MSG));
+        
+          // root matched
+          int next_round_pos_start = 0;
+          auto pattern_round = pattern.GetRound(matcher.matched_round);
+          for (int round_pos = 0; round_pos < pattern_round.size(); round_pos++){
+            std::vector<Vertex> vertices_matcher = matcher.result[matcher.matched_round][round_pos];// round, pattern pos, vertices
+            Vertex vertex_pattern = pattern_round.at(round_pos);
+            if (round_pos != 0) {
+              next_round_pos_start += pattern_round.at(round_pos-1).outlinks.size();
+            }
+
+            for (Vertex vertex_matcher : vertices_matcher) {
+
+              for ( Vertex outlink : vertex_matcher.outlinks ) {
+
+                for (int pos = 0; pos < vertex_pattern.outlinks.size(); pos++) {
+                  
+                  int next_round_pos = pos + next_round_pos_start;
+                  if (outlink.label == vertex_pattern.outlinks.at(pos).label) { //outlink.outlinks here is empty
+                    Vertex* vertex_to_add = with_p->Find(outlink.id);// BLOCKED IF CANNOT FIND
+                    MSG.second.push_back(std::make_tuple(matcher.matched_round+1, next_round_pos, *vertex_to_add));//may repetitively push a vertex   
+                  }
+                }
+              }
+            } 
+          }
+          if (!MSG.second.empty()) kvs.push_back(MSG); // do not send empty msg
         }
         typed_cache->ReleasePart(0);
         return kvs;
       },
-      [iteration](Vertex* matcher, std::vector< std::pair<int, std::vector<Vertex>> > MSG){
-        if (MSG.empty()) {
-          matcher->match_failed = true;
+      [iteration, &pattern](Matcher* matcher, std::vector<std::tuple<int, int, Vertex>> msgs){
+        if ( msgs.empty() ) {
+          CHECK_EQ(matcher->matched_round, -1);
+          CHECK_EQ(matcher->is_match_failed, false);
+          matcher->is_match_failed = true;
           return;
         }
-
-        for (auto msg : MSG) {
-          Vertex* to_be_added = matcher->GetById(msg.first);
-          CHECK(to_be_added != nullptr);
-          for (Vertex to_add : msg.second) {
-            to_be_added->AddOutlink(to_add);
-          }
+        
+        for ( auto msg : msgs ) {
+          matcher->result[std::get<0>(msg)][std::get<1>(msg)].push_back(std::get<2>(msg));
         }
-
+       
         matcher->matched_round ++;
-        if (matcher->matched_round == iteration) matcher->Display(); //print matching result
+        matcher->CheckRound(pattern); //round-- if check failed
+        
+        if (matcher->matched_round == iteration-1)
+          matcher->Display(); //print matching result
       })
   ->SetIter(iteration);
 

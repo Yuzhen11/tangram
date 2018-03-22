@@ -193,6 +193,18 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::pair<FirstT, SecondT>&
     return stream;
 }
 
+template <typename FirstT, typename SecondT, typename ThirdT>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::tuple<FirstT, SecondT, ThirdT>& p) {
+    stream << std::get<0>(p) << std::get<1>(p) << std::get<2>(p);
+    return stream;
+}
+
+template <typename FirstT, typename SecondT, typename ThirdT>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::tuple<FirstT, SecondT, ThirdT>& p) {
+    stream >> std::get<0>(p) >> std::get<1>(p) >> std::get<2>(p);
+    return stream;
+}
+
 SArrayBinStream& operator<<(SArrayBinStream& stream, const SArrayBinStream& bin);
 SArrayBinStream& operator>>(SArrayBinStream& stream, SArrayBinStream& bin);
 
