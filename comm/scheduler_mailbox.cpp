@@ -66,9 +66,8 @@ void SchedulerMailbox::HandleBarrierMsg() {
 
 void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
   // reference:
-  auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
-  std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
-  UpdateID(msg, &dead_set, recovery_node);
+  auto deadnodes_set = GetDeadNodes(kHeartbeatTimeout);
+  UpdateID(msg, deadnodes_set, recovery_node);
 
   if (nodes_.size() == num_workers_) {
     LOG(INFO) << num_workers_ << " nodes registered at scheduler.";
@@ -112,13 +111,12 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
 
   else if (recovery_node.is_recovery) {
     VLOG(1) << "recovery_node.is_recovery == true";
-    auto dead_nodes = GetDeadNodes(kHeartbeatTimeout);
-    std::unordered_set<int> dead_set(dead_nodes.begin(), dead_nodes.end());
+    auto deadnodes_set = GetDeadNodes(kHeartbeatTimeout);
     // send back the recovery node
     Connect(recovery_node);
     UpdateHeartbeat(recovery_node.id);
     for (int r : GetNodeIDs()) {
-      if (r != recovery_node.id && dead_set.find(r) != dead_set.end()) {
+      if (r != recovery_node.id && deadnodes_set.find(r) != deadnodes_set.end()) {
         // do not send anything to dead node
         continue;
       }
@@ -146,7 +144,7 @@ void SchedulerMailbox::HandleRegisterMsg(Message *msg, Node &recovery_node) {
 }
 
 void SchedulerMailbox::UpdateID(Message *msg,
-                                std::unordered_set<int> *deadnodes_set,
+                                std::set<int> deadnodes_set,
                                 Node &recovery_node) {
   // assign an id
   CHECK_EQ(msg->meta.sender, Node::kEmpty);
@@ -162,7 +160,7 @@ void SchedulerMailbox::UpdateID(Message *msg,
     CHECK(ready_.load());
     for (size_t i = 0; i < nodes_.size() - 1; ++i) {
       const auto &node = nodes_[i];
-      if (deadnodes_set->find(node.id) != deadnodes_set->end()) {
+      if (deadnodes_set.find(node.id) != deadnodes_set.end()) {
         auto &temp_node = ctrl.node;
         // assign previous node id
         temp_node.id = node.id;
@@ -177,8 +175,8 @@ void SchedulerMailbox::UpdateID(Message *msg,
   }
 }
 
-std::vector<int> SchedulerMailbox::GetDeadNodes(int timeout) {
-  std::vector<int> dead_nodes;
+std::set<int> SchedulerMailbox::GetDeadNodes(int timeout) {
+  std::set<int> dead_nodes;
   if (!ready_ || timeout == 0)
     return dead_nodes;
 
@@ -190,7 +188,7 @@ std::vector<int> SchedulerMailbox::GetDeadNodes(int timeout) {
       auto it = heartbeats_.find(r);
       if ((it == heartbeats_.end() || it->second + timeout < curr_time) &&
           start_time_ + timeout < curr_time) {
-        dead_nodes.push_back(r);
+        dead_nodes.insert(r);
       }
     }
   }
@@ -203,7 +201,7 @@ void SchedulerMailbox::CheckHeartbeat(int time_out) {
     if (!ready_.load())
       break;
 
-    std::vector<int> deadnodes = GetDeadNodes(time_out);
+    std::set<int> deadnodes = GetDeadNodes(time_out);
     if (!deadnodes.empty()) {
       // TODO: start a new worker node
       VLOG(1) << "Detected " << std::to_string(deadnodes.size()) << " deadnode";

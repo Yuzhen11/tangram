@@ -17,7 +17,7 @@ private:
   // in seconds
   const int kHeartbeatTimeout = 1;
   const int kHeartbeatCheckInterval = 1;
-  std::vector<int> GetDeadNodes(int timeout = 60);
+  std::set<int> GetDeadNodes(int timeout = 60);
   void CheckHeartbeat(int time_out);
   void UpdateHeartbeat(int node_id);
 
@@ -25,7 +25,7 @@ private:
   virtual void HandleRegisterMsg(Message *msg, Node &recovery_node) override;
   virtual void Receiving() override;
   const std::vector<int> GetNodeIDs();
-  void UpdateID(Message *msg, std::unordered_set<int> *deadnodes_set,
+  void UpdateID(Message *msg, std::set<int> deadnodes_set,
                 Node &recovery_node);
 
   int num_workers_;
