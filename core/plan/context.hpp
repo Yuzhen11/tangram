@@ -161,6 +161,17 @@ class Context {
     return c;
   }
 
+  // user can specify KeyToPartT for the placeholder
+  template<typename D, typename KeyToPartT>
+  static auto* placeholder(int num_parts, std::shared_ptr<KeyToPartT> key_to_part_mapper, std::string name = "") {
+    auto* c = collections_.make<Collection<D>>(num_parts);
+    c->SetMapper(key_to_part_mapper);
+    auto* p = plans_.make<Distribute<D, IndexedSeqPartition<D>>>(c->Id(), num_parts);
+    p->name = name+"::placeholder";
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
+    return c;
+  }
+
   template<typename D>
   static auto* placeholder(std::vector<third_party::Range> ranges, std::string name = "") {
     auto* c = collections_.make<Collection<D>>(ranges.size());

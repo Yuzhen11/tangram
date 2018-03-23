@@ -17,7 +17,7 @@ template <typename KeyT>
 class TypedKeyToPartMapper : public AbstractKeyToPartMapper {
  public:
   TypedKeyToPartMapper(size_t num_partition): AbstractKeyToPartMapper(num_partition)  {}
-  virtual size_t Get(const KeyT& key) = 0;
+  virtual size_t Get(const KeyT& key) const = 0;
 };
 
 }  // namespace xyz

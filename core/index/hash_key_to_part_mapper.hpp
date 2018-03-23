@@ -11,7 +11,7 @@ class HashKeyToPartMapper : public TypedKeyToPartMapper<KeyT> {
  public:
   HashKeyToPartMapper(size_t num_partition):TypedKeyToPartMapper<KeyT>(num_partition) {}
 
-  virtual size_t Get(const KeyT& key) override {
+  virtual size_t Get(const KeyT& key) const override {
     return std::hash<KeyT>()(key) % this->GetNumPart();
   }
 };
@@ -22,7 +22,7 @@ class RoundRobinKeyToPartMapper: public TypedKeyToPartMapper<KeyT> {
  public:
   RoundRobinKeyToPartMapper(size_t num_partition):TypedKeyToPartMapper<KeyT>(num_partition) {}
 
-  virtual size_t Get(const KeyT& key) override {
+  virtual size_t Get(const KeyT& key) const override {
     return key % this->GetNumPart();
   }
 };

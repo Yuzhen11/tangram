@@ -1,10 +1,13 @@
 #include <tuple>
+#include <chrono>
+#include <mutex>
 
 #include "core/plan/runner.hpp"
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 #include "base/color.hpp"
 #include "boost/tokenizer.hpp"
+#include "core/index/hash_key_to_part_mapper.hpp"
 
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
@@ -31,7 +34,7 @@ struct Vertex {
   
   void AddOutlink(Vertex v) { outlinks.push_back(v); }
   
-  std::deque<Vertex> GetRound(int round) {
+  std::deque<Vertex> GetRound(int round) const {
     std::deque<Vertex> result;
     result.push_back(*this);
     if (round == 0) return result;
@@ -51,7 +54,7 @@ struct Vertex {
   int GetDepth() {
     if (outlinks.empty()) return 1;
     int max = outlinks[0].GetDepth();
-    for ( int i = 1; i < outlinks.size(); i++ ) {
+    for (int i = 1; i < outlinks.size(); i++) {
       int depth = outlinks[i].GetDepth();
       if (depth > max) max = depth;
     }
@@ -112,11 +115,11 @@ struct Matcher {
     //TODO
     std::stringstream ss;
     ss << "[match pattern]\n";
-    for ( auto round : result ) {
+    for (auto round : result) {
       ss << " round: " << round.first << "\n";
-      for ( auto pos : round.second ) {
+      for (auto pos : round.second) {
         ss << " pos: " << pos.first;
-        for ( auto vertex : pos.second ) {
+        for (auto vertex : pos.second) {
          ss << " (" << vertex.id << ", " << vertex.label << ")";
         }
         ss << "\n";
@@ -162,9 +165,11 @@ int main(int argc, char** argv) {
     }
     return obj;
   });
- 
-  //vertices without outlinks considered
-  auto graph = Context::placeholder<Vertex>(1);
+
+  int num_part = 100;
+  // HashKeyToPartMapper<int> graph_key_part_mapper(num_part); //need to know the mapper for graph
+  auto graph_key_part_mapper = std::make_shared<HashKeyToPartMapper<int>>(num_part);
+  auto graph = Context::placeholder<Vertex>(num_part, graph_key_part_mapper);
   Context::mapjoin(dataset, graph,
     [](const Vertex& vertex){
       using MsgT = std::pair<int, std::pair<std::string, std::vector<Vertex>>>;
@@ -179,21 +184,22 @@ int main(int argc, char** argv) {
     },
     [](Vertex* vertex, std::pair<std::string, std::vector<Vertex>> msg){
       vertex->label = msg.first;
-      for (auto outlink : msg.second)
+      for (auto outlink : msg.second) {
         vertex->AddOutlink(outlink);
+      }
     })
   ->SetCombine([](std::pair<std::string, std::vector<Vertex>>* msg1, std::pair<std::string, std::vector<Vertex>> msg2){
         CHECK_EQ(msg1->first, msg2.first);
-        for (Vertex vertex : msg2.second) msg1->second.push_back(vertex);
+        for (Vertex vertex : msg2.second)
+          msg1->second.push_back(vertex);
       });
 
-  //TODO: vertices without outlinks not considered -> pattern round>0
-  auto matcher = Context::placeholder<Matcher>(5);
+  auto matcher = Context::placeholder<Matcher>(num_part);
   Context::mapjoin(dataset, matcher,
       [](const Vertex& vertex){
         std::vector<std::pair<int, int>> msg;
         msg.push_back(std::make_pair(vertex.id, 0));
-        for ( Vertex outlink : vertex.outlinks ) {
+        for (Vertex outlink : vertex.outlinks) {
           msg.push_back(std::make_pair(outlink.id, 0));
         }
         return msg;
@@ -204,23 +210,33 @@ int main(int argc, char** argv) {
 
   using MsgT = std::pair<int, std::vector<std::tuple<int, int, Vertex>>>;//matcher id, (round id, postition id, vertex)
   Context::mappartwithjoin(matcher, graph, matcher,
-      [&pattern](TypedPartition<Matcher>* p,
+      [pattern, num_part, graph_key_part_mapper](TypedPartition<Matcher>* p,
         TypedCache<Vertex>* typed_cache,
         AbstractMapProgressTracker* t){
         std::vector<MsgT> kvs;
-      
-        auto part = typed_cache->GetPartition(0);
-        auto* with_p = static_cast<IndexedSeqPartition<Vertex>*>(part.get());
-        CHECK(with_p->GetSize());
+     
+        auto start = std::chrono::system_clock::now();
+        std::vector<IndexedSeqPartition<Vertex>*> with_parts;
+        for (int i = 0; i < num_part; i++) {
+          auto part = typed_cache->GetPartition(i);
+          auto* with_p = static_cast<IndexedSeqPartition<Vertex>*>(part.get());
+          with_parts.push_back(with_p); 
+        }
+        std::chrono::duration<double> duration = std::chrono::system_clock::now() - start;
+        LOG(INFO) << "[graph matching] process cache time: " << duration.count(); // process cache time is much less after the 1st iteration
+
         for (auto matcher : *p) {
-          if ( matcher.is_match_failed ) continue;
+          if (matcher.is_match_failed) continue;
           
           MsgT MSG;
           MSG.first = matcher.id;
           
-          if ( matcher.matched_round == -1 ) {
-            Vertex* root = with_p->Find(matcher.id); // BLOCKED IF CANNOT FIND
-            if ( root->label != pattern.label ) { // root matching failed
+          if (matcher.matched_round == -1) {
+            Vertex* root;
+            auto* with_p = with_parts[graph_key_part_mapper->Get(matcher.id)];
+            root = with_p->Find(matcher.id);
+            CHECK(root != nullptr);
+            if (root->label != pattern.label) { // root matching failed
               kvs.push_back(MSG);// send empty msg
               continue;
             }
@@ -242,14 +258,14 @@ int main(int argc, char** argv) {
             }
 
             for (Vertex vertex_matcher : vertices_matcher) {
-
-              for ( Vertex outlink : vertex_matcher.outlinks ) {
-
+              for (Vertex outlink : vertex_matcher.outlinks) {
                 for (int pos = 0; pos < vertex_pattern.outlinks.size(); pos++) {
-                  
                   int next_round_pos = pos + next_round_pos_start;
                   if (outlink.label == vertex_pattern.outlinks.at(pos).label) { //outlink.outlinks here is empty
-                    Vertex* vertex_to_add = with_p->Find(outlink.id);// BLOCKED IF CANNOT FIND
+                    Vertex* vertex_to_add;
+                    auto* with_p = with_parts[graph_key_part_mapper->Get(outlink.id)];
+                    vertex_to_add = with_p->Find(outlink.id);
+                    CHECK(vertex_to_add != nullptr);
                     MSG.second.push_back(std::make_tuple(matcher.matched_round+1, next_round_pos, *vertex_to_add));//may repetitively push a vertex   
                   }
                 }
@@ -261,23 +277,24 @@ int main(int argc, char** argv) {
         typed_cache->ReleasePart(0);
         return kvs;
       },
-      [iteration, &pattern](Matcher* matcher, std::vector<std::tuple<int, int, Vertex>> msgs){
-        if ( msgs.empty() ) {
+      [iteration, pattern](Matcher* matcher, std::vector<std::tuple<int, int, Vertex>> msgs){
+        if (msgs.empty()) {
           CHECK_EQ(matcher->matched_round, -1);
           CHECK_EQ(matcher->is_match_failed, false);
           matcher->is_match_failed = true;
           return;
         }
         
-        for ( auto msg : msgs ) {
+        for (auto msg : msgs) {
           matcher->result[std::get<0>(msg)][std::get<1>(msg)].push_back(std::get<2>(msg));
         }
        
         matcher->matched_round ++;
         matcher->CheckRound(pattern); //round-- if check failed
         
-        if (matcher->matched_round == iteration-1)
+        if (matcher->matched_round == iteration-1) {
           matcher->Display(); //print matching result
+        } 
       })
   ->SetIter(iteration);
 
