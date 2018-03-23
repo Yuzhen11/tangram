@@ -15,12 +15,14 @@ class ControlManager {
   void Control(SArrayBinStream bin);
   void RunPlan(SpecWrapper spec);
   void TryUpdateVersion(int plan_id);
-  void SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
+  void SendToAllControllers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
+  void SendToController(int node_id, ControllerFlag flag, int plan_id, SArrayBinStream bin);
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
   
 
   void TrySpeculativeMap(int plan_id);
+  void PrintMapVersions(int plan_id);
   using Timepoint = std::chrono::system_clock::time_point;
  private:
   std::shared_ptr<SchedulerElem> elem_;
@@ -35,6 +37,7 @@ class ControlManager {
   std::map<int, std::vector<Timepoint>> version_time_;
 
   std::map<int, SpecWrapper> specs_;
+  Timepoint start_time_;
 };
 
 

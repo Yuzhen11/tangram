@@ -17,10 +17,11 @@ void ControlManager::Control(SArrayBinStream bin) {
     if (is_setup_[ctrl.plan_id].size() == elem_->nodes.size()) {
       LOG(INFO) << "[ControlManager] Setup all nodes, startPlan: " << ctrl.plan_id;
       SArrayBinStream reply_bin;
-      SendToAllWorkers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
+      SendToAllControllers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
       version_time_[ctrl.plan_id].push_back(std::chrono::system_clock::now());  
 
       // set the map_versions_ time
+      start_time_ = std::chrono::system_clock::now();
       for (auto& node : elem_->nodes) {
         map_versions_[ctrl.plan_id][node.second.node.id].first = 0;
         map_versions_[ctrl.plan_id][node.second.node.id].second = std::chrono::system_clock::now();
@@ -54,7 +55,19 @@ void ControlManager::Control(SArrayBinStream bin) {
   }
 }
 
+void ControlManager::PrintMapVersions(int plan_id) {
+  std::stringstream ss;
+  for (auto& v: map_versions_[plan_id]) {
+    ss << "node: " << v.first 
+       << ", version: " << v.second.first 
+       << ", time: " << static_cast<std::chrono::duration<double>>(v.second.second-start_time_).count()
+       << "s\n";
+  }
+  LOG(INFO) << ss.str();
+}
+
 void ControlManager::TrySpeculativeMap(int plan_id) {
+  PrintMapVersions(plan_id);
   auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
   if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
     // do not handle this case now.
@@ -86,6 +99,18 @@ void ControlManager::TrySpeculativeMap(int plan_id) {
     return;
   }
   LOG(INFO) << "Identify fast node: " << fastest_node << ", slow node: " << slowest_node;
+
+  MigrateMeta meta;
+  meta.plan_id = plan_id;
+  meta.collection_id = mapjoin_spec->map_collection_id;
+  meta.partition_id = -1;
+  meta.from_id = slowest_node;
+  meta.to_id = fastest_node;
+  meta.current_map_version = -1;
+
+  SArrayBinStream bin;
+  bin << meta;
+  SendToController(slowest_node, ControllerFlag::kRequestPartition, plan_id, bin);
 }
 
 void ControlManager::TryUpdateVersion(int plan_id) {
@@ -109,13 +134,13 @@ void ControlManager::TryUpdateVersion(int plan_id) {
     // send finish
     SArrayBinStream bin;
     bin << int(-1);
-    SendToAllWorkers(ControllerFlag::kUpdateVersion, plan_id, bin);
+    SendToAllControllers(ControllerFlag::kUpdateVersion, plan_id, bin);
   } else {
     LOG(INFO) << "[ControlManager] Update min version: " << versions_[plan_id] << " for plan " << plan_id; 
     // update version
     SArrayBinStream bin;
     bin << versions_[plan_id];
-    SendToAllWorkers(ControllerFlag::kUpdateVersion, plan_id, bin);
+    SendToAllControllers(ControllerFlag::kUpdateVersion, plan_id, bin);
   }
 }
 
@@ -141,10 +166,24 @@ void ControlManager::RunPlan(SpecWrapper spec) {
   }
   SArrayBinStream bin;
   bin << spec;
-  SendToAllWorkers(ControllerFlag::kSetup, plan_id, bin);
+  SendToAllControllers(ControllerFlag::kSetup, plan_id, bin);
 }
 
-void ControlManager::SendToAllWorkers(ControllerFlag flag, int plan_id, SArrayBinStream bin) {
+void ControlManager::SendToController(int node_id, ControllerFlag flag, int plan_id, SArrayBinStream bin) {
+  SArrayBinStream ctrl_bin, plan_bin;
+  ctrl_bin << flag;
+  plan_bin << plan_id;
+  Message msg;
+  msg.meta.sender = 0;
+  msg.meta.recver = GetControllerActorQid(node_id);
+  msg.meta.flag = Flag::kOthers;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(plan_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  elem_->sender->Send(std::move(msg));
+}
+
+void ControlManager::SendToAllControllers(ControllerFlag flag, int plan_id, SArrayBinStream bin) {
   SArrayBinStream ctrl_bin, plan_bin;
   ctrl_bin << flag;
   plan_bin << plan_id;

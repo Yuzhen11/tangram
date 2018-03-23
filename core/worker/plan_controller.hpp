@@ -81,6 +81,7 @@ class PlanController : public AbstractPlanController {
   bool TryCheckpoint(int part_id);
 
   bool IsJoinedBefore(const VersionedShuffleMeta& meta);
+  int GetSlowestMapPartitionId();
  private:
   Controller* controller_;
 
@@ -130,6 +131,8 @@ class PlanController : public AbstractPlanController {
 
   bool local_map_mode_ = true;  // TODO: turn it on
   MapOutputStreamStore stream_store_;
+
+  std::set<int> migrate_map_parts_;
 };
 
 }  // namespace
