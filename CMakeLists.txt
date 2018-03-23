@@ -34,6 +34,13 @@ if(USE_PROFILER)
     message("Compiled with USE_PROFILER on")
 endif()
 
+# enable this by `cmake .. -DWITH_LB=ON`
+option(WITH_LB "with lb" OFF)
+if(WITH_LB)
+    add_definitions(-DWITH_LB)
+    message("Compiled with WITH_LB on")
+endif()
+
 find_package(Threads)
 find_package(Boost 1.58.0 COMPONENTS thread)
 

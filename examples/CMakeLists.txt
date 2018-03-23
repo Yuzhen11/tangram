@@ -86,3 +86,10 @@ target_link_libraries(Nomad xyz)
 target_link_libraries(Nomad ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET Nomad PROPERTY CXX_STANDARD 14)
 add_dependencies(Nomad ${external_project_dependencies})
+
+# TestLB
+add_executable(TestLB test_lb.cpp)
+target_link_libraries(TestLB xyz)
+target_link_libraries(TestLB ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TestLB PROPERTY CXX_STANDARD 14)
+add_dependencies(TestLB ${external_project_dependencies})

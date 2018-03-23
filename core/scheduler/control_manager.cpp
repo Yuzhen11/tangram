@@ -4,6 +4,8 @@
 
 #include "base/color.hpp"
 
+#include <algorithm>
+
 namespace xyz {
 
 void ControlManager::Control(SArrayBinStream bin) {
@@ -17,11 +19,21 @@ void ControlManager::Control(SArrayBinStream bin) {
       SArrayBinStream reply_bin;
       SendToAllWorkers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
       version_time_[ctrl.plan_id].push_back(std::chrono::system_clock::now());  
+
+      // set the map_versions_ time
+      for (auto& node : elem_->nodes) {
+        map_versions_[ctrl.plan_id][node.second.node.id].first = 0;
+        map_versions_[ctrl.plan_id][node.second.node.id].second = std::chrono::system_clock::now();
+      }
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kMap) {
-    CHECK_EQ(map_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
-    map_versions_[ctrl.plan_id][ctrl.node_id] = ctrl.version;
+    CHECK_EQ(map_versions_[ctrl.plan_id][ctrl.node_id].first + 1, ctrl.version) << "update version 1 every time? ";
+    map_versions_[ctrl.plan_id][ctrl.node_id].first = ctrl.version;
+    map_versions_[ctrl.plan_id][ctrl.node_id].second = std::chrono::system_clock::now();
     TryUpdateVersion(ctrl.plan_id);
+#ifdef WITH_LB
+    TrySpeculativeMap(ctrl.plan_id);
+#endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     // CHECK_EQ(join_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
     join_versions_[ctrl.plan_id][ctrl.node_id] = ctrl.version;
@@ -42,10 +54,44 @@ void ControlManager::Control(SArrayBinStream bin) {
   }
 }
 
+void ControlManager::TrySpeculativeMap(int plan_id) {
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
+    // do not handle this case now.
+    return;
+  }
+  int staleness = mapjoin_spec->staleness;
+  int fastest_version = versions_[plan_id] + staleness + 1;
+
+  std::vector<int> fast_nodes;
+  // identify nodes with fastest version
+  for (auto v : map_versions_[plan_id]) {
+    if (v.second.first == fastest_version) {
+      fast_nodes.push_back(v.first);
+    }
+  }
+  if (fast_nodes.empty()) {
+    return;
+  }
+  // TODO: now I use the first one
+  int fastest_node = fast_nodes[0];
+
+  // identify the slowest node
+  auto min_time_node = std::min_element(map_versions_[plan_id].begin(), map_versions_[plan_id].end(), 
+          [](std::pair<int, std::pair<int, Timepoint>> a, std::pair<int, std::pair<int, Timepoint>> b) {
+            return a.second.second < b.second.second;
+          });
+  int slowest_node = min_time_node->first;
+  if (slowest_node == fastest_node) {
+    return;
+  }
+  LOG(INFO) << "Identify fast node: " << fastest_node << ", slow node: " << slowest_node;
+}
+
 void ControlManager::TryUpdateVersion(int plan_id) {
   int current_version = versions_[plan_id];
   for (auto v: map_versions_[plan_id]) {
-    if (current_version == v.second) {
+    if (current_version == v.second.first) {
       return;
     }
   }
@@ -78,6 +124,7 @@ void ControlManager::RunPlan(SpecWrapper spec) {
        || spec.type == SpecWrapper::Type::kMapWithJoin);
 
   int plan_id = spec.id;
+  specs_[plan_id] = spec;
 
   is_setup_[plan_id].clear();
   is_finished_[plan_id].clear();
@@ -89,7 +136,7 @@ void ControlManager::RunPlan(SpecWrapper spec) {
   // LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
 
   for (auto& node : elem_->nodes) {
-    map_versions_[plan_id][node.second.node.id] = 0;
+    map_versions_[plan_id][node.second.node.id].first = 0;
     join_versions_[plan_id][node.second.node.id] = 0;
   }
   SArrayBinStream bin;

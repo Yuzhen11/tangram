@@ -80,6 +80,7 @@ class PlanController : public AbstractPlanController {
   // checkpoint
   bool TryCheckpoint(int part_id);
 
+  bool IsJoinedBefore(const VersionedShuffleMeta& meta);
  private:
   Controller* controller_;
 
@@ -115,7 +116,7 @@ class PlanController : public AbstractPlanController {
   std::map<int, std::map<int, std::deque<VersionedJoinMeta>>> pending_joins_;
 
   std::set<int> running_maps_;
-  std::set<int> running_joins_;
+  std::map<int, int> running_joins_;  // part_id -> upstream_id
   // std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
   std::map<int, int> running_fetches_;  // part_id, count
   // part -> join, some joins are waiting as there is a join writing that part

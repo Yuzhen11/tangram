@@ -19,16 +19,22 @@ class ControlManager {
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
   
+
+  void TrySpeculativeMap(int plan_id);
+  using Timepoint = std::chrono::system_clock::time_point;
  private:
   std::shared_ptr<SchedulerElem> elem_;
 
-  std::map<int, std::map<int, int>> map_versions_;
+  // plan_id -> node_id -> {version, time}
+  std::map<int, std::map<int, std::pair<int, Timepoint>>> map_versions_;
   std::map<int, std::map<int, int>> join_versions_;
   std::map<int, int> versions_;
   std::map<int, int> expected_versions_;
   std::map<int, std::set<int>> is_setup_;
   std::map<int, std::set<int>> is_finished_;
-  std::map<int, std::vector<std::chrono::system_clock::time_point>> version_time_;
+  std::map<int, std::vector<Timepoint>> version_time_;
+
+  std::map<int, SpecWrapper> specs_;
 };
 
 

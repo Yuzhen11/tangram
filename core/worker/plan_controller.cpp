@@ -218,7 +218,7 @@ bool PlanController::TryCheckpoint(int part_id) {
         +"-cp"+std::to_string(checkpoint_iter);
 
     CHECK(running_joins_.find(part_id) == running_joins_.end());
-    running_joins_.insert(part_id);
+    running_joins_.insert({part_id, -1});
     // TODO: is it ok to use the fetch_executor? can it be block due to other operations?
     fetch_executor_->Add([this, part_id, dest_url]() {
       auto writer = controller_->io_wrapper_->GetWriter();
@@ -409,9 +409,9 @@ void PlanController::ReceiveJoin(Message msg) {
   join_meta.bin = bin;
 
   // if already joined, omit it.
-  if (join_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
-      != join_tracker_[meta.part_id][meta.version].end()) {
-    LOG(INFO) << "ignore join, already joined: " << meta.DebugString();
+  // still need to check again in RunJoin as this upstream_part_id may be in waiting joins.
+  if (IsJoinedBefore(meta)) {
+    LOG(INFO) << "ignore join in ReceiveJoin, already joined: " << meta.DebugString();
     return;
   }
   
@@ -443,10 +443,24 @@ void PlanController::ReceiveJoin(Message msg) {
   RunJoin(join_meta);
 }
 
+// check whether this upstream_part_id is joined already
+bool PlanController::IsJoinedBefore(const VersionedShuffleMeta& meta) {
+  if (join_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
+      != join_tracker_[meta.part_id][meta.version].end()) {
+    LOG(INFO) << "ignore join, already joined: " << meta.DebugString();
+    return true;
+  } else {
+    return false;
+  }
+}
+
 void PlanController::RunJoin(VersionedJoinMeta meta) {
+  if (IsJoinedBefore(meta.meta)) {
+    return;
+  }
   // LOG(INFO) << "RunJoin: " << meta.meta.DebugString();
   CHECK(running_joins_.find(meta.meta.part_id) == running_joins_.end());
-  running_joins_.insert(meta.meta.part_id);
+  running_joins_.insert({meta.meta.part_id, meta.meta.upstream_part_id});
   // use the fetch_executor to avoid the case:
   // map wait for fetch, fetch wait for join, join is in running_joins_
   // but it cannot run because map does not finish and occupy the threadpool
