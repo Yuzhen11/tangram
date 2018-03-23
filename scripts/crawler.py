@@ -15,12 +15,14 @@ common_params = {
 }
 
 program_params = {
-    "url" : "http://course.cse.cuhk.edu.hk/~csci4140",
+    # "url" : "http://course.cse.cuhk.edu.hk/~csci4140",
+    "url" : "http://www.sina.com.cn",
     "num_local_threads" : 20,
+    "python_script_path" : "/data/opt/tmp/tommy/xyz/examples/crawler_util.py",
 }
 
 scheduler_params = {
-    "num_worker" : 5,
+    "num_worker" : 1,
     "dag_runner_type" : "sequential",
 }
 

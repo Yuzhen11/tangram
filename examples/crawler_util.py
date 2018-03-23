@@ -1,7 +1,7 @@
 import argparse
 from bs4 import BeautifulSoup
 from urlparse import urljoin
-from urllib import urlopen
+from urllib2 import urlopen
 
 def get_page(url):
     """Get the text of the web page at the given URL
@@ -11,8 +11,7 @@ def get_page(url):
     content = fd.read()
     fd.close()
 
-    return content.decode('utf8')
-
+    return content.decode('utf8',"ignore")
 
 def get_links(url):
     """Scan the text for http URLs and return a set
@@ -42,6 +41,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     links = get_links(args.url)
-    print ' '.join(links)
+    print u' '.join(links).encode('utf8')
 
 
