@@ -58,6 +58,14 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->FinishCheckpoint(bin);
     break;  
   }
+  case ControllerFlag::kRequestPartition: {
+    plan_controllers_[plan_id]->RequestPartition(bin);
+    break;  
+  }
+  case ControllerFlag::kReceivePartition: {
+    plan_controllers_[plan_id]->ReceivePartition(msg);
+    break;  
+  }
   default: CHECK(false);
   }
 }

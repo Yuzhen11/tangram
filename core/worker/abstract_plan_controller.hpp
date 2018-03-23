@@ -16,6 +16,9 @@ struct AbstractPlanController {
   virtual void ReceiveFetchRequest(Message msg) = 0;
   virtual void FinishFetch(SArrayBinStream bin) = 0;
   virtual void FinishCheckpoint(SArrayBinStream bin) = 0;
+
+  virtual void RequestPartition(SArrayBinStream bin) = 0;
+  virtual void ReceivePartition(Message msg) = 0;
 };
 
 }  // namespace xyz

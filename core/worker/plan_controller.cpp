@@ -98,8 +98,12 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
 void PlanController::FinishMap(SArrayBinStream bin) {
   int part_id;
   bin >> part_id;
-  int last_version = map_versions_[part_id];
   running_maps_.erase(part_id);
+  if (map_versions_.find(part_id) == map_versions_.end()) {
+    LOG(INFO) << "FinishMap for part not local";
+    return;
+  }
+  int last_version = map_versions_[part_id];
   map_versions_[part_id] += 1;
   TryUpdateMapVersion();
 
@@ -131,8 +135,13 @@ void PlanController::TryRunSomeMaps() {
   }
 
   for (auto kv : map_versions_) {
-    if (IsMapRunnable(kv.first)) {
-      RunMap(kv.first, kv.second);
+    int part_id = kv.first;
+    if (IsMapRunnable(part_id)) {
+      int version = kv.second;
+      // 0. get partition
+      CHECK(controller_->engine_elem_.partition_manager->Has(map_collection_id_, part_id));
+      auto p = controller_->engine_elem_.partition_manager->Get(map_collection_id_, part_id);
+      RunMap(part_id, version, p);
     }
   }
 }
@@ -304,15 +313,13 @@ void PlanController::SendUpdateJoinVersionToScheduler() {
   SendMsgToScheduler(bin);
 }
 
-void PlanController::RunMap(int part_id, int version) {
+void PlanController::RunMap(int part_id, int version, 
+        std::shared_ptr<AbstractPartition> p) {
   CHECK(running_maps_.find(part_id) == running_maps_.end());
   running_maps_.insert(part_id);
 
-  controller_->engine_elem_.executor->Add([this, part_id, version]() {
+  controller_->engine_elem_.executor->Add([this, part_id, version, p]() {
     auto start = std::chrono::system_clock::now();
-    // 0. get partition
-    CHECK(controller_->engine_elem_.partition_manager->Has(map_collection_id_, part_id));
-    auto p = controller_->engine_elem_.partition_manager->Get(map_collection_id_, part_id);
     auto pt = std::make_shared<FakeTracker>();
     // 1. map
     std::shared_ptr<AbstractMapOutput> map_output;
@@ -400,6 +407,14 @@ void PlanController::ReceiveJoin(Message msg) {
   VersionedJoinMeta join_meta;
   join_meta.meta = meta;
   join_meta.bin = bin;
+
+  // if already joined, omit it.
+  if (join_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
+      != join_tracker_[meta.part_id][meta.version].end()) {
+    LOG(INFO) << "ignore join, already joined: " << meta.DebugString();
+    return;
+  }
+  
   // TODO: how to control the version!
   if (map_collection_id_ == join_collection_id_) {
     if (meta.version >= map_versions_[meta.part_id]) {
@@ -639,6 +654,59 @@ void PlanController::FinishFetch(SArrayBinStream bin) {
   // LOG(INFO) << "FinishFetch: " << part_id << " " << upstream_part_id;
   running_fetches_[part_id] -= 1;
   bool run = TryRunWaitingJoins(part_id);
+}
+
+void PlanController::RequestPartition(SArrayBinStream bin) {
+  MigrateMeta migrate_meta;
+  bin >> migrate_meta;
+  CHECK_EQ(migrate_meta.collection_id, map_collection_id_) << "only consider map_collection first";
+  CHECK_NE(migrate_meta.collection_id, join_collection_id_) << "only consider map_collection first";
+  CHECK(map_versions_.find(migrate_meta.partition_id) != map_versions_.end());
+
+  CHECK(controller_->engine_elem_.partition_manager->Has(
+    migrate_meta.collection_id, migrate_meta.partition_id)) << migrate_meta.collection_id << " " <<  migrate_meta.partition_id;
+  auto part = controller_->engine_elem_.partition_manager->Get(
+    migrate_meta.collection_id, migrate_meta.partition_id);
+  SArrayBinStream reply_bin;
+  part->ToBin(reply_bin);  // serialize
+
+  migrate_meta.current_map_version = map_versions_[migrate_meta.partition_id];
+
+  // TODO: clear related information in this controller
+
+  Message msg;
+  msg.meta.sender = controller_->engine_elem_.node.id;
+  msg.meta.recver = GetControllerActorQid(migrate_meta.to_id);
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+  ctrl_bin << ControllerFlag::kReceivePartition;
+  plan_bin << plan_id_;
+  ctrl2_bin << migrate_meta;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(plan_bin.ToSArray());
+  msg.AddData(ctrl2_bin.ToSArray());
+  msg.AddData(reply_bin.ToSArray());
+  controller_->engine_elem_.sender->Send(std::move(msg));
+  LOG(INFO) << "migrating: " << migrate_meta.DebugString();
+}
+
+// TODO: only support MR style speculative execution.
+void PlanController::ReceivePartition(Message msg) {
+  CHECK_EQ(msg.data.size(), 4);
+  SArrayBinStream ctrl2_bin, bin;
+  ctrl2_bin.FromSArray(msg.data[2]);
+  bin.FromSArray(msg.data[3]);
+  MigrateMeta migrate_meta;
+  ctrl2_bin >> migrate_meta;
+
+  // TODO: update some control data structure?
+
+  auto& func = controller_->engine_elem_.function_store
+      ->GetCreatePart(migrate_meta.collection_id);
+  auto p = func();
+  p->FromBin(bin);  // now I serialize in the controller thread
+
+  RunMap(migrate_meta.partition_id, migrate_meta.current_map_version, p);
 }
 
 void PlanController::DisplayTime() {

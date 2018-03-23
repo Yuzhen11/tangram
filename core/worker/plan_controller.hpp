@@ -58,6 +58,8 @@ class PlanController : public AbstractPlanController {
   virtual void ReceiveFetchRequest(Message msg) override;
   virtual void FinishFetch(SArrayBinStream bin) override;
   virtual void FinishCheckpoint(SArrayBinStream bin) override;
+  virtual void RequestPartition(SArrayBinStream bin) override;
+  virtual void ReceivePartition(Message msg) override;
 
   void TryRunSomeMaps();
 
@@ -68,7 +70,7 @@ class PlanController : public AbstractPlanController {
   void SendUpdateMapVersionToScheduler();
   void SendUpdateJoinVersionToScheduler();
 
-  void RunMap(int part_id, int version);
+  void RunMap(int part_id, int version, std::shared_ptr<AbstractPartition>);
   void RunJoin(VersionedJoinMeta meta);
   void RunFetchRequest(VersionedJoinMeta fetch_meta);
   void Fetch(VersionedJoinMeta fetch_meta, int version);
