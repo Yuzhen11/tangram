@@ -140,6 +140,7 @@ class PlanController : public AbstractPlanController {
 
   std::set<int> migrate_map_parts_;
   int flush_all_count_ = 0;
+
   int stop_joining_partition_ = -1;
 };
 

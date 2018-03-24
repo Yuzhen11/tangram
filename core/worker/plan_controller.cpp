@@ -167,11 +167,13 @@ bool PlanController::IsMapRunnable(int part_id) {
 }
 
 bool PlanController::TryRunWaitingJoins(int part_id) {
-  // if this part is migrating, do not join
+  // if some fetches are in the waiting_joins_, 
+  // join_collection_id_ == fetch_collection_id_
   if (part_id == stop_joining_partition_) {
+    // if this part is migrating, do not join or fetch
     return false;
   }
-
+  
   if (running_joins_.find(part_id) != running_joins_.end()) {
     // someone is joining this part
     return false;
@@ -194,8 +196,11 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
   if (!joins.empty()) {
     VersionedJoinMeta meta = joins.front();
     joins.pop_front();
-    if (!meta.meta.is_fetch) RunJoin(meta);
-    else RunFetchRequest(meta);
+    if (!meta.meta.is_fetch) {
+      RunJoin(meta);
+    } else {
+      RunFetchRequest(meta);
+    }
     return true;
   }
   return false;
@@ -218,7 +223,7 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
       return;
     }
   }
-  bool run = TryRunWaitingJoins(part_id);
+  TryRunWaitingJoins(part_id);
 }
 
 bool PlanController::TryCheckpoint(int part_id) {
@@ -270,7 +275,7 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   LOG(INFO) << "finish checkpoint: " << part_id;
   CHECK(running_joins_.find(part_id) != running_joins_.end());
   running_joins_.erase(part_id);
-  bool run = TryRunWaitingJoins(part_id);
+  TryRunWaitingJoins(part_id);
 }
 
 int PlanController::GetSlowestMapPartitionId() {
@@ -548,35 +553,28 @@ void PlanController::ReceiveFetchRequest(Message msg) {
   fetch_meta.meta.recver = msg.meta.recver;
   
   CHECK(fetch_meta.meta.is_fetch == true);
-  
-  bool map_fetch = (fetch_meta.meta.collection_id == map_collection_id_);
-  bool map_join = (map_collection_id_ == join_collection_id_);
+
   bool join_fetch = (fetch_meta.meta.collection_id == join_collection_id_);
-  if (!map_fetch && !map_join && !join_fetch) { // all different collection
+
+  if (!join_fetch) {
     RunFetchRequest(fetch_meta);
-  }
-  if (map_fetch && !map_join) { // map collection = fetch collection
-    RunFetchRequest(fetch_meta);
-  }
-  if (map_join && !map_fetch) { // map collection = join collection
-    RunFetchRequest(fetch_meta);
+    return;
   }
 
-
-  // join could be blocked by running_fetches
-  if (join_fetch && !map_fetch) { // join collection = fetch collection
-    if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
-      waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
-    } else {
-      RunFetchRequest(fetch_meta);
-    }
-  }
-  if (map_fetch && map_join) { // all the same collection
-    if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
-      waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
-    } else { RunFetchRequest(fetch_meta); }
+  // otherise join_fetch
+  CHECK(join_fetch);
+  if (fetch_meta.meta.part_id == stop_joining_partition_) {
+    // if migrating this part
+    waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+    return;
   }
 
+  if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
+    // if this part is joining
+    waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+  } else {
+    RunFetchRequest(fetch_meta);
+  }
 }
 
 void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
@@ -673,7 +671,7 @@ void PlanController::FinishFetch(SArrayBinStream bin) {
   bin >> part_id >> upstream_part_id;
   // LOG(INFO) << "FinishFetch: " << part_id << " " << upstream_part_id;
   running_fetches_[part_id] -= 1;
-  bool run = TryRunWaitingJoins(part_id);
+  TryRunWaitingJoins(part_id);
 }
 
 void PlanController::MigratePartition(Message msg) {
@@ -712,11 +710,9 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
     LOG(INFO) << "flush all: " << migrate_meta.DebugString();
   } else {
     // stop the update to the partition.
-    if (migrate_meta.collection_id == join_collection_id_
-        && join_versions_.find(migrate_meta.partition_id) != join_versions_.end()) {
-      // is join collection and local
-      stop_joining_partition_ = migrate_meta.partition_id;
-    }
+    CHECK_EQ(migrate_meta.collection_id, join_collection_id_) << "the migrate collection must be the join collection";
+    CHECK(join_versions_.find(migrate_meta.partition_id) != join_versions_.end());
+    stop_joining_partition_ = migrate_meta.partition_id;
   }
 }
 
