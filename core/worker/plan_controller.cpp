@@ -115,11 +115,9 @@ void PlanController::FinishMap(SArrayBinStream bin) {
       }
       pending_joins_[part_id].erase(last_version);
     }
+    // try run waiting joins if map_collection_id_ == join_collection_id_
+    TryRunWaitingJoins(part_id);
   }
-  bool run = TryRunWaitingJoins(part_id);
-  // if (run) {
-  //   return;
-  // }
   // select other maps
   TryRunSomeMaps();
 }
