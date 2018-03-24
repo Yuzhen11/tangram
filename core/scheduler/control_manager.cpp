@@ -34,7 +34,8 @@ void ControlManager::Control(SArrayBinStream bin) {
     TryUpdateVersion(ctrl.plan_id);
 #ifdef WITH_LB
     // TODO: add logic here
-    if (migrate_control_) {
+    // for pr() in test_lb.cpp specifically
+    if (specs_[ctrl.plan_id].id == 3 && migrate_control_) {  
       Migrate(ctrl.plan_id);
       migrate_control_ = false;
     }

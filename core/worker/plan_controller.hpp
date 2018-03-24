@@ -163,6 +163,14 @@ class PlanController : public AbstractPlanController {
       stream >> d.map_version >> d.join_version >> d.pending_joins >> d.waiting_joins;
       return stream;
     }
+    std::string DebugString() const {
+      std::stringstream ss;
+      ss << "map_version: " << map_version;
+      ss << ", join_version: " << join_version;
+      ss << ", pending_join size: " << pending_joins.size();
+      ss << ", waiting_joins size: " << waiting_joins.size();
+      return ss.str();
+    }
   };
   std::vector<VersionedJoinMeta> buffered_requests_;
 };
