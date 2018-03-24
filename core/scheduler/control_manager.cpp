@@ -33,6 +33,11 @@ void ControlManager::Control(SArrayBinStream bin) {
     map_versions_[ctrl.plan_id][ctrl.node_id].second = std::chrono::system_clock::now();
     TryUpdateVersion(ctrl.plan_id);
 #ifdef WITH_LB
+    // TODO: add logic here
+    if (migrate_control_) {
+      Migrate(ctrl.plan_id);
+      migrate_control_ = false;
+    }
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
@@ -64,6 +69,29 @@ void ControlManager::PrintMapVersions(int plan_id) {
        << "s\n";
   }
   LOG(INFO) << ss.str();
+}
+
+// TODO: a fake method with hardcode migrate information now
+void ControlManager::Migrate(int plan_id) {
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  // update collection_map
+  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
+  auto& part_to_node = collection_view.mapper.Mutable();
+  CHECK_LT(4, part_to_node.size());
+  part_to_node[4] = 1;
+
+  MigrateMeta2 migrate_meta;
+  migrate_meta.flag = MigrateMeta2::MigrateFlag::kStartMigrate;
+  migrate_meta.plan_id = plan_id;
+  migrate_meta.collection_id = mapjoin_spec->join_collection_id;
+  migrate_meta.partition_id = 4;
+  migrate_meta.from_id = 5;
+  migrate_meta.to_id = 1;
+  migrate_meta.num_nodes = elem_->nodes.size();
+  SArrayBinStream bin;
+  bin << migrate_meta << collection_view;
+  SendToAllControllers(ControllerFlag::kMigratePartition, plan_id, bin);
+  join_versions_[plan_id][1] -= 1;
 }
 
 void ControlManager::TrySpeculativeMap(int plan_id) {

@@ -7,6 +7,7 @@
 #include <unordered_map>
 #include <map>
 #include <set>
+#include <deque>
 
 #include "base/third_party/sarray.h"
 #include "base/message.hpp"
@@ -112,6 +113,28 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::vector<OutputT>& v) {
     v.resize(len);
     for (int i = 0; i < v.size(); ++i)
         stream >> v[i];
+    return stream;
+}
+
+template <typename T>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::deque<T>& s) {
+    size_t len = s.size();
+    stream << len;
+    for (auto& elem : s)
+        stream << elem;
+    return stream;
+}
+
+template <typename T>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::deque<T>& s) {
+    size_t len;
+    stream >> len;
+    s.clear();
+    for (int i = 0; i < len; i++) {
+        T elem;
+        stream >> elem;
+        s.push_back(std::move(elem));
+    }
     return stream;
 }
 

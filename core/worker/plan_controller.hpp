@@ -47,6 +47,14 @@ class PlanController : public AbstractPlanController {
   struct VersionedJoinMeta {
     VersionedShuffleMeta meta;
     SArrayBinStream bin;
+    friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const VersionedJoinMeta& m) {
+      stream << m.meta << m.bin;
+      return stream;
+    }
+    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, VersionedJoinMeta& m) {
+      stream >> m.meta >> m.bin;
+      return stream;
+    }
   };
 
   virtual void Setup(SpecWrapper spec) override;
@@ -87,7 +95,7 @@ class PlanController : public AbstractPlanController {
 
   void MigratePartitionStartMigrate(MigrateMeta2);
   void MigratePartitionReceiveFlushAll(MigrateMeta2);
-  void MigratePartitionDest(MigrateMeta2);
+  void MigratePartitionDest(Message msg);
  private:
   Controller* controller_;
 
@@ -142,6 +150,21 @@ class PlanController : public AbstractPlanController {
   int flush_all_count_ = 0;
 
   int stop_joining_partition_ = -1;
+  struct MigrateData {
+    int map_version;
+    int join_version;
+    std::map<int, std::deque<VersionedJoinMeta>> pending_joins;
+    std::deque<VersionedJoinMeta> waiting_joins;
+    friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const MigrateData& d) {
+      stream << d.map_version << d.join_version << d.pending_joins << d.waiting_joins;
+      return stream;
+    }
+    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, MigrateData& d) {
+      stream >> d.map_version >> d.join_version >> d.pending_joins >> d.waiting_joins;
+      return stream;
+    }
+  };
+  std::vector<VersionedJoinMeta> buffered_requests_;
 };
 
 }  // namespace

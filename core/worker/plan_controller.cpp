@@ -154,7 +154,12 @@ bool PlanController::IsMapRunnable(int part_id) {
           && running_joins_.find(part_id) != running_joins_.end()) {
     return false;
   }
-  // 3. check version
+  // 3. if mid == jid, check whether this part is migrating
+  if (map_collection_id_ == join_collection_id_
+          && part_id == stop_joining_partition_) {
+    return false;
+  }
+  // 4. check version
   int version = map_versions_[part_id];
   if (version == expected_num_iter_) {  // no need to run anymore
     return false;
@@ -292,26 +297,40 @@ int PlanController::GetSlowestMapPartitionId() {
 
 void PlanController::TryUpdateMapVersion() {
   CHECK_EQ(map_versions_.size(), num_local_map_part_);
+  if (num_local_map_part_ == 0) {
+    min_map_version_ += 1;  // this part is different from the join
+    SendUpdateMapVersionToScheduler();
+    return;
+  }
+  int min_map = map_versions_.begin()->second;
   for (auto kv: map_versions_) {
-    if (kv.second == min_map_version_) {
-      return;
+    if (kv.second < min_map) {
+      min_map = kv.second;
     }
   }
-  min_map_version_ += 1;
-  // TODO send to scheduler
-  SendUpdateMapVersionToScheduler();
+  if (min_map > min_map_version_) {
+    min_map_version_ = min_map;
+    SendUpdateMapVersionToScheduler();
+  }
 }
 
 void PlanController::TryUpdateJoinVersion() {
   CHECK_EQ(join_versions_.size(), num_local_join_part_);
+  if (num_local_join_part_ == 0) {
+    min_join_version_ = expected_num_iter_;
+    SendUpdateJoinVersionToScheduler();
+    return;
+  }
+  int min_join = join_versions_.begin()->second;
   for (auto kv: join_versions_) {
-    if (kv.second == min_join_version_) {
-      return;
+    if (kv.second < min_join) {
+      min_join = kv.second;
     }
   }
-  min_join_version_ += 1;
-  // TODO send to scheduler
-  SendUpdateJoinVersionToScheduler();
+  if (min_join > min_join_version_) {
+    min_join_version_ = min_join;
+    SendUpdateJoinVersionToScheduler();
+  }
 }
 
 void PlanController::SendUpdateMapVersionToScheduler() {
@@ -435,6 +454,12 @@ void PlanController::ReceiveJoin(Message msg) {
   VersionedJoinMeta join_meta;
   join_meta.meta = meta;
   join_meta.bin = bin;
+
+  if (join_versions_.find(meta.part_id) == join_versions_.end()) {
+    // if receive something that is not belong to here
+    buffered_requests_.push_back(join_meta);
+    return;
+  }
 
   // if already joined, omit it.
   // still need to check again in RunJoin as this upstream_part_id may be in waiting joins.
@@ -563,6 +588,13 @@ void PlanController::ReceiveFetchRequest(Message msg) {
 
   // otherise join_fetch
   CHECK(join_fetch);
+
+  if (join_versions_.find(fetch_meta.meta.part_id) == join_versions_.end()) {
+    // if receive something that is not belong to here
+    buffered_requests_.push_back(fetch_meta);
+    return;
+  }
+
   if (fetch_meta.meta.part_id == stop_joining_partition_) {
     // if migrating this part
     waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
@@ -675,18 +707,22 @@ void PlanController::FinishFetch(SArrayBinStream bin) {
 }
 
 void PlanController::MigratePartition(Message msg) {
-  CHECK_EQ(msg.data.size(), 4);
+  CHECK_GE(msg.data.size(), 3);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[2]);
-  bin.FromSArray(msg.data[3]);
   MigrateMeta2 migrate_meta;
   ctrl2_bin >> migrate_meta;
   if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kStartMigrate) {
+    // update collection_map
+    CollectionView collection_view;
+    ctrl2_bin >> collection_view;
+    controller_->engine_elem_.collection_map->Insert(collection_view);
+    // send msg to from_id
     MigratePartitionStartMigrate(migrate_meta);
   } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kFlushAll) {
     MigratePartitionReceiveFlushAll(migrate_meta);
   } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kDest){
-    MigratePartitionDest(migrate_meta);
+    MigratePartitionDest(msg);
   } else {
     CHECK(false);
   }
@@ -694,21 +730,22 @@ void PlanController::MigratePartition(Message msg) {
 
 void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
   // TODO: update collection_map
-  if (migrate_meta.from_id != controller_->engine_elem_.node.id) {
-    Message flush_msg;
-    flush_msg.meta.sender = controller_->engine_elem_.node.id;
-    flush_msg.meta.recver = GetControllerActorQid(migrate_meta.from_id);
-    flush_msg.meta.flag = Flag::kOthers;
-    SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
-    ctrl_bin << ControllerFlag::kMigratePartition;
-    plan_bin << plan_id_;
-    ctrl2_bin << migrate_meta;
-    flush_msg.AddData(ctrl_bin.ToSArray());
-    flush_msg.AddData(plan_bin.ToSArray());
-    flush_msg.AddData(ctrl2_bin.ToSArray());
-    controller_->engine_elem_.sender->Send(std::move(flush_msg));
-    LOG(INFO) << "flush all: " << migrate_meta.DebugString();
-  } else {
+  migrate_meta.flag = MigrateMeta2::MigrateFlag::kFlushAll;
+  Message flush_msg;
+  flush_msg.meta.sender = controller_->engine_elem_.node.id;
+  flush_msg.meta.recver = GetControllerActorQid(migrate_meta.from_id);
+  flush_msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+  ctrl_bin << ControllerFlag::kMigratePartition;
+  plan_bin << plan_id_;
+  ctrl2_bin << migrate_meta;
+  flush_msg.AddData(ctrl_bin.ToSArray());
+  flush_msg.AddData(plan_bin.ToSArray());
+  flush_msg.AddData(ctrl2_bin.ToSArray());
+  controller_->engine_elem_.sender->Send(std::move(flush_msg));
+  LOG(INFO) << "flush all: " << migrate_meta.DebugString();
+
+  if (migrate_meta.from_id == controller_->engine_elem_.node.id) {
     // stop the update to the partition.
     CHECK_EQ(migrate_meta.collection_id, join_collection_id_) << "the migrate collection must be the join collection";
     CHECK(join_versions_.find(migrate_meta.partition_id) != join_versions_.end());
@@ -719,13 +756,110 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
 void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) {
   CHECK_EQ(migrate_meta.from_id, controller_->engine_elem_.node.id) << "only w_a receives FlushAll";
   flush_all_count_ += 1;
-  // if (flush_all_count_ == ) {
-  //   // flush the buffered data structure to to_id
-  // }
+  if (flush_all_count_ == migrate_meta.num_nodes) {
+    // flush the buffered data structure to to_id
+    // if there is a join/fetch task for this part
+    if (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
+    } else {
+      LOG(INFO) << "sending all info";
+      // now I don't care about the complexity
+      // set the flag
+      migrate_meta.flag = MigrateMeta2::MigrateFlag::kDest;
+      // construct the MigrateData
+      MigrateData data;
+      if (map_collection_id_ == join_collection_id_) {
+        data.map_version = map_versions_[migrate_meta.partition_id];
+        map_versions_.erase(migrate_meta.partition_id);
+        num_local_map_part_ -= 1;
+        TryUpdateMapVersion();
+      }
+      data.join_version = join_versions_[migrate_meta.partition_id];
+      data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
+      data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
+      join_versions_.erase(migrate_meta.partition_id);
+      num_local_join_part_ -= 1;
+      TryUpdateJoinVersion();
+      pending_joins_.erase(migrate_meta.partition_id);
+      waiting_joins_.erase(migrate_meta.partition_id);
+
+      Message msg;
+      msg.meta.sender = controller_->engine_elem_.node.id;
+      msg.meta.recver = GetControllerActorQid(migrate_meta.to_id);
+      msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin, bin1, bin2;
+      ctrl_bin << ControllerFlag::kMigratePartition;
+      plan_bin << plan_id_;
+      ctrl2_bin << migrate_meta;
+      bin1 << data;
+
+      // construct the partition bin
+      CHECK(controller_->engine_elem_.partition_manager->Has(
+        migrate_meta.collection_id, migrate_meta.partition_id)) << migrate_meta.collection_id << " " <<  migrate_meta.partition_id;
+      auto part = controller_->engine_elem_.partition_manager->Get(
+        migrate_meta.collection_id, migrate_meta.partition_id);
+      part->ToBin(bin2);  // serialize
+
+      msg.AddData(ctrl_bin.ToSArray());
+      msg.AddData(plan_bin.ToSArray());
+      msg.AddData(ctrl2_bin.ToSArray());
+      msg.AddData(bin1.ToSArray());
+      msg.AddData(bin2.ToSArray());
+      controller_->engine_elem_.sender->Send(std::move(msg));
+    }
+  }
 }
 
-void PlanController::MigratePartitionDest(MigrateMeta2 migrate_meta) {
+void PlanController::MigratePartitionDest(Message msg) {
+  CHECK_EQ(msg.data.size(), 5);
+  SArrayBinStream ctrl2_bin, bin1, bin2;
+  ctrl2_bin.FromSArray(msg.data[2]);
+  bin1.FromSArray(msg.data[3]);
+  bin2.FromSArray(msg.data[4]);
+  MigrateMeta2 migrate_meta;
+  MigrateData migrate_data;
+  ctrl2_bin >> migrate_meta;
+  bin1 >> migrate_data;
   CHECK_EQ(migrate_meta.to_id, controller_->engine_elem_.node.id) << "only w_b receive this";
+
+  if (map_collection_id_ == join_collection_id_) {
+    CHECK(map_versions_.find(migrate_meta.partition_id) == map_versions_.end());
+    map_versions_[migrate_meta.partition_id] = migrate_data.map_version;
+    num_local_map_part_ += 1;
+    TryUpdateMapVersion();
+  }
+  CHECK(join_versions_.find(migrate_meta.partition_id) == join_versions_.end());
+  CHECK(pending_joins_.find(migrate_meta.partition_id) == pending_joins_.end());
+  CHECK(waiting_joins_.find(migrate_meta.partition_id) == waiting_joins_.end());
+  join_versions_[migrate_meta.partition_id] = migrate_data.join_version;
+  pending_joins_[migrate_meta.partition_id] = migrate_data.pending_joins;
+  waiting_joins_[migrate_meta.partition_id] = migrate_data.waiting_joins;
+  num_local_join_part_ += 1;
+  TryUpdateJoinVersion();
+
+  // handle buffered request
+  for (auto& request: buffered_requests_) {
+    CHECK_EQ(request.meta.part_id, migrate_meta.partition_id);
+    if (map_collection_id_ == join_collection_id_
+        && request.meta.version > map_versions_[request.meta.part_id]) {
+      pending_joins_[request.meta.part_id][request.meta.version].push_back(request);
+    } else {
+      waiting_joins_[request.meta.part_id].push_back(request);
+    }
+  }
+  buffered_requests_.clear();
+
+  auto& func = controller_->engine_elem_.function_store
+      ->GetCreatePart(migrate_meta.collection_id);
+  auto p = func();
+  p->FromBin(bin2);  // now I serialize in the controller thread
+  LOG(INFO) << "receive migrate partition in dest: " << migrate_meta.DebugString();
+  CHECK(!controller_->engine_elem_.partition_manager->Has(migrate_meta.collection_id, migrate_meta.partition_id));
+  controller_->engine_elem_.partition_manager->Insert(migrate_meta.collection_id, migrate_meta.partition_id, std::move(p));
+
+  TryRunWaitingJoins(migrate_meta.partition_id);
+  if (map_collection_id_ == join_collection_id_) {
+    TryRunSomeMaps();
+  }
 }
 
 void PlanController::RequestPartition(SArrayBinStream bin) {

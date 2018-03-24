@@ -20,7 +20,7 @@ class ControlManager {
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
   
-
+  void Migrate(int plan_id);
   void TrySpeculativeMap(int plan_id);
   void PrintMapVersions(int plan_id);
   using Timepoint = std::chrono::system_clock::time_point;
@@ -38,6 +38,8 @@ class ControlManager {
 
   std::map<int, SpecWrapper> specs_;
   Timepoint start_time_;
+
+  int migrate_control_ = true;  // TODO: remove this
 };
 
 

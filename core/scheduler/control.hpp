@@ -153,6 +153,7 @@ struct MigrateMeta2 {
   int partition_id;
   int from_id;
   int to_id;  // the node id
+  int num_nodes;
   std::string DebugString() const {
     std::stringstream ss;
     ss << "flag: " << FlagName[static_cast<int>(flag)];
@@ -161,6 +162,7 @@ struct MigrateMeta2 {
     ss << ", partition_id: " << partition_id;
     ss << ", from_id: " << from_id;
     ss << ", to_id: " << to_id;
+    ss << ", num_nodes: " << num_nodes;
     return ss.str();
   }
 };
