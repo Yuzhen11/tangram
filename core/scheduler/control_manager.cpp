@@ -33,7 +33,7 @@ void ControlManager::Control(SArrayBinStream bin) {
     map_versions_[ctrl.plan_id][ctrl.node_id].second = std::chrono::system_clock::now();
     TryUpdateVersion(ctrl.plan_id);
 #ifdef WITH_LB
-    TrySpeculativeMap(ctrl.plan_id);
+    // TrySpeculativeMap(ctrl.plan_id);
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     // CHECK_EQ(join_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";

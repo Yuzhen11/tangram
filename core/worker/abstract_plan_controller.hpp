@@ -19,6 +19,7 @@ struct AbstractPlanController {
 
   virtual void RequestPartition(SArrayBinStream bin) = 0;
   virtual void ReceivePartition(Message msg) = 0;
+  virtual void MigratePartition(Message msg) = 0;
 };
 
 }  // namespace xyz

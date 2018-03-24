@@ -66,6 +66,10 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->ReceivePartition(msg);
     break;  
   }
+  case ControllerFlag::kMigratePartition: {
+    plan_controllers_[plan_id]->MigratePartition(msg);
+    break;  
+  }
   default: CHECK(false);
   }
 }

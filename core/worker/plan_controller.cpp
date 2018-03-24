@@ -167,14 +167,28 @@ bool PlanController::IsMapRunnable(int part_id) {
 }
 
 bool PlanController::TryRunWaitingJoins(int part_id) {
-  if (running_joins_.find(part_id) != running_joins_.end()) {
+  // if this part is migrating, do not join
+  if (part_id == stop_joining_partition_) {
     return false;
   }
 
-  // see whether there is any fetch running
-  if (fetch_collection_id_ == join_collection_id_ && running_fetches_[part_id] > 0) {
+  if (running_joins_.find(part_id) != running_joins_.end()) {
+    // someone is joining this part
     return false;
   }
+
+  if (fetch_collection_id_ == join_collection_id_ 
+          && running_fetches_[part_id] > 0) {
+    // someone is fetching this part
+    return false;
+  }
+
+  if (map_collection_id_ == join_collection_id_ 
+          && running_maps_.find(part_id) != running_maps_.end()) {
+    // someone is mapping this part
+    return false;
+  }
+
   // see whether there is any waiting joins
   auto& joins = waiting_joins_[part_id];
   if (!joins.empty()) {
@@ -423,8 +437,7 @@ void PlanController::ReceiveJoin(Message msg) {
     LOG(INFO) << "ignore join in ReceiveJoin, already joined: " << meta.DebugString();
     return;
   }
-  
-  // TODO: how to control the version!
+
   if (map_collection_id_ == join_collection_id_) {
     if (meta.version >= map_versions_[meta.part_id]) {
       pending_joins_[meta.part_id][meta.version].push_back(join_meta);
@@ -432,24 +445,8 @@ void PlanController::ReceiveJoin(Message msg) {
     }
   }
 
-  if (running_joins_.find(meta.part_id) != running_joins_.end()) {
-    // someone is joining this part
-    waiting_joins_[meta.part_id].push_back(join_meta);
-    return;
-  }
-  if (map_collection_id_ == join_collection_id_ 
-          && running_maps_.find(meta.part_id) != running_maps_.end()) {
-    // someone is mapping this part
-    waiting_joins_[meta.part_id].push_back(join_meta);
-    return;
-  }
-
-  if (fetch_collection_id_ == join_collection_id_ && running_fetches_[meta.part_id] > 0) {
-    // someone is fetching this part
-    waiting_joins_[meta.part_id].push_back(join_meta);
-    return;
-  }
-  RunJoin(join_meta);
+  waiting_joins_[meta.part_id].push_back(join_meta);
+  TryRunWaitingJoins(meta.part_id);
 }
 
 // check whether this upstream_part_id is joined already
@@ -677,6 +674,62 @@ void PlanController::FinishFetch(SArrayBinStream bin) {
   // LOG(INFO) << "FinishFetch: " << part_id << " " << upstream_part_id;
   running_fetches_[part_id] -= 1;
   bool run = TryRunWaitingJoins(part_id);
+}
+
+void PlanController::MigratePartition(Message msg) {
+  CHECK_EQ(msg.data.size(), 4);
+  SArrayBinStream ctrl2_bin, bin;
+  ctrl2_bin.FromSArray(msg.data[2]);
+  bin.FromSArray(msg.data[3]);
+  MigrateMeta2 migrate_meta;
+  ctrl2_bin >> migrate_meta;
+  if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kStartMigrate) {
+    MigratePartitionStartMigrate(migrate_meta);
+  } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kFlushAll) {
+    MigratePartitionReceiveFlushAll(migrate_meta);
+  } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kDest){
+    MigratePartitionDest(migrate_meta);
+  } else {
+    CHECK(false);
+  }
+}
+
+void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
+  // TODO: update collection_map
+  if (migrate_meta.from_id != controller_->engine_elem_.node.id) {
+    Message flush_msg;
+    flush_msg.meta.sender = controller_->engine_elem_.node.id;
+    flush_msg.meta.recver = GetControllerActorQid(migrate_meta.from_id);
+    flush_msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+    ctrl_bin << ControllerFlag::kMigratePartition;
+    plan_bin << plan_id_;
+    ctrl2_bin << migrate_meta;
+    flush_msg.AddData(ctrl_bin.ToSArray());
+    flush_msg.AddData(plan_bin.ToSArray());
+    flush_msg.AddData(ctrl2_bin.ToSArray());
+    controller_->engine_elem_.sender->Send(std::move(flush_msg));
+    LOG(INFO) << "flush all: " << migrate_meta.DebugString();
+  } else {
+    // stop the update to the partition.
+    if (migrate_meta.collection_id == join_collection_id_
+        && join_versions_.find(migrate_meta.partition_id) != join_versions_.end()) {
+      // is join collection and local
+      stop_joining_partition_ = migrate_meta.partition_id;
+    }
+  }
+}
+
+void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) {
+  CHECK_EQ(migrate_meta.from_id, controller_->engine_elem_.node.id) << "only w_a receives FlushAll";
+  flush_all_count_ += 1;
+  // if (flush_all_count_ == ) {
+  //   // flush the buffered data structure to to_id
+  // }
+}
+
+void PlanController::MigratePartitionDest(MigrateMeta2 migrate_meta) {
+  CHECK_EQ(migrate_meta.to_id, controller_->engine_elem_.node.id) << "only w_b receive this";
 }
 
 void PlanController::RequestPartition(SArrayBinStream bin) {

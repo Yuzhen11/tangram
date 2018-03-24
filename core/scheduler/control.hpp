@@ -58,6 +58,9 @@ struct WorkerInfo {
   int num_local_threads;
 };
 
+/*
+ * The message sent between the control_manager and the plan_controller.
+ */
 struct ControllerMsg {
   enum class Flag : char {
     kSetup, kMap, kJoin, kFinish
@@ -91,6 +94,7 @@ enum class ControllerFlag : char {
   kFinishCheckpoint,
   kRequestPartition,
   kReceivePartition,
+  kMigratePartition,
 };
 
 struct FetchMeta {
@@ -127,6 +131,36 @@ struct MigrateMeta {
     ss << ", from_id: " << from_id;
     ss << ", to_id: " << to_id;
     ss << ", current_map_version: " << current_map_version;
+    return ss.str();
+  }
+};
+
+
+struct MigrateMeta2 {
+  enum class MigrateFlag {
+    kStartMigrate,
+    kFlushAll,
+    kDest
+  };
+  static constexpr const char* FlagName[] = {
+    "kStartMigrate", 
+    "kFlushAll",
+    "kDest"
+  };
+  MigrateFlag flag;
+  int plan_id;
+  int collection_id;
+  int partition_id;
+  int from_id;
+  int to_id;  // the node id
+  std::string DebugString() const {
+    std::stringstream ss;
+    ss << "flag: " << FlagName[static_cast<int>(flag)];
+    ss << ", plan_id: " << plan_id;
+    ss << ", collection_id: " << collection_id;
+    ss << ", partition_id: " << partition_id;
+    ss << ", from_id: " << from_id;
+    ss << ", to_id: " << to_id;
     return ss.str();
   }
 };
