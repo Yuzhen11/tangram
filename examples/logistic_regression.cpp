@@ -17,6 +17,7 @@ DEFINE_int32(num_data, -1, "The number of data in the dataset");
 DEFINE_double(alpha, 0.1, "The learning rate of the model");
 DEFINE_int32(num_iter, 1, "The number of iterations");
 DEFINE_int32(staleness, 0, "Staleness for the SSP");
+DEFINE_bool(is_sparse, false, "Is the dataset sparse or not");
 
 using namespace xyz;
 
@@ -100,45 +101,91 @@ int main(int argc, char **argv) {
                                         AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs;
             std::vector<float> step_sum(num_params, 0);
-
-            auto part = typed_cache->GetPartition(0);
-            auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
-
-            LOG(INFO) << GREEN(std::to_string(p->GetSize()));
-            LOG(INFO) << GREEN(std::to_string(with_p->GetSize()));
-
-            auto iter1 = with_p->begin();
-            std::vector<float> old_params(num_params);
-            while (iter1 != with_p->end()) {
-              CHECK_LT(iter1->fea, num_params);
-              old_params[iter1->fea] = iter1->val;
-              ++iter1;
-            }
-            auto iter2 = p->begin();
             int correct_count = 0;
-            while (iter2 != p->end()) {
-              auto &x = iter2->x;
-              auto y = iter2->y;
-              if (y < 0)
-                y = 0;
 
-              float pred_y = 0.0;
-              for (auto field : x) {
-                pred_y += old_params[field.first] * field.second;
-              }
-              pred_y += old_params[num_params - 1]; // intercept
-              pred_y = 1. / (1. + exp(-1 * pred_y));
+            if (!FLAGS_is_sparse) {
+              auto part = typed_cache->GetPartition(0);
+              auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
 
-              if ((y == 0 && pred_y < 0.5) || (y == 1 && pred_y >= 0.5)) {
-                correct_count++;
+              LOG(INFO) << GREEN(std::to_string(p->GetSize()));
+              LOG(INFO) << GREEN(std::to_string(with_p->GetSize()));
+
+              auto iter1 = with_p->begin();
+              std::vector<float> old_params(num_params);
+              while (iter1 != with_p->end()) {
+                CHECK_LT(iter1->fea, num_params);
+                old_params[iter1->fea] = iter1->val;
+                ++iter1;
               }
-              for (auto field : x) {
-                step_sum[field.first] += alpha * field.second * (y - pred_y);
+              auto iter2 = p->begin();
+              while (iter2 != p->end()) {
+                auto &x = iter2->x;
+                auto y = iter2->y;
+                if (y < 0)
+                  y = 0;
+
+                float pred_y = 0.0;
+                for (auto field : x) {
+                  pred_y += old_params[field.first] * field.second;
+                }
+                pred_y += old_params[num_params - 1]; // intercept
+                pred_y = 1. / (1. + exp(-1 * pred_y));
+
+                if ((y == 0 && pred_y < 0.5) || (y == 1 && pred_y >= 0.5)) {
+                  correct_count++;
+                }
+                for (auto field : x) {
+                  step_sum[field.first] += alpha * field.second * (y - pred_y);
+                }
+                step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
+                ++iter2;
               }
-              step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
-              ++iter2;
+              typed_cache->ReleasePart(0);
             }
-            typed_cache->ReleasePart(0);
+
+            else {
+              std::set<int> keys_set;
+              std::map<int, float> old_params;
+              auto iter = p->begin();
+              while (iter != p->end()) {
+                auto &x = iter->x;
+                for (auto field : x) {
+                  keys_set.insert(field.first);
+                }
+                ++iter;
+              }
+              keys_set.insert(num_params - 1);
+              std::vector<int> keys(keys_set.begin(), keys_set.end());
+              auto objs = typed_cache->Get(keys);
+              CHECK_EQ(keys.size(), objs.size());
+              for (int i = 0; i < keys.size(); i++)
+                old_params.insert(std::make_pair(objs[i].fea, objs[i].val));
+
+              auto iter2 = p->begin();
+              while (iter2 != p->end()) {
+                auto &x = iter2->x;
+                auto y = iter2->y;
+                if (y < 0)
+                  y = 0;
+
+                float pred_y = 0.0;
+                for (auto field : x) {
+                  pred_y += old_params[field.first] * field.second;
+                }
+                pred_y += old_params[num_params - 1]; // intercept
+                pred_y = 1. / (1. + exp(-1 * pred_y));
+
+                if ((y == 0 && pred_y < 0.5) || (y == 1 && pred_y >= 0.5)) {
+                  correct_count++;
+                }
+                for (auto field : x) {
+                  step_sum[field.first] += alpha * field.second * (y - pred_y);
+                }
+                step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
+                ++iter2;
+              }
+            }
+            
             for (int i = 0; i < num_params; i++) {
               step_sum[i] /= num_params;
             }
