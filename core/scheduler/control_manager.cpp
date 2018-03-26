@@ -20,31 +20,21 @@ void ControlManager::Control(SArrayBinStream bin) {
       SendToAllControllers(ControllerFlag::kStart, ctrl.plan_id, reply_bin);
       version_time_[ctrl.plan_id].push_back(std::chrono::system_clock::now());  
 
-      // set the map_versions_ time
-      start_time_ = std::chrono::system_clock::now();
-      for (auto& node : elem_->nodes) {
-        map_versions_[ctrl.plan_id][node.second.node.id].first = 0;
-        map_versions_[ctrl.plan_id][node.second.node.id].second = std::chrono::system_clock::now();
-      }
+      Init(ctrl.plan_id);
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kMap) {
-    CHECK_EQ(map_versions_[ctrl.plan_id][ctrl.node_id].first + 1, ctrl.version) << "update version 1 every time? ";
-    map_versions_[ctrl.plan_id][ctrl.node_id].first = ctrl.version;
-    map_versions_[ctrl.plan_id][ctrl.node_id].second = std::chrono::system_clock::now();
-    TryUpdateVersion(ctrl.plan_id);
+    HandleUpdateMapVersion(ctrl);
 #ifdef WITH_LB
     // TODO: add logic here
     // for pr() in test_lb.cpp specifically
-    if (specs_[ctrl.plan_id].id == 3 && migrate_control_) {  
-      Migrate(ctrl.plan_id);
-      migrate_control_ = false;
-    }
+    // if (specs_[ctrl.plan_id].id == 3 && migrate_control_) {  
+    //   Migrate(ctrl.plan_id);
+    //   migrate_control_ = false;
+    // }
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
-    // CHECK_EQ(join_versions_[ctrl.plan_id][ctrl.node_id] + 1, ctrl.version) << "update version 1 every time? ";
-    join_versions_[ctrl.plan_id][ctrl.node_id] = ctrl.version;
-    TryUpdateVersion(ctrl.plan_id);
+    HandleUpdateJoinVersion(ctrl);
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
@@ -61,15 +51,83 @@ void ControlManager::Control(SArrayBinStream bin) {
   }
 }
 
-void ControlManager::PrintMapVersions(int plan_id) {
-  std::stringstream ss;
-  for (auto& v: map_versions_[plan_id]) {
-    ss << "node: " << v.first 
-       << ", version: " << v.second.first 
-       << ", time: " << static_cast<std::chrono::duration<double>>(v.second.second-start_time_).count()
-       << "s\n";
+void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
+  // LOG(INFO) << DebugVersions(ctrl.plan_id);
+  auto& part_versions = map_part_versions_[ctrl.plan_id];
+  auto& node_versions = map_node_versions_[ctrl.plan_id];
+  auto& node_count = map_node_count_[ctrl.plan_id];
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+  auto& part_to_node_map = collection_view.mapper.Get();
+
+  CHECK_EQ(part_versions[ctrl.part_id].first + 1, ctrl.version) << "version updated by 1 every time";
+  part_versions[ctrl.part_id].first = ctrl.version;
+  part_versions[ctrl.part_id].second = std::chrono::system_clock::now();
+
+  int node_id = part_to_node_map[ctrl.part_id];
+  if (node_versions[node_id].first == ctrl.version - 1) {
+    CHECK_GT(node_count[node_id].first, 0);
+    node_count[node_id].first -= 1;
+    if (node_count[node_id].first == 0) {
+      // node_count[node_id].first = node_count[node_id].second;
+      node_versions[node_id].first += 1;
+      node_versions[node_id].second = std::chrono::system_clock::now();
+
+      // update node_count to next version
+      node_count[node_id].first = 0;
+      for (auto& pv : part_versions) {
+        if (part_to_node_map[pv.first] == node_id) {
+          node_count[node_id].first += 1;
+        }
+      }
+    }
   }
-  LOG(INFO) << ss.str();
+}
+
+void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
+  // LOG(INFO) << DebugVersions(ctrl.plan_id);
+  auto& part_versions = join_part_versions_[ctrl.plan_id];
+  auto& node_versions = join_node_versions_[ctrl.plan_id];
+  auto& node_count = join_node_count_[ctrl.plan_id];
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
+  auto& part_to_node_map = collection_view.mapper.Get();
+
+  CHECK_EQ(part_versions[ctrl.part_id].first + 1, ctrl.version) << "version updated by 1 every time";
+  part_versions[ctrl.part_id].first = ctrl.version;
+  part_versions[ctrl.part_id].second = std::chrono::system_clock::now();
+
+  int node_id = part_to_node_map[ctrl.part_id];
+  if (node_versions[node_id].first == ctrl.version - 1) {
+    CHECK_GT(node_count[node_id].first, 0);
+    node_count[node_id].first -= 1;
+    if (node_count[node_id].first == 0) {
+      node_versions[node_id].first += 1;
+      node_versions[node_id].second = std::chrono::system_clock::now();
+
+      // update node_count to next version
+      node_count[node_id].first = 0;
+      for (auto& pv : part_versions) {
+        if (part_to_node_map[pv.first] == node_id) {
+          node_count[node_id].first += 1;
+        }
+      }
+      // try update version
+      bool update_join_version = true;
+      for (auto& node_version : node_versions) {
+        if (node_count[node_version.first].second == 0) {  // no join part there
+          continue;
+        }
+        if (node_version.second.first == versions_[ctrl.plan_id]) {
+          update_join_version = false;
+          break;
+        }
+      }
+      if (update_join_version) {
+        UpdateVersion(ctrl.plan_id);
+      }
+    }
+  }
 }
 
 // TODO: a fake method with hardcode migrate information now
@@ -92,9 +150,11 @@ void ControlManager::Migrate(int plan_id) {
   SArrayBinStream bin;
   bin << migrate_meta << collection_view;
   SendToAllControllers(ControllerFlag::kMigratePartition, plan_id, bin);
-  join_versions_[plan_id][1] -= 1;
+  // TODO
+  // join_versions_[plan_id][1] -= 1;
 }
 
+/*
 void ControlManager::TrySpeculativeMap(int plan_id) {
   PrintMapVersions(plan_id);
   auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
@@ -141,19 +201,9 @@ void ControlManager::TrySpeculativeMap(int plan_id) {
   bin << meta;
   SendToController(slowest_node, ControllerFlag::kRequestPartition, plan_id, bin);
 }
+*/
 
-void ControlManager::TryUpdateVersion(int plan_id) {
-  int current_version = versions_[plan_id];
-  for (auto v: map_versions_[plan_id]) {
-    if (current_version == v.second.first) {
-      return;
-    }
-  }
-  for (auto v: join_versions_[plan_id]) {
-    if (current_version == v.second) {
-      return;
-    }
-  }
+void ControlManager::UpdateVersion(int plan_id) {
   versions_[plan_id] ++;
   //record time 
   version_time_[plan_id].push_back(std::chrono::system_clock::now());
@@ -182,20 +232,46 @@ void ControlManager::RunPlan(SpecWrapper spec) {
 
   is_setup_[plan_id].clear();
   is_finished_[plan_id].clear();
-  map_versions_[plan_id].clear();
-  join_versions_[plan_id].clear();
   versions_[plan_id] = 0;
   expected_versions_[plan_id] = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
   CHECK_NE(expected_versions_[plan_id], 0);
   // LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
 
-  for (auto& node : elem_->nodes) {
-    map_versions_[plan_id][node.second.node.id].first = 0;
-    join_versions_[plan_id][node.second.node.id] = 0;
-  }
   SArrayBinStream bin;
   bin << spec;
   SendToAllControllers(ControllerFlag::kSetup, plan_id, bin);
+}
+
+void ControlManager::Init(int plan_id) {
+  start_time_ = std::chrono::system_clock::now();
+  for (auto& node : elem_->nodes) {
+    map_node_versions_[plan_id][node.second.node.id].first = 0;
+    map_node_versions_[plan_id][node.second.node.id].second = start_time_;
+    map_node_count_[plan_id][node.second.node.id] = {0, 0};
+
+    join_node_versions_[plan_id][node.second.node.id].first = 0;
+    join_node_versions_[plan_id][node.second.node.id].second = start_time_;
+    join_node_count_[plan_id][node.second.node.id] = {0, 0};
+  }
+
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  auto& map_collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+  auto& map_part_to_node_map = map_collection_view.mapper.Get();
+  for (int i = 0; i < map_part_to_node_map.size(); ++ i) {
+    map_node_count_[plan_id][map_part_to_node_map[i]].second += 1;
+    map_node_count_[plan_id][map_part_to_node_map[i]].first += 1;
+    map_part_versions_[plan_id][i].first = 0;
+    map_part_versions_[plan_id][i].second = start_time_;
+  }
+
+  auto& join_collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
+  auto& join_part_to_node_map = join_collection_view.mapper.Get();
+  for (int i = 0; i < join_part_to_node_map.size(); ++ i) {
+    join_node_count_[plan_id][join_part_to_node_map[i]].second += 1;
+    join_node_count_[plan_id][join_part_to_node_map[i]].first += 1;
+    join_part_versions_[plan_id][i].first = 0;
+    join_part_versions_[plan_id][i].second = start_time_;
+  }
 }
 
 void ControlManager::SendToController(int node_id, ControllerFlag flag, int plan_id, SArrayBinStream bin) {
@@ -230,6 +306,36 @@ void ControlManager::SendToAllControllers(ControllerFlag flag, int plan_id, SArr
 
 int ControlManager::GetCurVersion(int plan_id) {
   return versions_[plan_id];
+}
+
+std::string ControlManager::DebugVersions(int plan_id) {
+  std::stringstream ss;
+  ss << "map_part_versions_: ";
+  for (auto& pv : map_part_versions_[plan_id]) {
+    ss << pv.first << " " << pv.second.first << ", ";
+  }
+  ss << "\nmap_node_versions_: ";
+  for (auto& pv : map_node_versions_[plan_id]) {
+    ss << pv.first << " " << pv.second.first << ", ";
+  }
+  ss << "\nmap_node_count_: ";
+  for (auto& pv : map_node_count_[plan_id]) {
+    ss << pv.first << " <" << pv.second.first << ", " << pv.second.second << ">, ";
+  }
+
+  ss << "\njoin_part_versions_: ";
+  for (auto& pv : join_part_versions_[plan_id]) {
+    ss << pv.first << " " << pv.second.first << ", ";
+  }
+  ss << "\njoin_node_versions_: ";
+  for (auto& pv : join_node_versions_[plan_id]) {
+    ss << pv.first << " " << pv.second.first << ", ";
+  }
+  ss << "\njoin_node_count_: ";
+  for (auto& pv : join_node_count_[plan_id]) {
+    ss << pv.first << " <" << pv.second.first << ", " << pv.second.second << ">, ";
+  }
+  return ss.str();
 }
 
 } // namespace xyz

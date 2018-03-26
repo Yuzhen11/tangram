@@ -75,10 +75,8 @@ class PlanController : public AbstractPlanController {
 
   bool IsMapRunnable(int part_id);
   bool TryRunWaitingJoins(int part_id);
-  void TryUpdateMapVersion();
-  void TryUpdateJoinVersion();
-  void SendUpdateMapVersionToScheduler();
-  void SendUpdateJoinVersionToScheduler();
+
+  void ReportFinishPart(ControllerMsg::Flag flag, int part_id, int version);
 
   void RunMap(int part_id, int version, std::shared_ptr<AbstractPartition>);
   void RunJoin(VersionedJoinMeta meta);
@@ -91,7 +89,6 @@ class PlanController : public AbstractPlanController {
   bool TryCheckpoint(int part_id);
 
   bool IsJoinedBefore(const VersionedShuffleMeta& meta);
-  int GetSlowestMapPartitionId();
 
   void MigratePartitionStartMigrate(MigrateMeta2);
   void MigratePartitionReceiveFlushAll(MigrateMeta2);
@@ -118,11 +115,9 @@ class PlanController : public AbstractPlanController {
 
   // part -> version
   std::map<int, int> map_versions_;
-  int min_map_version_;
 
   // part -> version
   std::map<int, int> join_versions_;
-  int min_join_version_;
   // part -> version -> upstream_id (finished)
   std::map<int, std::map<int, std::set<int>>> join_tracker_;
 

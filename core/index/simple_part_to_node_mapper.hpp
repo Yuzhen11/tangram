@@ -78,6 +78,9 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
   std::vector<int>& Mutable() {
     return v_;
   }
+  const std::vector<int>& Get() const {
+    return v_;
+  }
  private:
   std::vector<int> v_;
 };

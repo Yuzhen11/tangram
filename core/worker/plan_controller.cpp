@@ -37,8 +37,6 @@ void PlanController::Setup(SpecWrapper spec) {
   staleness_ = p->staleness;
   expected_num_iter_ = p->num_iter;
   CHECK_NE(expected_num_iter_, 0);
-  min_map_version_ = 0;
-  min_join_version_ = 0;
   map_versions_.clear();
   join_versions_.clear();
   join_tracker_.clear();
@@ -65,11 +63,6 @@ void PlanController::Setup(SpecWrapper spec) {
 }
 
 void PlanController::StartPlan() {
-  // if there is no join partition
-  if (join_versions_.empty()) {
-    min_join_version_ = expected_num_iter_;
-    SendUpdateJoinVersionToScheduler();
-  }
   TryRunSomeMaps();
 }
 
@@ -81,7 +74,7 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
     SArrayBinStream bin;
     ControllerMsg ctrl;
     ctrl.flag = ControllerMsg::Flag::kFinish;
-    ctrl.version = min_map_version_;
+    ctrl.version = -1;
     ctrl.node_id = controller_->engine_elem_.node.id;
     ctrl.plan_id = plan_id_;
     bin << ctrl;
@@ -105,7 +98,8 @@ void PlanController::FinishMap(SArrayBinStream bin) {
   }
   int last_version = map_versions_[part_id];
   map_versions_[part_id] += 1;
-  TryUpdateMapVersion();
+  // TryUpdateMapVersion();
+  ReportFinishPart(ControllerMsg::Flag::kMap, part_id, map_versions_[part_id]);
 
   if (map_collection_id_ == join_collection_id_) {
     if (!pending_joins_[part_id][last_version].empty()) {
@@ -123,13 +117,8 @@ void PlanController::FinishMap(SArrayBinStream bin) {
 }
 
 void PlanController::TryRunSomeMaps() {
-  if (min_map_version_ == expected_num_iter_) {
+  if (min_version_ == expected_num_iter_) {
     return;
-  }
-  // if there is no map partitions
-  if (map_versions_.empty()) {
-    min_map_version_ += 1;
-    SendUpdateMapVersionToScheduler();
   }
 
   for (auto kv : map_versions_) {
@@ -221,7 +210,8 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
   if (join_tracker_[part_id][version].size() == num_upstream_part_) {
     join_tracker_[part_id].erase(version);
     join_versions_[part_id] += 1;
-    TryUpdateJoinVersion();
+    // TryUpdateJoinVersion();
+    ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
 
     bool runcp = TryCheckpoint(part_id);
     if (runcp) {
@@ -283,79 +273,15 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   TryRunWaitingJoins(part_id);
 }
 
-int PlanController::GetSlowestMapPartitionId() {
-  CHECK_EQ(map_versions_.size(), num_local_map_part_);
-  int id = -1;
-  for (auto kv: map_versions_) {
-    if (kv.second == min_map_version_) {
-      id = kv.first; 
-    }
-  }
-  CHECK_NE(id, -1);
-  return id;
-}
-
-void PlanController::TryUpdateMapVersion() {
-  CHECK_EQ(map_versions_.size(), num_local_map_part_);
-  if (num_local_map_part_ == 0) {
-    min_map_version_ += 1;  // this part is different from the join
-    SendUpdateMapVersionToScheduler();
-    return;
-  }
-  int min_map = map_versions_.begin()->second;
-  for (auto kv: map_versions_) {
-    if (kv.second < min_map) {
-      min_map = kv.second;
-    }
-  }
-  if (min_map > min_map_version_) {
-    min_map_version_ = min_map;
-    SendUpdateMapVersionToScheduler();
-  }
-}
-
-void PlanController::TryUpdateJoinVersion() {
-  CHECK_EQ(join_versions_.size(), num_local_join_part_);
-  if (num_local_join_part_ == 0) {
-    min_join_version_ = expected_num_iter_;
-    SendUpdateJoinVersionToScheduler();
-    return;
-  }
-  int min_join = join_versions_.begin()->second;
-  for (auto kv: join_versions_) {
-    if (kv.second < min_join) {
-      min_join = kv.second;
-    }
-  }
-  if (min_join > min_join_version_) {
-    min_join_version_ = min_join;
-    SendUpdateJoinVersionToScheduler();
-  }
-}
-
-void PlanController::SendUpdateMapVersionToScheduler() {
-  LOG(INFO) << "[PlanController] update map version: " << min_map_version_
-      << ", on " << controller_->engine_elem_.node.id 
-      << ", for plan " << plan_id_;
+void PlanController::ReportFinishPart(ControllerMsg::Flag flag, 
+        int part_id, int version) {
   SArrayBinStream bin;
   ControllerMsg ctrl;
-  ctrl.flag = ControllerMsg::Flag::kMap;
-  ctrl.version = min_map_version_;
+  ctrl.flag = flag;
+  ctrl.version = version;
   ctrl.node_id = controller_->engine_elem_.node.id;
   ctrl.plan_id = plan_id_;
-  bin << ctrl;
-  SendMsgToScheduler(bin);
-}
-void PlanController::SendUpdateJoinVersionToScheduler() {
-  LOG(INFO) << "[PlanController] update join version: " << min_join_version_
-      << ", on " << controller_->engine_elem_.node.id
-      << ", for plan " << plan_id_;
-  SArrayBinStream bin;
-  ControllerMsg ctrl;
-  ctrl.flag = ControllerMsg::Flag::kJoin;
-  ctrl.version = min_join_version_;
-  ctrl.node_id = controller_->engine_elem_.node.id;
-  ctrl.plan_id = plan_id_;
+  ctrl.part_id = part_id;
   bin << ctrl;
   SendMsgToScheduler(bin);
 }
@@ -778,14 +704,14 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) 
       data.map_version = map_versions_[migrate_meta.partition_id];
       map_versions_.erase(migrate_meta.partition_id);
       num_local_map_part_ -= 1;
-      TryUpdateMapVersion();
+      // TryUpdateMapVersion();
     }
     data.join_version = join_versions_[migrate_meta.partition_id];
     data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
     data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
     join_versions_.erase(migrate_meta.partition_id);
     num_local_join_part_ -= 1;
-    TryUpdateJoinVersion();
+    // TryUpdateJoinVersion();
     pending_joins_.erase(migrate_meta.partition_id);
     waiting_joins_.erase(migrate_meta.partition_id);
 
@@ -833,7 +759,7 @@ void PlanController::MigratePartitionDest(Message msg) {
     CHECK(map_versions_.find(migrate_meta.partition_id) == map_versions_.end());
     map_versions_[migrate_meta.partition_id] = migrate_data.map_version;
     num_local_map_part_ += 1;
-    TryUpdateMapVersion();
+    // TryUpdateMapVersion();
   } else {
     migrate_data.map_version = -1;
   }
@@ -844,7 +770,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   pending_joins_[migrate_meta.partition_id] = migrate_data.pending_joins;
   waiting_joins_[migrate_meta.partition_id] = migrate_data.waiting_joins;
   num_local_join_part_ += 1;
-  TryUpdateJoinVersion();
+  // TryUpdateJoinVersion();
 
   LOG(INFO) << "[MigrateDone] pending_joins_ size: " << migrate_data.DebugString();
   // handle buffered request
@@ -879,7 +805,8 @@ void PlanController::RequestPartition(SArrayBinStream bin) {
   bin >> migrate_meta;
   CHECK_EQ(migrate_meta.collection_id, map_collection_id_) << "only consider map_collection first";
   CHECK_NE(migrate_meta.collection_id, join_collection_id_) << "only consider map_collection first";
-  migrate_meta.partition_id = GetSlowestMapPartitionId();
+  migrate_meta.partition_id = -1; // TODO!!!!
+  CHECK(false);
   migrate_map_parts_.insert(migrate_meta.partition_id);
   CHECK(map_versions_.find(migrate_meta.partition_id) != map_versions_.end());
 

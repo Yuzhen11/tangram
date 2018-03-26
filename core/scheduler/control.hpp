@@ -72,12 +72,14 @@ struct ControllerMsg {
   int version;
   int node_id;
   int plan_id;
+  int part_id;
   std::string DebugString() const {
     std::stringstream ss;
     ss << "flag: " << FlagName[static_cast<int>(flag)];
     ss << ", version: " << version;
     ss << ", node_id: " << node_id;
     ss << ", plan_id: " << plan_id;
+    ss << ", part_id: " << part_id;
     return ss.str();
   }
 };
