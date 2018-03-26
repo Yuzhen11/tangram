@@ -67,8 +67,6 @@ class PlanController : public AbstractPlanController {
   virtual void FinishFetch(SArrayBinStream bin) override;
   virtual void FinishCheckpoint(SArrayBinStream bin) override;
 
-  virtual void RequestPartition(SArrayBinStream bin) override;
-  virtual void ReceivePartition(Message msg) override;
   virtual void MigratePartition(Message msg) override;
 
   void TryRunSomeMaps();
@@ -90,9 +88,14 @@ class PlanController : public AbstractPlanController {
 
   bool IsJoinedBefore(const VersionedShuffleMeta& meta);
 
-  void MigratePartitionStartMigrate(MigrateMeta2);
-  void MigratePartitionReceiveFlushAll(MigrateMeta2);
+  // for migration
+  void MigratePartitionStartMigrate(MigrateMeta);
+  void MigratePartitionReceiveFlushAll(MigrateMeta);
   void MigratePartitionDest(Message msg);
+
+  // for speculative execution
+  void MigratePartitionStartMigrateMapOnly(MigrateMeta);
+  void MigratePartitionReceiveMapOnly(Message);
  private:
   Controller* controller_;
 
@@ -141,7 +144,6 @@ class PlanController : public AbstractPlanController {
   bool local_map_mode_ = true;  // TODO: turn it on
   MapOutputStreamStore stream_store_;
 
-  std::set<int> migrate_map_parts_;
   int flush_all_count_ = 0;
 
   int stop_joining_partition_ = -1;

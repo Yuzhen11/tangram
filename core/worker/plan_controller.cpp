@@ -639,27 +639,31 @@ void PlanController::MigratePartition(Message msg) {
   CHECK_GE(msg.data.size(), 3);
   SArrayBinStream ctrl2_bin, bin;
   ctrl2_bin.FromSArray(msg.data[2]);
-  MigrateMeta2 migrate_meta;
+  MigrateMeta migrate_meta;
   ctrl2_bin >> migrate_meta;
-  if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kStartMigrate) {
+  if (migrate_meta.flag == MigrateMeta::MigrateFlag::kStartMigrate) {
     // update collection_map
     CollectionView collection_view;
     ctrl2_bin >> collection_view;
     controller_->engine_elem_.collection_map->Insert(collection_view);
     // send msg to from_id
     MigratePartitionStartMigrate(migrate_meta);
-  } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kFlushAll) {
+  } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kFlushAll) {
     MigratePartitionReceiveFlushAll(migrate_meta);
-  } else if (migrate_meta.flag == MigrateMeta2::MigrateFlag::kDest){
+  } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kDest){
     MigratePartitionDest(msg);
+  } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kStartMigrateMapOnly){
+    MigratePartitionStartMigrateMapOnly(migrate_meta);
+  } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kReceiveMapOnly){
+    MigratePartitionReceiveMapOnly(msg);
   } else {
     CHECK(false);
   }
 }
 
-void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
+void PlanController::MigratePartitionStartMigrate(MigrateMeta migrate_meta) {
   // TODO: update collection_map
-  migrate_meta.flag = MigrateMeta2::MigrateFlag::kFlushAll;
+  migrate_meta.flag = MigrateMeta::MigrateFlag::kFlushAll;
   Message flush_msg;
   flush_msg.meta.sender = controller_->engine_elem_.node.id;
   flush_msg.meta.recver = GetControllerActorQid(migrate_meta.from_id);
@@ -684,7 +688,7 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta2 migrate_meta) {
   }
 }
 
-void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) {
+void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
   CHECK_EQ(migrate_meta.from_id, controller_->engine_elem_.node.id) << "only w_a receives FlushAll";
   flush_all_count_ += 1;
   if (flush_all_count_ == migrate_meta.num_nodes) {
@@ -700,7 +704,7 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) 
     LOG(INFO) << "[Migrate] Received all Flush signal, send everything to dest";
     // now I don't care about the complexity
     // set the flag
-    migrate_meta.flag = MigrateMeta2::MigrateFlag::kDest;
+    migrate_meta.flag = MigrateMeta::MigrateFlag::kDest;
     // construct the MigrateData
     MigrateData data;
     if (map_collection_id_ == join_collection_id_) {
@@ -752,7 +756,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   ctrl2_bin.FromSArray(msg.data[2]);
   bin1.FromSArray(msg.data[3]);
   bin2.FromSArray(msg.data[4]);
-  MigrateMeta2 migrate_meta;
+  MigrateMeta migrate_meta;
   MigrateData migrate_data;
   ctrl2_bin >> migrate_meta;
   bin1 >> migrate_data;
@@ -794,7 +798,7 @@ void PlanController::MigratePartitionDest(Message msg) {
       ->GetCreatePart(migrate_meta.collection_id);
   auto p = func();
   p->FromBin(bin2);  // now I serialize in the controller thread
-  LOG(INFO) << "receive migrate partition in dest: " << migrate_meta.DebugString();
+  LOG(INFO) << "[MigrateDone] receive migrate partition in dest: " << migrate_meta.DebugString();
   CHECK(!controller_->engine_elem_.partition_manager->Has(migrate_meta.collection_id, migrate_meta.partition_id));
   controller_->engine_elem_.partition_manager->Insert(migrate_meta.collection_id, migrate_meta.partition_id, std::move(p));
 
@@ -804,60 +808,64 @@ void PlanController::MigratePartitionDest(Message msg) {
   }
 }
 
-void PlanController::RequestPartition(SArrayBinStream bin) {
-  MigrateMeta migrate_meta;
-  bin >> migrate_meta;
+void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_meta) {
   CHECK_EQ(migrate_meta.collection_id, map_collection_id_) << "only consider map_collection first";
   CHECK_NE(migrate_meta.collection_id, join_collection_id_) << "only consider map_collection first";
-  migrate_meta.partition_id = -1; // TODO!!!!
-  CHECK(false);
-  migrate_map_parts_.insert(migrate_meta.partition_id);
   CHECK(map_versions_.find(migrate_meta.partition_id) != map_versions_.end());
+  
+  // version
+  int map_version = map_versions_[migrate_meta.partition_id];
+  SArrayBinStream bin1;
+  bin1 << map_version;
 
+  // partition
   CHECK(controller_->engine_elem_.partition_manager->Has(
     migrate_meta.collection_id, migrate_meta.partition_id)) << migrate_meta.collection_id << " " <<  migrate_meta.partition_id;
   auto part = controller_->engine_elem_.partition_manager->Get(
     migrate_meta.collection_id, migrate_meta.partition_id);
-  SArrayBinStream reply_bin;
-  part->ToBin(reply_bin);  // serialize
+  SArrayBinStream bin2;
+  part->ToBin(bin2);  // serialize
 
-  migrate_meta.current_map_version = map_versions_[migrate_meta.partition_id];
+  // reset the flag
+  migrate_meta.flag = MigrateMeta::MigrateFlag::kReceiveMapOnly;
 
-  // TODO: clear related information in this controller
-
+  // send
   Message msg;
   msg.meta.sender = controller_->engine_elem_.node.id;
   msg.meta.recver = GetControllerActorQid(migrate_meta.to_id);
   msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
-  ctrl_bin << ControllerFlag::kReceivePartition;
+  ctrl_bin << ControllerFlag::kMigratePartition;
   plan_bin << plan_id_;
   ctrl2_bin << migrate_meta;
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(plan_bin.ToSArray());
   msg.AddData(ctrl2_bin.ToSArray());
-  msg.AddData(reply_bin.ToSArray());
+  msg.AddData(bin1.ToSArray());
+  msg.AddData(bin2.ToSArray());
   controller_->engine_elem_.sender->Send(std::move(msg));
-  LOG(INFO) << "migrating: " << migrate_meta.DebugString();
+  LOG(INFO) << "[Migrate] migrating: " << migrate_meta.DebugString();
 }
 
-// TODO: only support MR style speculative execution.
-void PlanController::ReceivePartition(Message msg) {
-  CHECK_EQ(msg.data.size(), 4);
-  SArrayBinStream ctrl2_bin, bin;
+void PlanController::MigratePartitionReceiveMapOnly(Message msg) {
+  CHECK_EQ(msg.data.size(), 5);
+  SArrayBinStream ctrl2_bin, bin1, bin2;
   ctrl2_bin.FromSArray(msg.data[2]);
-  bin.FromSArray(msg.data[3]);
+  bin1.FromSArray(msg.data[3]);
+  bin2.FromSArray(msg.data[4]);
   MigrateMeta migrate_meta;
   ctrl2_bin >> migrate_meta;
 
-  // TODO: update some control data structure?
+  // version
+  int map_version;
+  bin1 >> map_version;
 
   auto& func = controller_->engine_elem_.function_store
       ->GetCreatePart(migrate_meta.collection_id);
   auto p = func();
-  p->FromBin(bin);  // now I serialize in the controller thread
+  p->FromBin(bin2);  // now I serialize in the controller thread
 
-  RunMap(migrate_meta.partition_id, migrate_meta.current_map_version, p);
+  RunMap(migrate_meta.partition_id, map_version, p);
 }
 
 void PlanController::DisplayTime() {

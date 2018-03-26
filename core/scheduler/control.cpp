@@ -3,7 +3,7 @@
 namespace xyz {
 
 constexpr const char* ControllerMsg::FlagName[];
-constexpr const char* MigrateMeta2::FlagName[];
+constexpr const char* MigrateMeta::FlagName[];
 
 } // namespace xyz
 

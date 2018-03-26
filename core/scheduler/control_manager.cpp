@@ -26,12 +26,17 @@ void ControlManager::Control(SArrayBinStream bin) {
     HandleUpdateMapVersion(ctrl);
 #ifdef WITH_LB
     // TODO: add logic here
+    // for pr
     // for pr() in test_lb.cpp specifically
-    if (specs_[ctrl.plan_id].id == 3 && map_node_versions_[ctrl.plan_id][ctrl.node_id].first == 1 && migrate_control_) {  
-      // Migrate(ctrl.plan_id);
-      Migrate(ctrl.plan_id, 5, 1, 4);
-      migrate_control_ = false;
-    }
+    // if (specs_[ctrl.plan_id].id == 3 && map_node_versions_[ctrl.plan_id][ctrl.node_id].first == 1 && migrate_control_) {  
+    //   Migrate(ctrl.plan_id, 5, 1, 4);
+    //   migrate_control_ = false;
+    // }
+    // // for mr
+    // if (migrate_control_) {
+    //   MigrateMapOnly(ctrl.plan_id, 5, 1, 4);
+    //   migrate_control_ = false;
+    // }
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
@@ -233,8 +238,8 @@ void ControlManager::Migrate(int plan_id, int from_id, int to_id, int part_id) {
     }
   }
   // LOG(INFO) << DebugVersions(plan_id);
-  MigrateMeta2 migrate_meta;
-  migrate_meta.flag = MigrateMeta2::MigrateFlag::kStartMigrate;
+  MigrateMeta migrate_meta;
+  migrate_meta.flag = MigrateMeta::MigrateFlag::kStartMigrate;
   migrate_meta.plan_id = plan_id;
   migrate_meta.collection_id = mapjoin_spec->join_collection_id;
   migrate_meta.partition_id = part_id;
@@ -246,29 +251,27 @@ void ControlManager::Migrate(int plan_id, int from_id, int to_id, int part_id) {
   SendToAllControllers(ControllerFlag::kMigratePartition, plan_id, bin);
 }
 
-
-// TODO: a fake method with hardcode migrate information now
-void ControlManager::Migrate(int plan_id) {
+void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int part_id) {
+  // some checking
+  CHECK(map_part_versions_[plan_id].find(part_id) != map_part_versions_[plan_id].end());
   auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  // update collection_map
-  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
-  auto& part_to_node = collection_view.mapper.Mutable();
-  CHECK_LT(4, part_to_node.size());
-  part_to_node[4] = 1;
+  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+  CHECK_NE(mapjoin_spec->map_collection_id, mapjoin_spec->join_collection_id);
+  auto& part_to_node = collection_view.mapper.Get();
+  CHECK_LT(part_id, part_to_node.size());
+  CHECK_EQ(part_to_node[part_id], from_id);
 
-  MigrateMeta2 migrate_meta;
-  migrate_meta.flag = MigrateMeta2::MigrateFlag::kStartMigrate;
+  MigrateMeta migrate_meta;
+  migrate_meta.flag = MigrateMeta::MigrateFlag::kStartMigrateMapOnly;
   migrate_meta.plan_id = plan_id;
-  migrate_meta.collection_id = mapjoin_spec->join_collection_id;
-  migrate_meta.partition_id = 4;
-  migrate_meta.from_id = 5;
-  migrate_meta.to_id = 1;
+  migrate_meta.collection_id = mapjoin_spec->map_collection_id;
+  migrate_meta.partition_id = part_id;
+  migrate_meta.from_id = from_id;
+  migrate_meta.to_id = to_id;
   migrate_meta.num_nodes = elem_->nodes.size();
   SArrayBinStream bin;
   bin << migrate_meta << collection_view;
-  SendToAllControllers(ControllerFlag::kMigratePartition, plan_id, bin);
-  // TODO
-  // join_versions_[plan_id][1] -= 1;
+  SendToController(from_id, ControllerFlag::kMigratePartition, plan_id, bin);
 }
 
 /*

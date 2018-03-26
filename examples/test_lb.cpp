@@ -88,8 +88,8 @@ void pr() {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  // mr();
-  pr();
+  mr();
+  // pr();
 
   Runner::Run();
   // Runner::PrintDag();

@@ -94,8 +94,6 @@ enum class ControllerFlag : char {
   kFetchRequest,
   kFinishFetch,
   kFinishCheckpoint,
-  kRequestPartition,
-  kReceivePartition,
   kMigratePartition,
 };
 
@@ -119,35 +117,19 @@ struct FetchMeta {
 };
 
 struct MigrateMeta {
-  int plan_id;
-  int collection_id;
-  int partition_id;
-  int from_id;
-  int to_id;  // the node id
-  int current_map_version;
-  std::string DebugString() const {
-    std::stringstream ss;
-    ss << "plan_id: " << plan_id;
-    ss << ", collection_id: " << collection_id;
-    ss << ", partition_id: " << partition_id;
-    ss << ", from_id: " << from_id;
-    ss << ", to_id: " << to_id;
-    ss << ", current_map_version: " << current_map_version;
-    return ss.str();
-  }
-};
-
-
-struct MigrateMeta2 {
   enum class MigrateFlag {
     kStartMigrate,
     kFlushAll,
-    kDest
+    kDest,
+    kStartMigrateMapOnly,
+    kReceiveMapOnly,
   };
   static constexpr const char* FlagName[] = {
     "kStartMigrate", 
     "kFlushAll",
-    "kDest"
+    "kDest",
+    "kStartMigrateMapOnly",
+    "kReceiveMapOnly"
   };
   MigrateFlag flag;
   int plan_id;
