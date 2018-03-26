@@ -52,7 +52,6 @@ void ControlManager::Control(SArrayBinStream bin) {
 }
 
 void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
-  // LOG(INFO) << DebugVersions(ctrl.plan_id);
   auto& part_versions = map_part_versions_[ctrl.plan_id];
   auto& node_versions = map_node_versions_[ctrl.plan_id];
   auto& node_count = map_node_count_[ctrl.plan_id];
@@ -73,10 +72,12 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
       node_versions[node_id].first += 1;
       node_versions[node_id].second = std::chrono::system_clock::now();
 
+      // LOG(INFO) << DebugVersions(ctrl.plan_id);
+      LOG(INFO) << "node: " << node_id << ", map version: " << node_versions[node_id].first;
       // update node_count to next version
       node_count[node_id].first = 0;
       for (auto& pv : part_versions) {
-        if (part_to_node_map[pv.first] == node_id && part_versions[pv.first].first == node_versions[node_id].first) {
+        if (part_to_node_map[pv.first] == node_id && pv.second.first == node_versions[node_id].first) {
           node_count[node_id].first += 1;
         }
       }
@@ -85,7 +86,6 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
 }
 
 void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
-  // LOG(INFO) << DebugVersions(ctrl.plan_id);
   auto& part_versions = join_part_versions_[ctrl.plan_id];
   auto& node_versions = join_node_versions_[ctrl.plan_id];
   auto& node_count = join_node_count_[ctrl.plan_id];
@@ -105,10 +105,12 @@ void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
       node_versions[node_id].first += 1;
       node_versions[node_id].second = std::chrono::system_clock::now();
 
+      // LOG(INFO) << DebugVersions(ctrl.plan_id);
+      LOG(INFO) << "node: " << node_id << ", join version: " << node_versions[node_id].first;
       // update node_count to next version
       node_count[node_id].first = 0;
       for (auto& pv : part_versions) {
-        if (part_to_node_map[pv.first] == node_id && part_versions[pv.first].first == node_versions[node_id].first) {
+        if (part_to_node_map[pv.first] == node_id && pv.second.first == node_versions[node_id].first) {
           node_count[node_id].first += 1;
         }
       }
