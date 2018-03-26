@@ -76,7 +76,7 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
       // update node_count to next version
       node_count[node_id].first = 0;
       for (auto& pv : part_versions) {
-        if (part_to_node_map[pv.first] == node_id) {
+        if (part_to_node_map[pv.first] == node_id && part_versions[pv.first].first == node_versions[node_id].first) {
           node_count[node_id].first += 1;
         }
       }
@@ -108,7 +108,7 @@ void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
       // update node_count to next version
       node_count[node_id].first = 0;
       for (auto& pv : part_versions) {
-        if (part_to_node_map[pv.first] == node_id) {
+        if (part_to_node_map[pv.first] == node_id && part_versions[pv.first].first == node_versions[node_id].first) {
           node_count[node_id].first += 1;
         }
       }
