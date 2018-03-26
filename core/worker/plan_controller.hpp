@@ -150,12 +150,14 @@ class PlanController : public AbstractPlanController {
     int join_version;
     std::map<int, std::deque<VersionedJoinMeta>> pending_joins;
     std::deque<VersionedJoinMeta> waiting_joins;
+    std::map<int, std::set<int>> join_tracker;
+
     friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const MigrateData& d) {
-      stream << d.map_version << d.join_version << d.pending_joins << d.waiting_joins;
+      stream << d.map_version << d.join_version << d.pending_joins << d.waiting_joins << d.join_tracker;
       return stream;
     }
     friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, MigrateData& d) {
-      stream >> d.map_version >> d.join_version >> d.pending_joins >> d.waiting_joins;
+      stream >> d.map_version >> d.join_version >> d.pending_joins >> d.waiting_joins >> d.join_tracker;
       return stream;
     }
     std::string DebugString() const {
@@ -164,6 +166,7 @@ class PlanController : public AbstractPlanController {
       ss << ", join_version: " << join_version;
       ss << ", pending_join size: " << pending_joins.size();
       ss << ", waiting_joins size: " << waiting_joins.size();
+      ss << ", join_tracker size: " << join_tracker.size();
       return ss.str();
     }
   };

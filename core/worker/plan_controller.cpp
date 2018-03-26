@@ -85,6 +85,9 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
   }
   CHECK_EQ(new_version, min_version_+1);
   min_version_ = new_version;
+  for (auto& part_version : join_tracker_) {
+    part_version.second.erase(new_version-1);  // erase old join_tracker content
+  }
   TryRunSomeMaps();
 }
 
@@ -208,9 +211,8 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 
   join_tracker_[part_id][version].insert(upstream_part_id);
   if (join_tracker_[part_id][version].size() == num_upstream_part_) {
-    join_tracker_[part_id].erase(version);
+    // join_tracker_[part_id].erase(version);  // TODO: should not remove
     join_versions_[part_id] += 1;
-    // TryUpdateJoinVersion();
     ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
 
     bool runcp = TryCheckpoint(part_id);
@@ -417,6 +419,7 @@ bool PlanController::IsJoinedBefore(const VersionedShuffleMeta& meta) {
 }
 
 void PlanController::RunJoin(VersionedJoinMeta meta) {
+  // LOG(INFO) << meta.meta.DebugString();
   if (IsJoinedBefore(meta.meta)) {
     return;
   }
@@ -709,12 +712,12 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta2 migrate_meta) 
     data.join_version = join_versions_[migrate_meta.partition_id];
     data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
     data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
+    data.join_tracker = std::move(join_tracker_[migrate_meta.partition_id]);
     join_versions_.erase(migrate_meta.partition_id);
     num_local_join_part_ -= 1;
-    // TryUpdateJoinVersion();
     pending_joins_.erase(migrate_meta.partition_id);
     waiting_joins_.erase(migrate_meta.partition_id);
-
+    join_tracker_.erase(migrate_meta.partition_id);
     Message msg;
     msg.meta.sender = controller_->engine_elem_.node.id;
     msg.meta.recver = GetControllerActorQid(migrate_meta.to_id);
@@ -766,11 +769,12 @@ void PlanController::MigratePartitionDest(Message msg) {
   CHECK(join_versions_.find(migrate_meta.partition_id) == join_versions_.end());
   CHECK(pending_joins_.find(migrate_meta.partition_id) == pending_joins_.end());
   CHECK(waiting_joins_.find(migrate_meta.partition_id) == waiting_joins_.end());
+  CHECK(join_tracker_.find(migrate_meta.partition_id) == join_tracker_.end());
   join_versions_[migrate_meta.partition_id] = migrate_data.join_version;
-  pending_joins_[migrate_meta.partition_id] = migrate_data.pending_joins;
-  waiting_joins_[migrate_meta.partition_id] = migrate_data.waiting_joins;
+  pending_joins_[migrate_meta.partition_id] = std::move(migrate_data.pending_joins);
+  waiting_joins_[migrate_meta.partition_id] = std::move(migrate_data.waiting_joins);
+  join_tracker_[migrate_meta.partition_id] = std::move(migrate_data.join_tracker);
   num_local_join_part_ += 1;
-  // TryUpdateJoinVersion();
 
   LOG(INFO) << "[MigrateDone] pending_joins_ size: " << migrate_data.DebugString();
   // handle buffered request

@@ -28,6 +28,7 @@ class ControlManager {
   void HandleUpdateJoinVersion(ControllerMsg ctrl);
   void UpdateVersion(int plan_id);
   void Init(int plan_id);
+  void Migrate(int plan_id, int from_id, int to_id, int part_id);
  private:
   std::shared_ptr<SchedulerElem> elem_;
 
@@ -47,15 +48,15 @@ class ControlManager {
   std::map<int, std::map<int, std::pair<int, Timepoint>>> map_part_versions_;
   // plan_id -> node_id -> {version, time}
   std::map<int, std::map<int, std::pair<int, Timepoint>>> map_node_versions_;
-  // plan_id -> node_id -> {# min_version part, expected}
-  std::map<int, std::map<int, std::pair<int, int>>> map_node_count_;
+  // plan_id -> node_id -> # min_version part
+  std::map<int, std::map<int, int>> map_node_count_;
 
   // plan_id -> part_id -> {version, time}
   std::map<int, std::map<int, std::pair<int, Timepoint>>> join_part_versions_;
   // plan_id -> node_id -> {version, time}
   std::map<int, std::map<int, std::pair<int, Timepoint>>> join_node_versions_;
-  // plan_id -> node_id -> {# min_version part, expected}
-  std::map<int, std::map<int, std::pair<int, int>>> join_node_count_;
+  // plan_id -> node_id -> # min_version part
+  std::map<int, std::map<int, int>> join_node_count_;
 
   std::string DebugVersions(int plan_id);
 };
