@@ -81,6 +81,15 @@ class SimplePartToNodeMapper : public AbstractPartToNodeMapper {
   const std::vector<int>& Get() const {
     return v_;
   }
+  std::vector<int> GetNodeParts(int node_id) {
+    std::vector<int> result;
+    for (int part_id = 0; part_id < v_.size(); part_id++) {
+      if (v_[part_id] == node_id) {
+        result.push_back(part_id);
+      }
+    }
+    return result;
+  }
  private:
   std::vector<int> v_;
 };

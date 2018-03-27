@@ -39,6 +39,10 @@ void ControlManager::Control(SArrayBinStream bin) {
     // }
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
+    if (migrate_control_) {
+      migrate_control_ = false;
+      TryMigrate(ctrl.plan_id);
+    }
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
@@ -53,6 +57,50 @@ void ControlManager::Control(SArrayBinStream bin) {
         std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
         LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
       }
+    }
+  }
+}
+
+void ControlManager::TryMigrate(int plan_id){
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
+    int max_version = versions_[plan_id] + mapjoin_spec->staleness + 1;
+    std::map<int, std::vector<int>> nodes; // version, node ids
+    for (auto node : map_node_versions_[plan_id]) {
+      nodes[node.second.first].push_back(node.first);
+    }
+    std::vector<int> fast_nodes = nodes[max_version];
+    std::vector<int> slow_nodes;
+    for (int i = versions_[plan_id]; i < max_version; i++) {
+      for (auto node : nodes[i]) {
+        slow_nodes.push_back(node);
+      }
+      break; //only migrate for the min version
+    }
+    auto iter1 = fast_nodes.begin();
+    auto iter2 = slow_nodes.begin();
+    
+    auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+    while (iter1 != fast_nodes.end() && iter2 != slow_nodes.end()) {
+      std::vector<int> part_ids = collection_view.mapper.GetNodeParts(*iter2);
+      std::map<int, std::vector<int>> version; // version, part_ids
+      for (int part_id : part_ids) {
+        version[map_part_versions_[plan_id][part_id].first].push_back(part_id);
+      }
+      for (int i = versions_[plan_id]; i < max_version; i++) {
+        if (!version[i].empty()) {
+          int part_id = version[i].at(0);
+          LOG(INFO)<<"migrate plan "<<versions_[plan_id];
+          LOG(INFO)<<"from node "<< *iter2 <<" version "<< map_node_versions_[plan_id][*iter2].first;
+          LOG(INFO)<<"to node "<< *iter1 <<" version "<< map_node_versions_[plan_id][*iter1].first;
+          LOG(INFO)<<"part "<< part_id <<" version "<< map_part_versions_[plan_id][part_id].first;
+          Migrate(plan_id, *iter2, *iter1, part_id);
+          iter1++;
+          return; //only migrate one partition
+        }
+        break; //only migrate for the min version
+      }
+      iter2++;
     }
   }
 }

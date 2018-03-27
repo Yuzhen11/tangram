@@ -30,6 +30,7 @@ class ControlManager {
   void Init(int plan_id);
   void Migrate(int plan_id, int from_id, int to_id, int part_id);
   void MigrateMapOnly(int plan_id, int from_id, int to_id, int part_id);
+  void TryMigrate(int plan_id);
  private:
   std::shared_ptr<SchedulerElem> elem_;
 
