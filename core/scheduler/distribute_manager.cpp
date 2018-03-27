@@ -52,10 +52,11 @@ void DistributeManager::FinishDistribute(SArrayBinStream bin) {
     LOG(INFO) << cv.DebugString();
 
     // trigger InitWorkers
-    SArrayBinStream reply_bin;
-    std::pair<int,int> pid_cid{plan_id, collection_id};
-    reply_bin << pid_cid;
-    ToScheduler(elem_, ScheduleFlag::kUpdateCollection, reply_bin);
+    collection_manager_->Update(collection_id, [this, plan_id]() {
+      SArrayBinStream reply_bin;
+      reply_bin << plan_id;
+      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    });
   }
 }
 

@@ -47,11 +47,12 @@ public:
     elem_->collection_map = std::make_shared<CollectionMap>();
     // setup managers 
     checkpoint_loader_ = std::make_shared<CheckpointLoader>(elem_);
-    block_manager_ = std::make_shared<BlockManager>(elem_, builder);
-    control_manager_ = std::make_shared<ControlManager>(elem_);
-    distribute_manager_ = std::make_shared<DistributeManager>(elem_);
-    write_manager_ = std::make_shared<WriteManager>(elem_);
     collection_manager_ = std::make_shared<CollectionManager>(elem_);
+
+    block_manager_ = std::make_shared<BlockManager>(elem_, collection_manager_, builder);
+    control_manager_ = std::make_shared<ControlManager>(elem_);
+    distribute_manager_ = std::make_shared<DistributeManager>(elem_, collection_manager_);
+    write_manager_ = std::make_shared<WriteManager>(elem_);
     checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_);
     recover_manager_ = std::make_shared<RecoverManager>(elem_);
   }

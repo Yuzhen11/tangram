@@ -78,14 +78,14 @@ void Worker::Process(Message msg) {
 }
 
 void Worker::UpdateCollection(SArrayBinStream bin) {
-  std::pair<int,int> pid_cid;  // plan_id, collection_id
+  int collection_id;
   CollectionView cv;
-  bin >> pid_cid >> cv;
+  bin >> collection_id >> cv;
   // when we update a collection_view, no one is accessing it
   engine_elem_.collection_map->Insert(cv);
 
   SArrayBinStream reply_bin;
-  reply_bin << pid_cid << engine_elem_.node.id;
+  reply_bin << collection_id << engine_elem_.node.id;
   SendMsgToScheduler(ScheduleFlag::kUpdateCollectionReply, reply_bin);
 }
 

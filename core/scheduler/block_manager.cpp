@@ -3,8 +3,10 @@
 namespace xyz {
 
 BlockManager::BlockManager(std::shared_ptr<SchedulerElem> elem,
+        std::shared_ptr<CollectionManager> collection_manager,
         std::function<std::shared_ptr<Assigner>()> builder)
-    : elem_(elem), builder_(builder) {}
+    : elem_(elem), collection_manager_(collection_manager), 
+    builder_(builder) {}
 
 void BlockManager::Load(SpecWrapper spec_wrapper) {
   CHECK(spec_wrapper.type == SpecWrapper::Type::kLoad);
@@ -47,10 +49,13 @@ void BlockManager::FinishBlock(SArrayBinStream bin) {
     elem_->collection_map->Insert(cv);
 
     // trigger update collection
-    SArrayBinStream reply_bin;
-    std::pair<int,int> pid_cid{cid_pid_[block.collection_id], block.collection_id};
-    reply_bin << pid_cid;
-    ToScheduler(elem_, ScheduleFlag::kUpdateCollection, reply_bin);
+    int collection_id = block.collection_id;
+    int plan_id = cid_pid_[block.collection_id];
+    collection_manager_->Update(collection_id, [this, plan_id]() {
+      SArrayBinStream reply_bin;
+      reply_bin << plan_id;
+      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    });
   }
 }
 

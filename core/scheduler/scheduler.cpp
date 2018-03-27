@@ -35,10 +35,6 @@ void Scheduler::Process(Message msg) {
     RegisterProgram(node_id, bin);
     break;
   }
-  case ScheduleFlag::kUpdateCollection: {
-    collection_manager_->Update(bin);
-    break;
-  }
   case ScheduleFlag::kUpdateCollectionReply: {
     collection_manager_->FinishUpdate(bin);
     break;

@@ -11,15 +11,18 @@ class CollectionManager {
   CollectionManager(std::shared_ptr<SchedulerElem> elem)
       : elem_(elem) {}
 
+  // non thread-safe
   // update the collection map at each worker
-  void Update(SArrayBinStream bin);
+  void Update(int collection_id, std::function<void()> f);
+
   void FinishUpdate(SArrayBinStream bin);
 
  private:
   std::shared_ptr<SchedulerElem> elem_;
 
-  // {plan_id, collection_id} -> replied_node
-  std::map<std::pair<int,int>, std::set<int>> received_replies_;
+  // collection_id -> replied_node
+  std::map<int, std::set<int>> received_replies_;
+  std::map<int, std::function<void()>> callbacks_;
 };
 
 } // namespace xyz

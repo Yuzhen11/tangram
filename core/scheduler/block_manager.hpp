@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/scheduler/scheduler_elem.hpp"
+#include "core/scheduler/collection_manager.hpp"
 #include "core/scheduler/control.hpp"
 
 #include "io/assigner.hpp"
@@ -15,6 +16,7 @@ namespace xyz {
 class BlockManager {
  public:
   BlockManager(std::shared_ptr<SchedulerElem> elem, 
+          std::shared_ptr<CollectionManager> collection_manager,
           std::function<std::shared_ptr<Assigner>()> builder);
   void Load(SpecWrapper spec_wrapper);
   void FinishBlock(SArrayBinStream bin);
@@ -28,6 +30,8 @@ class BlockManager {
   std::map<int,int> cid_pid_;  // collection_id -> plan_id
 
   std::shared_ptr<SchedulerElem> elem_;
+
+  std::shared_ptr<CollectionManager> collection_manager_;
 };
 
 } // namespace xyz
