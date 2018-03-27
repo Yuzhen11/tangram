@@ -63,10 +63,10 @@ struct WorkerInfo {
  */
 struct ControllerMsg {
   enum class Flag : char {
-    kSetup, kMap, kJoin, kFinish
+    kSetup, kMap, kJoin, kFinish, kFinishMigrate
   };
   static constexpr const char* FlagName[] = {
-    "kSetup", "kMap", "kJoin", "kFinish"
+    "kSetup", "kMap", "kJoin", "kFinish", "kFinishMigrate"
   };
   Flag flag;
   int version;

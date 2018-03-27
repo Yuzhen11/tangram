@@ -58,6 +58,11 @@ void ControlManager::Control(SArrayBinStream bin) {
         LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
       }
     }
+  } else if (ctrl.flag == ControllerMsg::Flag::kFinishMigrate) {
+    // TODO
+    LOG(INFO) << "[ControlManager] migrate part " << ctrl.part_id << " done";
+  } else {
+    CHECK(false) << ctrl.DebugString();
   }
 }
 

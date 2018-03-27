@@ -806,6 +806,16 @@ void PlanController::MigratePartitionDest(Message msg) {
   if (map_collection_id_ == join_collection_id_) {
     TryRunSomeMaps();
   }
+
+  SArrayBinStream bin;
+  ControllerMsg ctrl;
+  ctrl.flag = ControllerMsg::Flag::kFinishMigrate;
+  ctrl.version = -1;
+  ctrl.node_id = -1;
+  ctrl.plan_id = plan_id_;
+  ctrl.part_id = migrate_meta.partition_id;
+  bin << ctrl;
+  SendMsgToScheduler(bin);
 }
 
 void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_meta) {
