@@ -6,11 +6,14 @@
 
 namespace xyz {
 
+using ReadWriteVector = std::pair<std::vector<int>, std::vector<int>>;
+
 struct Spec {
   virtual ~Spec() = default;
   virtual void ToBin(SArrayBinStream& bin) = 0;
   virtual void FromBin(SArrayBinStream& bin) = 0;
   virtual std::string DebugString() const = 0;
+  virtual ReadWriteVector GetReadWrite() const = 0;
 };
 
 struct MapJoinSpec : public Spec {
@@ -34,6 +37,13 @@ struct MapJoinSpec : public Spec {
     bin >> map_collection_id >> join_collection_id
         >> num_iter >> staleness >> checkpoint_interval
         >> description;
+  }
+  virtual ReadWriteVector GetReadWrite() const {
+    if (map_collection_id == join_collection_id) {
+      return {{}, {map_collection_id}};
+    } else {
+      return {{map_collection_id}, {join_collection_id}};
+    }
   }
   virtual std::string DebugString() const {
     std::stringstream ss;
@@ -60,6 +70,16 @@ struct MapWithJoinSpec : public MapJoinSpec {
     MapJoinSpec::FromBin(bin);
     bin >> with_collection_id;
   }
+  virtual ReadWriteVector GetReadWrite() const {
+    std::vector<int> read;
+    if (map_collection_id != join_collection_id) {
+      read.push_back(map_collection_id);
+    }
+    if (with_collection_id != join_collection_id) {
+      read.push_back(with_collection_id);
+    }
+    return {read, {join_collection_id}};
+  }
   virtual std::string DebugString() const {
     std::stringstream ss;
     ss << MapJoinSpec::DebugString();
@@ -78,6 +98,9 @@ struct WriteSpec : public Spec {
   }
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> collection_id >> url;
+  }
+  virtual ReadWriteVector GetReadWrite() const {
+    return {{}, {collection_id}};
   }
   virtual std::string DebugString() const {
     std:: stringstream ss;
@@ -98,6 +121,9 @@ struct LoadSpec : public Spec {
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> collection_id >> url;
   }
+  virtual ReadWriteVector GetReadWrite() const {
+    return {{}, {collection_id}};
+  }
   virtual std::string DebugString() const {
     std:: stringstream ss;
     ss << "collection_id: " << collection_id;
@@ -117,6 +143,9 @@ struct CheckpointSpec : public Spec {
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> cid >> url;
   }
+  virtual ReadWriteVector GetReadWrite() const {
+    return {{cid}, {}};
+  }
   virtual std::string DebugString() const {
     std:: stringstream ss;
     ss << "collection_id: " << cid;
@@ -135,6 +164,9 @@ struct LoadCheckpointSpec : public Spec {
   }
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> cid >> url;
+  }
+  virtual ReadWriteVector GetReadWrite() const {
+    return {{}, {cid}};
   }
   virtual std::string DebugString() const {
     std:: stringstream ss;
@@ -156,6 +188,9 @@ struct DistributeSpec: public Spec {
   }
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> collection_id >> num_partition >> data;
+  }
+  virtual ReadWriteVector GetReadWrite() const {
+    return {{}, {collection_id}};
   }
   virtual std::string DebugString() const {
     std::stringstream ss;
@@ -198,6 +233,18 @@ struct SpecWrapper {
     ss << ", name: " << name;
     ss << ", spec: " << spec->DebugString();
     return ss.str();
+  }
+
+  MapJoinSpec* GetMapJoinSpec();
+  MapWithJoinSpec* GetMapWithJoinSpec();
+  DistributeSpec* GetDistributeSpec();
+  LoadSpec* GetLoadSpec();
+  CheckpointSpec* GetCheckpointSpec();
+  LoadCheckpointSpec* GetLoadCheckpointSpec();
+  WriteSpec* GetWriteSpec();
+
+  ReadWriteVector GetReadWrite() {
+    return spec->GetReadWrite();
   }
 
   template<typename SpecType, typename... Args>

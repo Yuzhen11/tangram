@@ -19,6 +19,7 @@ void CheckpointManager::Checkpoint(SpecWrapper s) {
     bin << cid << i << dest_url;  // collection_id, partition_id, url
     SendTo(elem_, node_id, ScheduleFlag::kCheckpoint, bin);
   }
+  collection_status_->AddCP(cid, url);  // add checkpoint here
 }
 
 void CheckpointManager::LoadCheckpoint(SpecWrapper s) {

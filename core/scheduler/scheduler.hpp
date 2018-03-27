@@ -13,6 +13,7 @@
 #include "core/scheduler/checkpoint_manager.hpp"
 #include "core/scheduler/recover_manager.hpp"
 #include "core/scheduler/checkpoint_loader.hpp"
+#include "core/scheduler/collection_status.hpp"
 
 #include "core/scheduler/dag_runner.hpp"
 
@@ -49,11 +50,14 @@ public:
     checkpoint_loader_ = std::make_shared<CheckpointLoader>(elem_);
     collection_manager_ = std::make_shared<CollectionManager>(elem_);
 
+    collection_status_ = std::make_shared<CollectionStatus>();
+
     block_manager_ = std::make_shared<BlockManager>(elem_, collection_manager_, builder);
-    control_manager_ = std::make_shared<ControlManager>(elem_);
+    control_manager_ = std::make_shared<ControlManager>(elem_, 
+            checkpoint_loader_, collection_status_);
     distribute_manager_ = std::make_shared<DistributeManager>(elem_, collection_manager_);
     write_manager_ = std::make_shared<WriteManager>(elem_);
-    checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_);
+    checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_, collection_status_);
     recover_manager_ = std::make_shared<RecoverManager>(elem_);
   }
   virtual ~Scheduler() override {
@@ -112,7 +116,7 @@ private:
   std::unique_ptr<AbstractDagRunner> dag_runner_;
   std::string dag_runner_type_;
 
-  std::set<int> cur_plan_ids_;
+  std::shared_ptr<CollectionStatus> collection_status_;
 };
 
 } // namespace xyz

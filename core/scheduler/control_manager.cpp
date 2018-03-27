@@ -377,6 +377,12 @@ void ControlManager::TrySpeculativeMap(int plan_id) {
 */
 
 void ControlManager::UpdateVersion(int plan_id) {
+  auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
+  if (mapjoin_spec->checkpoint_interval != 0 
+          && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
+    collection_status_->AddCP(plan_id, "/tmp/tmp");  // TODO
+  }
+
   versions_[plan_id] ++;
   //record time 
   version_time_[plan_id].push_back(std::chrono::system_clock::now());

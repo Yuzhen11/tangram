@@ -21,6 +21,7 @@ file(GLOB core-src-files
     scheduler/checkpoint_manager.cpp
     scheduler/recover_manager.cpp
     scheduler/checkpoint_loader.cpp
+    scheduler/collection_status.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
     plan/dag.cpp

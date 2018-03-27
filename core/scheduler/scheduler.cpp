@@ -68,14 +68,15 @@ void Scheduler::Process(Message msg) {
     bin >> plan_id;
     LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
     dag_runner_->Finish(plan_id);
-    cur_plan_ids_.erase(plan_id);
+    collection_status_->FinishPlan(plan_id);
     TryRunPlan();
     break;
   }
   case ScheduleFlag::kRecovery: {
     // TODO: get most recent checkpoint from control_manager_, run load checkpoint
-    CHECK_EQ(cur_plan_ids_.size(), 1);  // TODO: now only handle 1 running plan.
-    int current_plan_id = *cur_plan_ids_.begin();
+    auto cur_plans = collection_status_->GetCurrentPlans();
+    CHECK_EQ(cur_plans.size(), 1);  // TODO: now only handle 1 running plan.
+    int current_plan_id = *cur_plans.begin();
     auto spec_wrapper = program_.specs[current_plan_id];
     CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
          || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
@@ -163,9 +164,10 @@ void Scheduler::TryRunPlan() {
 
 void Scheduler::RunPlan(int plan_id) {
   CHECK_LT(plan_id, program_.specs.size());
-  cur_plan_ids_.insert(plan_id);
   auto spec = program_.specs[plan_id];
   LOG(INFO) << "[Scheduler] " << YELLOW("Running plan "+std::to_string(spec.id)+" "+spec.name+" ") << spec.DebugString();
+  auto rw = spec.GetReadWrite();
+  collection_status_->AddPlan(plan_id, rw);
   if (spec.type == SpecWrapper::Type::kDistribute) {
     LOG(INFO) << "[Scheduler] Distributing: " << spec.DebugString();
     distribute_manager_->Distribute(spec);
