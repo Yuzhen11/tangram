@@ -4,6 +4,7 @@ namespace xyz {
 
 void CheckpointLoader::LoadCheckpoint(int cid, std::string url,
         std::function<void()> f) {
+  LOG(INFO) << "[CheckpointLoader] loading checkpoint for collection: " << cid;
   auto& collection_view = elem_->collection_map->Get(cid);
   loadcheckpoint_reply_count_map_[cid] = 0;
   expected_loadcheckpoint_reply_count_map_[cid] = collection_view.mapper.GetNumParts();
@@ -11,11 +12,32 @@ void CheckpointLoader::LoadCheckpoint(int cid, std::string url,
 
   for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
     int node_id = collection_view.mapper.Get(i);
-    SArrayBinStream bin;
-    std::string dest_url = url + "/part-" + std::to_string(i);
-    bin << cid << i << dest_url;  // collection_id, partition_id, url
-    SendTo(elem_, node_id, ScheduleFlag::kLoadCheckpoint, bin);
+    SendLoadCommand(cid, i, node_id, url);
   }
+}
+
+void CheckpointLoader::LoadCheckpointPartial(int cid, std::string url,
+        std::vector<int> parts,
+        std::function<void()> f) {
+  LOG(INFO) << "[CheckpointLoader] loading checkpoint (partial) for collection: " << cid << ", parts size: " << parts.size();
+  loadcheckpoint_reply_count_map_[cid] = 0;
+  callbacks_.insert({cid, f});
+  expected_loadcheckpoint_reply_count_map_[cid] = parts.size();
+
+  auto& collection_view = elem_->collection_map->Get(cid);
+  auto& part_to_node_map = collection_view.mapper.Get();
+  for (auto part_id: parts) {
+    CHECK_LT(part_id, part_to_node_map.size());
+    int node_id = part_to_node_map[part_id];
+    SendLoadCommand(cid, part_id, node_id, url);
+  }
+}
+
+void CheckpointLoader::SendLoadCommand(int cid, int part_id, int node_id, std::string url) {
+  SArrayBinStream bin;
+  std::string dest_url = url + "/part-" + std::to_string(part_id);
+  bin << cid << part_id << dest_url;  // collection_id, partition_id, url
+  SendTo(elem_, node_id, ScheduleFlag::kLoadCheckpoint, bin);
 }
 
 void CheckpointLoader::FinishLoadCheckpoint(SArrayBinStream bin) {

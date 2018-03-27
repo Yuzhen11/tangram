@@ -16,6 +16,13 @@ class CheckpointLoader {
   void LoadCheckpoint(int cid, std::string url,
         std::function<void()> f);
   void FinishLoadCheckpoint(SArrayBinStream bin);
+
+  // parts: the partition ids that need to load
+  void LoadCheckpointPartial(int cid, std::string url,
+        std::vector<int> parts,
+        std::function<void()> f);
+
+  void SendLoadCommand(int cid, int part_id, int node_id, std::string url);
  private:
   std::shared_ptr<SchedulerElem> elem_;
 
