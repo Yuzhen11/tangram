@@ -20,6 +20,7 @@ file(GLOB core-src-files
     scheduler/collection_manager.cpp
     scheduler/checkpoint_manager.cpp
     scheduler/recover_manager.cpp
+    scheduler/checkpoint_loader.cpp
     plan/context.cpp
     plan/spec_wrapper.cpp
     plan/dag.cpp

@@ -12,6 +12,7 @@
 #include "core/scheduler/collection_manager.hpp"
 #include "core/scheduler/checkpoint_manager.hpp"
 #include "core/scheduler/recover_manager.hpp"
+#include "core/scheduler/checkpoint_loader.hpp"
 
 #include "core/scheduler/dag_runner.hpp"
 
@@ -44,13 +45,14 @@ public:
     elem_ = std::make_shared<SchedulerElem>();
     elem_->sender = sender;
     elem_->collection_map = std::make_shared<CollectionMap>();
-    // setup block_manager_
+    // setup managers 
+    checkpoint_loader_ = std::make_shared<CheckpointLoader>(elem_);
     block_manager_ = std::make_shared<BlockManager>(elem_, builder);
     control_manager_ = std::make_shared<ControlManager>(elem_);
     distribute_manager_ = std::make_shared<DistributeManager>(elem_);
     write_manager_ = std::make_shared<WriteManager>(elem_);
     collection_manager_ = std::make_shared<CollectionManager>(elem_);
-    checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_);
+    checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_);
     recover_manager_ = std::make_shared<RecoverManager>(elem_);
   }
   virtual ~Scheduler() override {
@@ -101,6 +103,7 @@ private:
   std::shared_ptr<CollectionManager> collection_manager_;
   std::shared_ptr<CheckpointManager> checkpoint_manager_;
   std::shared_ptr<RecoverManager> recover_manager_;
+  std::shared_ptr<CheckpointLoader> checkpoint_loader_;
   
   std::chrono::system_clock::time_point start;
   std::chrono::system_clock::time_point end;

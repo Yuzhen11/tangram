@@ -56,7 +56,7 @@ void Scheduler::Process(Message msg) {
     break;
   }
   case ScheduleFlag::kFinishLoadCheckpoint: {
-    checkpoint_manager_->FinishLoadCheckpoint(bin);
+    checkpoint_loader_->FinishLoadCheckpoint(bin);
     break;
   }
   case ScheduleFlag::kFinishWritePartition: {
