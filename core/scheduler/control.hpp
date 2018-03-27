@@ -95,6 +95,7 @@ enum class ControllerFlag : char {
   kFinishFetch,
   kFinishCheckpoint,
   kMigratePartition,
+  kTerminatePlan,
 };
 
 struct FetchMeta {

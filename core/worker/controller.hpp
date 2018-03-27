@@ -22,6 +22,7 @@ class Controller : public Actor {
   virtual void Process(Message msg) override;
 
   void Setup(SArrayBinStream bin);
+  void TerminatePlan(SArrayBinStream bin);
 
   std::shared_ptr<IOWrapper> io_wrapper_;
   EngineElem engine_elem_;
