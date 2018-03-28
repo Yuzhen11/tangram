@@ -6,6 +6,10 @@
 # Python
 *.pyc
 
+# C++
+*.out
+*.o
+
 # Configure Directory
 conf/*
 
