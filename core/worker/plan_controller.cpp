@@ -832,6 +832,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   bin1 >> migrate_data;
   CHECK_EQ(migrate_meta.to_id, controller_->engine_elem_.node.id) << "only w_b receive this";
 
+  LOG(INFO) << "[MigrateDone] " << migrate_data.DebugString();
   if (map_collection_id_ == join_collection_id_) {
     CHECK(map_versions_.find(migrate_meta.partition_id) == map_versions_.end());
     map_versions_[migrate_meta.partition_id] = migrate_data.map_version;
@@ -850,7 +851,6 @@ void PlanController::MigratePartitionDest(Message msg) {
   join_tracker_[migrate_meta.partition_id] = std::move(migrate_data.join_tracker);
   num_local_join_part_ += 1;
 
-  LOG(INFO) << "[MigrateDone] pending_joins_ size: " << migrate_data.DebugString();
   // handle buffered request
   LOG(INFO) << "[MigrateDone] buffered_requests_ size: " << buffered_requests_.size();
   for (auto& request: buffered_requests_) {
