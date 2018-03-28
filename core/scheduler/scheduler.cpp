@@ -114,9 +114,7 @@ void Scheduler::Process(Message msg) {
       remaining_nodes.push_back(it->first);
     }
 
-    recover_manager_->Recover(mutable_collection, 
-            immutable_collection, 
-            dead_nodes);
+    recover_manager_->Recover(current_plan_id, mutable_collection, immutable_collection, dead_nodes);
 
     break;
   }

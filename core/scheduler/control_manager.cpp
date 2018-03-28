@@ -380,7 +380,8 @@ void ControlManager::UpdateVersion(int plan_id) {
   auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
   if (mapjoin_spec->checkpoint_interval != 0 
           && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
-    collection_status_->AddCP(plan_id, "/tmp/tmp");  // TODO
+    int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
+    collection_status_->AddCP(plan_id, "/tmp/tmp/cp-" + std::to_string(cp_iter));  // TODO
   }
 
   versions_[plan_id] ++;

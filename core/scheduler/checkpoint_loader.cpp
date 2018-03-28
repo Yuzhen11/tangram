@@ -35,7 +35,7 @@ void CheckpointLoader::LoadCheckpointPartial(int cid, std::string url,
 
 void CheckpointLoader::SendLoadCommand(int cid, int part_id, int node_id, std::string url) {
   SArrayBinStream bin;
-  std::string dest_url = url + "/part-" + std::to_string(part_id);
+  std::string dest_url = url + "/c" + std::to_string(cid) + "-p" + std::to_string(part_id);
   bin << cid << part_id << dest_url;  // collection_id, partition_id, url
   SendTo(elem_, node_id, ScheduleFlag::kLoadCheckpoint, bin);
 }

@@ -1,7 +1,7 @@
 #include "core/scheduler/recover_manager.hpp"
 
 namespace xyz {
-void RecoverManager::Recover(std::set<int> mutable_collection,
+void RecoverManager::Recover(int plan_id, std::set<int> mutable_collection,
                 std::set<int> immutable_collection,
                 std::set<int> dead_nodes) {
   for (auto cid: mutable_collection) {
@@ -9,6 +9,12 @@ void RecoverManager::Recover(std::set<int> mutable_collection,
     // TODO: load checkpoint for all partition
     // the logic may be similar to checkpoint manager, we can just 
     // copy the code for now. 
+    std::string url = collection_status_->GetLastCP(cid);
+    checkpoint_loader_->LoadCheckpoint(cid, url, [this, plan_id]() {
+      SArrayBinStream reply_bin;
+      reply_bin << plan_id;
+      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    });
   }
   for (auto cid: immutable_collection) {
     auto updates = ReplaceDeadnodesAndReturnUpdated(cid, dead_nodes);
