@@ -22,6 +22,7 @@ void CollectionStatus::AddPlan(int id, const ReadWriteVector& p) {
   }
   for (auto w : p.second) {
     CHECK(write_ids_.find(w) == write_ids_.end());
+    CHECK(read_ids_.find(w) == read_ids_.end());
     write_ids_[w] += 1;
     // last_cp_.erase(w);
   }
@@ -48,6 +49,46 @@ std::vector<int> CollectionStatus::GetCurrentPlans() {
   std::vector<int> ret;
   for (auto& p : cur_plans_) {
     ret.push_back(p.first);
+  }
+  return ret;
+}
+
+std::string CollectionStatus::DebugString() const {
+  std::stringstream ss;
+  ss << "cur_plans: ";
+  for (auto& p: cur_plans_) {
+    ss << p.first << ", ";
+  }
+  ss << "\n";
+  ss << "read_ids: ";
+  for (auto& c: read_ids_) {
+    ss << c.first << ", ";
+  }
+  ss << "\n";
+  ss << "write_ids: ";
+  for (auto& c: write_ids_) {
+    ss << c.first << ", ";
+  }
+  ss << "\n";
+  ss << "last_cp: ";
+  for (auto& kv: last_cp_) {
+    ss << kv.first << ": " << kv.second << ", ";
+  }
+  return ss.str();
+}
+
+std::vector<int> CollectionStatus::GetReads() const {
+  std::vector<int> ret;
+  for (auto& r : read_ids_) {
+    ret.push_back(r.first);
+  }
+  return ret;
+}
+
+std::vector<int> CollectionStatus::GetWrites() const {
+  std::vector<int> ret;
+  for (auto& w : write_ids_) {
+    ret.push_back(w.first);
   }
   return ret;
 }

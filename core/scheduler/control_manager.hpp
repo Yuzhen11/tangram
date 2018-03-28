@@ -20,8 +20,6 @@ class ControlManager {
 
   void Control(SArrayBinStream bin);
   void RunPlan(SpecWrapper spec);
-  void SendToAllControllers(ControllerFlag flag, int plan_id, SArrayBinStream bin);
-  void SendToController(int node_id, ControllerFlag flag, int plan_id, SArrayBinStream bin);
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
   

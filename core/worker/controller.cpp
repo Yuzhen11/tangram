@@ -27,7 +27,7 @@ void Controller::Process(Message msg) {
     break;
   }
   case ControllerFlag::kTerminatePlan: {
-    TerminatePlan(bin);
+    TerminatePlan(plan_id);
     break;  
   }
   case ControllerFlag::kStart: {
@@ -84,10 +84,7 @@ void Controller::Setup(SArrayBinStream bin) {
 // TODO: there may be some tasks still running or pending in the executors.
 // For map (without fetch), join and fetch, should be ok. 
 // The only possible remaining task is map (with fetch).
-void Controller::TerminatePlan(SArrayBinStream bin) {
-  int plan_id;
-  bin >> plan_id;
-
+void Controller::TerminatePlan(int plan_id) {
   CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
   LOG(INFO) << "[Controller] Terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
   plan_controllers_.erase(plan_id);

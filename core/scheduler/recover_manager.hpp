@@ -13,20 +13,23 @@ class RecoverManager {
   RecoverManager(std::shared_ptr<SchedulerElem> elem, std::shared_ptr<CollectionManager> collection_manager,
     std::shared_ptr<CheckpointLoader> checkpoint_loader, std::shared_ptr<CollectionStatus> collection_status)
       : elem_(elem), collection_manager_(collection_manager), checkpoint_loader_(checkpoint_loader), collection_status_(collection_status) {}
-  // the scheduler will call recover to recover all the collections
-  // (both mutable and immutable), when all the collections are 
-  // reconstructed, send a message to scheduler to resume the computation
-  void Recover(int plan_id, std::set<int> mutable_collection,
-                std::set<int> immutable_collection,
-                std::set<int> dead_nodes);
 
-  std::vector<std::pair<int, int>> ReplaceDeadnodesAndReturnUpdated(
+  void Recover(std::set<int> dead_nodes);
+  std::vector<int> ReplaceDeadnodesAndReturnUpdated(
           int cid, std::set<int> dead_nodes);
+
+  enum class Type {
+    LoadCheckpoint, UpdateCollectionMap
+  };
+  void RecoverDoneForACollection(int cid, RecoverManager::Type type);
  private:
   std::shared_ptr<SchedulerElem> elem_;
   std::shared_ptr<CollectionManager> collection_manager_;
   std::shared_ptr<CheckpointLoader> checkpoint_loader_;
   std::shared_ptr<CollectionStatus> collection_status_;
+
+  std::set<int> recovering_collections_;
+  std::set<int> updating_collections_;
 };
 
 } // namespace xyz

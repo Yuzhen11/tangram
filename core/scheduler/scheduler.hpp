@@ -91,6 +91,9 @@ public:
 
   void RunPlan(int plan_id);
 
+  void Recovery(SArrayBinStream bin);
+  void FinishRecovery();
+
 private:
   std::shared_ptr<SchedulerElem> elem_;
 

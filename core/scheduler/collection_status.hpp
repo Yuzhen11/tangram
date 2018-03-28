@@ -3,6 +3,7 @@
 #include <set>
 #include <map>
 #include <vector>
+#include <sstream>
 
 namespace xyz {
 
@@ -16,6 +17,9 @@ class CollectionStatus {
   void AddPlan(int id, const ReadWriteVector& p);
   void FinishPlan(int plan_id);
   std::vector<int> GetCurrentPlans();
+  std::string DebugString() const;
+  std::vector<int> GetReads() const;
+  std::vector<int> GetWrites() const;
  private:
   std::map<int, ReadWriteVector> cur_plans_;
   std::map<int, int> read_ids_;

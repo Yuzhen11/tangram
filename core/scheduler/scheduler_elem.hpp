@@ -23,6 +23,8 @@ struct SchedulerElem {
   std::map<int, NodeInfo> nodes;
 };
 
+void SendToAllControllers(std::shared_ptr<SchedulerElem> elem, ControllerFlag flag, int plan_id, SArrayBinStream bin);
+void SendToController(std::shared_ptr<SchedulerElem> elem, int node_id, ControllerFlag flag, int plan_id, SArrayBinStream bin);
 void SendToAllWorkers(std::shared_ptr<SchedulerElem> elem, ScheduleFlag flag, SArrayBinStream bin);
 void SendTo(std::shared_ptr<SchedulerElem> elem, int node_id, ScheduleFlag flag, SArrayBinStream bin);
 void ToScheduler(std::shared_ptr<SchedulerElem> elem, ScheduleFlag flag, SArrayBinStream bin);

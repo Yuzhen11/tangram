@@ -73,49 +73,11 @@ void Scheduler::Process(Message msg) {
     break;
   }
   case ScheduleFlag::kRecovery: {
-    // TODO: get most recent checkpoint from control_manager_, run load checkpoint
-    auto cur_plans = collection_status_->GetCurrentPlans();
-    CHECK_EQ(cur_plans.size(), 1);  // TODO: now only handle 1 running plan.
-    int current_plan_id = *cur_plans.begin();
-    auto spec_wrapper = program_.specs[current_plan_id];
-    CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
-         || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
-    int cur_version = control_manager_->GetCurVersion(current_plan_id);
-
-    // identify the mutable and immutable collection.
-    std::set<int> mutable_collection;
-    std::set<int> immutable_collection;
-    auto map_join_spec = static_cast<MapJoinSpec*>(spec_wrapper.spec.get());
-    mutable_collection.insert(map_join_spec->join_collection_id);
-
-    // check whether map_collection is immutable
-    int mid = map_join_spec->map_collection_id;
-    if (mutable_collection.find(mid) == mutable_collection.end()) {
-      immutable_collection.insert(mid);
-    }
-    // check whether if there is with collection and whether it is immutable
-    if (spec_wrapper.type == SpecWrapper::Type::kMapWithJoin) {
-      auto mwj_spec = dynamic_cast<MapWithJoinSpec*>(map_join_spec); 
-      CHECK_NOTNULL(mwj_spec);
-      int wid = mwj_spec->with_collection_id;
-      if (mutable_collection.find(wid) == mutable_collection.end()) {
-        immutable_collection.insert(wid);
-      }
-    }
-
-    // remove dead_nodes
-    std::set<int> dead_nodes;
-    bin >> dead_nodes;
-    for (auto node : dead_nodes)
-      elem_->nodes.erase(node);
-
-    std::vector<int> remaining_nodes;
-    for( auto it = elem_->nodes.begin(); it != elem_->nodes.end(); ++it) {
-      remaining_nodes.push_back(it->first);
-    }
-
-    recover_manager_->Recover(current_plan_id, mutable_collection, immutable_collection, dead_nodes);
-
+    Recovery(bin);
+    break;
+  }
+  case ScheduleFlag::kFinishRecovery: {
+    FinishRecovery();
     break;
   }
   default:
@@ -187,6 +149,57 @@ void Scheduler::RunPlan(int plan_id) {
   } else {
     CHECK(false) << spec.DebugString();
   }
+}
+
+void Scheduler::FinishRecovery() {
+  LOG(INFO) << "[Scheduler] FinishRecovery";
+  auto cur_plans = collection_status_->GetCurrentPlans();
+  for (auto pid: cur_plans) {
+    collection_status_->FinishPlan(pid);
+    CHECK_LT(pid, program_.specs.size());
+    auto& spec = program_.specs[pid];
+    // TODO: now I assert it must be mj or mwj
+    CHECK(spec.type == SpecWrapper::Type::kMapJoin
+       || spec.type == SpecWrapper::Type::kMapWithJoin);
+
+    if (spec.type == SpecWrapper::Type::kMapJoin
+    || spec.type == SpecWrapper::Type::kMapWithJoin) {
+      auto* mapjoin_spec = program_.specs[pid].GetMapJoinSpec();
+      int cur_version = control_manager_->GetCurVersion(pid);
+      int new_iter = mapjoin_spec->num_iter - 
+          (cur_version / mapjoin_spec->checkpoint_interval * mapjoin_spec->checkpoint_interval);
+      // directly update the version
+      mapjoin_spec->num_iter = new_iter;
+    }
+    // relaunch the plan
+    RunPlan(pid);
+  }
+}
+
+void Scheduler::Recovery(SArrayBinStream bin) {
+  // remove dead_nodes
+  std::set<int> dead_nodes;
+  bin >> dead_nodes;
+  for (auto node : dead_nodes)
+    elem_->nodes.erase(node);
+
+  std::vector<int> remaining_nodes;
+  for( auto it = elem_->nodes.begin(); it != elem_->nodes.end(); ++it) {
+    remaining_nodes.push_back(it->first);
+  }
+
+  // terminate plan
+  auto cur_plans = collection_status_->GetCurrentPlans();
+  for (auto pid: cur_plans) {
+    auto spec_wrapper = program_.specs[pid];
+    CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
+         || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
+    SArrayBinStream dummy_bin;
+    SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, pid, dummy_bin);
+  }
+
+  // recover the collections and update collection map
+  recover_manager_->Recover(dead_nodes);
 }
 
 void Scheduler::Exit() {

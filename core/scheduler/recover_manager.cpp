@@ -1,30 +1,69 @@
 #include "core/scheduler/recover_manager.hpp"
 
 namespace xyz {
-void RecoverManager::Recover(int plan_id, std::set<int> mutable_collection,
-                std::set<int> immutable_collection,
-                std::set<int> dead_nodes) {
-  for (auto cid: mutable_collection) {
-    ReplaceDeadnodesAndReturnUpdated(cid, dead_nodes);
-    // TODO: load checkpoint for all partition
-    // the logic may be similar to checkpoint manager, we can just 
-    // copy the code for now. 
-    std::string url = collection_status_->GetLastCP(cid);
-    checkpoint_loader_->LoadCheckpoint(cid, url, [this, plan_id]() {
-      SArrayBinStream reply_bin;
-      reply_bin << plan_id;
-      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+void RecoverManager::Recover(std::set<int> dead_nodes) {
+  recovering_collections_.clear();
+  updating_collections_.clear();
+
+  // recover the writes
+  auto writes = collection_status_->GetWrites();
+  for (auto w : writes) {
+    recovering_collections_.insert(w);
+    ReplaceDeadnodesAndReturnUpdated(w, dead_nodes);
+    std::string url = collection_status_->GetLastCP(w);
+    checkpoint_loader_->LoadCheckpoint(w, url, [this, w]() {
+      RecoverDoneForACollection(w, Type::LoadCheckpoint);
     });
   }
-  for (auto cid: immutable_collection) {
-    auto updates = ReplaceDeadnodesAndReturnUpdated(cid, dead_nodes);
-    // TODO: load checkpoint for the updates
-  }
 
+  // recover the reads
+  auto reads = collection_status_->GetReads();
+  for (auto r : reads) {
+    recovering_collections_.insert(r);
+    auto updates = ReplaceDeadnodesAndReturnUpdated(r, dead_nodes);
+    std::string url = collection_status_->GetLastCP(r);
+    // only load the lost pasts.
+    checkpoint_loader_->LoadCheckpointPartial(r, url, updates, [this, r]() {
+      RecoverDoneForACollection(r, Type::LoadCheckpoint);
+    });
+  }
+  
+  // update collection map
+  for (auto w : writes) {
+    updating_collections_.insert(w);
+    collection_manager_->Update(w, [this, w]() {
+      RecoverDoneForACollection(w, Type::UpdateCollectionMap);
+    });
+  }
+  for (auto r : reads) {
+    updating_collections_.insert(r);
+    collection_manager_->Update(r, [this, r]() {
+      RecoverDoneForACollection(r, Type::UpdateCollectionMap);
+    });
+  }
 }
 
-std::vector<std::pair<int, int>> RecoverManager::ReplaceDeadnodesAndReturnUpdated(int cid, std::set<int> dead_nodes) {
-  std::vector<std::pair<int,int>> updates;
+void RecoverManager::RecoverDoneForACollection(int cid, RecoverManager::Type type) {
+  if (type == RecoverManager::Type::LoadCheckpoint) {
+    CHECK(recovering_collections_.find(cid) != recovering_collections_.end());
+    LOG(INFO) << "[RecoverManager] collection " << cid << " recovered from checkpoint";
+    recovering_collections_.erase(cid);
+  } else if (type == RecoverManager::Type::UpdateCollectionMap) {
+    CHECK(updating_collections_.find(cid) != updating_collections_.end());
+    LOG(INFO) << "[RecoverManager] collection " << cid << " collection_map updated";
+    updating_collections_.erase(cid);
+  } else {
+    CHECK(false);
+  }
+  if (recovering_collections_.empty() && updating_collections_.empty()) {
+    // all collections recovered, notify scheduler
+    SArrayBinStream reply_bin;
+    ToScheduler(elem_, ScheduleFlag::kFinishRecovery, reply_bin);
+  }
+}
+
+std::vector<int> RecoverManager::ReplaceDeadnodesAndReturnUpdated(int cid, std::set<int> dead_nodes) {
+  std::vector<int> updates;
   auto& collection_view = elem_->collection_map->Get(cid);
   auto& part_to_node = collection_view.mapper.Mutable();
   auto live_node_iter = elem_->nodes.begin();
@@ -33,7 +72,7 @@ std::vector<std::pair<int, int>> RecoverManager::ReplaceDeadnodesAndReturnUpdate
     // if a node is a dead node, replace it with a live node
     if (dead_nodes.find(node_id) != dead_nodes.end()) {
       part_to_node[i] = live_node_iter->second.node.id;
-      updates.push_back({i, part_to_node[i]});
+      updates.push_back(i);
       live_node_iter++;
       if (live_node_iter == elem_->nodes.end()) {
         // round-robin assign the live node to it.
