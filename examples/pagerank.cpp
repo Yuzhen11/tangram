@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
     ->SetCombine([](float* a, float b) {
       *a = *a + b;
     })
-    ->SetIter(5)
+    ->SetIter(10)
     ->SetStaleness(2)
     ->SetName("pagerank main logic");
 

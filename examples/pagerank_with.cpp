@@ -161,8 +161,8 @@ int main(int argc, char** argv) {
   ->SetCombine([](float* a, float b){
    *a = *a + b; 
    })
-  ->SetIter(5)
-  ->SetStaleness(3)
+  ->SetIter(10)
+  ->SetStaleness(2)
   ->SetName("pagerank main logic");
 
   auto topk = Context::placeholder<TopK>(num_part)->SetName("topk");

@@ -40,7 +40,6 @@ void ControlManager::Control(SArrayBinStream bin) {
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
     if (migrate_control_) {
-      migrate_control_ = false;
       TryMigrate(ctrl.plan_id);
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
@@ -95,12 +94,13 @@ void ControlManager::TryMigrate(int plan_id){
       for (int i = versions_[plan_id]; i < max_version; i++) {
         if (!version[i].empty()) {
           int part_id = version[i].at(0);
-          LOG(INFO)<<"migrate plan "<<versions_[plan_id];
-          LOG(INFO)<<"from node "<< *iter2 <<" version "<< map_node_versions_[plan_id][*iter2].first;
-          LOG(INFO)<<"to node "<< *iter1 <<" version "<< map_node_versions_[plan_id][*iter1].first;
-          LOG(INFO)<<"part "<< part_id <<" version "<< map_part_versions_[plan_id][part_id].first;
+          LOG(INFO)<<"[ControlManager Migrate] plan "<<plan_id<<" version "<<versions_[plan_id]
+            <<", from node "<< *iter2 <<" version "<< map_node_versions_[plan_id][*iter2].first
+            <<", to node "<< *iter1 <<" version "<< map_node_versions_[plan_id][*iter1].first
+            <<", migrate part "<< part_id <<" version "<< map_part_versions_[plan_id][part_id].first;
           Migrate(plan_id, *iter2, *iter1, part_id);
           iter1++;
+          migrate_control_ = false;
           return; //only migrate one partition
         }
         break; //only migrate for the min version

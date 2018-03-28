@@ -716,6 +716,28 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
     data.join_version = join_versions_[migrate_meta.partition_id];
     data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
     data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
+    for (auto& version_joins : data.pending_joins) {
+      for (auto& join_meta : version_joins.second) {
+        if (local_map_mode_ && join_meta.meta.local_mode) {
+          auto k = std::make_tuple(join_meta.meta.part_id, join_meta.meta.upstream_part_id, join_meta.meta.version);   
+          auto stream = stream_store_.Get(k);
+          stream_store_.Remove(k);
+          auto bin = stream->Serialize();
+          join_meta.bin = bin;
+          join_meta.meta.local_mode = false;
+        }
+      } 
+    }
+    for (auto& join_meta : data.waiting_joins) {
+      if (local_map_mode_ && join_meta.meta.local_mode) {
+        auto k = std::make_tuple(join_meta.meta.part_id, join_meta.meta.upstream_part_id, join_meta.meta.version);   
+        auto stream = stream_store_.Get(k);
+        stream_store_.Remove(k);
+        auto bin = stream->Serialize();
+        join_meta.bin = bin;
+        join_meta.meta.local_mode = false;
+      }
+    } 
     data.join_tracker = std::move(join_tracker_[migrate_meta.partition_id]);
     join_versions_.erase(migrate_meta.partition_id);
     num_local_join_part_ -= 1;
