@@ -27,13 +27,6 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS} "-Wno-deprecated-declarations")
 endif()
 
-# enable this by `cmake .. -DUSE_PROFILER=ON`
-option(USE_PROFILER "Use profiler" OFF)
-if(USE_PROFILER)
-    add_definitions(-DUSE_PROFILER)
-    message("Compiled with USE_PROFILER on")
-endif()
-
 # enable this by `cmake .. -DWITH_LB=ON`
 option(WITH_LB "with lb" OFF)
 if(WITH_LB)

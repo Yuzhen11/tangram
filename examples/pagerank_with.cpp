@@ -3,15 +3,12 @@
 #include "glog/logging.h"
 #include "boost/tokenizer.hpp"
 
-#ifdef USE_PROFILER
-#include <google/profiler.h>
-#endif
-
 DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
 DEFINE_int32(hdfs_port, -1, "The port of hdfs");
 DEFINE_int32(num_local_threads, 1, "# local_threads");
+DEFINE_int32(num_parts, 100, "# num of partitions");
 
 DEFINE_string(url, "", "The url for hdfs file");
 
@@ -92,8 +89,7 @@ int main(int argc, char** argv) {
     return obj;
   })->SetName("dataset");
 
-  int num_part = 100;
-  auto vertex = Context::placeholder<Vertex>(num_part)->SetName("vertex");
+  auto vertex = Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
   auto p1 = Context::mapjoin(dataset, vertex,
     [](const Links& obj) {
       std::vector<std::pair<int,int>> all;
@@ -109,7 +105,7 @@ int main(int argc, char** argv) {
     ->SetCombine([](int* msg1, int msg2){})
     ->SetName("construct vertex from dataset");
  
-  auto links = Context::placeholder<Links>(num_part)->SetName("links");
+  auto links = Context::placeholder<Links>(FLAGS_num_parts)->SetName("links");
   auto p2 = Context::mapjoin(dataset, links,
     [](const Links& obj) {
       std::vector<std::pair<int, std::vector<int>>> all;
@@ -165,7 +161,7 @@ int main(int argc, char** argv) {
   ->SetStaleness(2)
   ->SetName("pagerank main logic");
 
-  auto topk = Context::placeholder<TopK>(num_part)->SetName("topk");
+  auto topk = Context::placeholder<TopK>(1)->SetName("topk");
   Context::mapjoin(vertex, topk,
       [](const Vertex& vertex){
         std::vector<Vertex> vertices;
@@ -216,11 +212,5 @@ int main(int argc, char** argv) {
   ->SetName("print topk");
   
   //Context::count(dataset);
-#ifdef USE_PROFILER
-  // ProfilerStart("/tmp/a.prof");
-#endif
   Runner::Run();
-#ifdef USE_PROFILER
-  // ProfilerStop();
-#endif
 }

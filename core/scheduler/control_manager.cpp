@@ -39,9 +39,9 @@ void ControlManager::Control(SArrayBinStream bin) {
     // }
     // TrySpeculativeMap(ctrl.plan_id);
 #endif
-    if (migrate_control_) {
-      TryMigrate(ctrl.plan_id);
-    }
+    // if (migrate_control_) {
+    //   TryMigrate(ctrl.plan_id);
+    // }
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {

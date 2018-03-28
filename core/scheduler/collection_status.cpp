@@ -26,6 +26,7 @@ void CollectionStatus::AddPlan(int id, const ReadWriteVector& p) {
     write_ids_[w] += 1;
     // last_cp_.erase(w);
   }
+  plan_time_[id] = std::chrono::system_clock::now();
 }
 
 void CollectionStatus::FinishPlan(int plan_id) {
@@ -43,6 +44,10 @@ void CollectionStatus::FinishPlan(int plan_id) {
     write_ids_.erase(w);
   }
   cur_plans_.erase(plan_id);
+  auto time = std::chrono::system_clock::now();
+  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(time-plan_time_[plan_id]);
+  LOG(INFO) << "[CollectionStatus] plan: " << plan_id << " time: " << duration.count()*1.0/1000 << " s";
+  plan_time_.erase(plan_id);
 }
 
 std::vector<int> CollectionStatus::GetCurrentPlans() {
