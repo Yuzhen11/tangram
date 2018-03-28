@@ -93,15 +93,19 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
 
 void PlanController::FinishMap(SArrayBinStream bin) {
   int part_id;
-  bin >> part_id;
+  bool update_version;
+  bin >> part_id >> update_version;
   running_maps_.erase(part_id);
+  if (!update_version) {
+    return;
+  }
+
   if (map_versions_.find(part_id) == map_versions_.end()) {
     LOG(INFO) << "FinishMap for part not local";
     return;
   }
   int last_version = map_versions_[part_id];
   map_versions_[part_id] += 1;
-  // TryUpdateMapVersion();
   ReportFinishPart(ControllerMsg::Flag::kMap, part_id, map_versions_[part_id]);
 
   if (map_collection_id_ == join_collection_id_) {
@@ -304,8 +308,9 @@ void PlanController::RunMap(int part_id, int version,
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, plan_bin, bin;
     ctrl_bin << ControllerFlag::kFinishMap;
+    bool update_version = false;
     plan_bin << plan_id_;
-    bin << part_id;
+    bin << part_id << update_version;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(plan_bin.ToSArray());
     msg.AddData(bin.ToSArray());
@@ -376,19 +381,15 @@ void PlanController::RunMap(int part_id, int version,
       }
     }
 
-    // 3. send finish run_map msg to itself
-    if (part_id == stop_joining_partition_.load()) {
-      AbortMap(plan_id_, part_id, controller_);
-      return;
-    }
     Message msg;
     msg.meta.sender = 0;
     msg.meta.recver = 0;
     msg.meta.flag = Flag::kOthers;
     SArrayBinStream ctrl_bin, plan_bin, bin;
     ctrl_bin << ControllerFlag::kFinishMap;
+    bool update_version = true;
     plan_bin << plan_id_;
-    bin << part_id;
+    bin << part_id << update_version;
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(plan_bin.ToSArray());
     msg.AddData(bin.ToSArray());
@@ -724,7 +725,7 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
   CHECK_EQ(migrate_meta.from_id, controller_->engine_elem_.node.id) << "only w_a receives FlushAll";
   flush_all_count_ += 1;
   if (flush_all_count_ == migrate_meta.num_nodes) {
-    while (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
+    if (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
       // if there is a join/fetch task for this part
       // push a msg to the msg queue to run this function again
       LOG(INFO) << "there is a join/fetch for part, try to migrate partition and msgs later " << migrate_meta.partition_id;
@@ -744,6 +745,7 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
       controller_->GetWorkQueue()->Push(flush_msg);
       return;
     }
+    flush_all_count_ = 0;
 
     // flush the buffered data structure to to_id
     // TODO

@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
       *a = *a + b;
     })
     ->SetIter(10)
-    ->SetStaleness(2)
+    ->SetStaleness(0)
     ->SetName("pagerank main logic");
 
   Context::count(c1);
