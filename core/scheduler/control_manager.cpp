@@ -381,7 +381,7 @@ void ControlManager::UpdateVersion(int plan_id) {
   if (mapjoin_spec->checkpoint_interval != 0 
           && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
     int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
-    collection_status_->AddCP(plan_id, "/tmp/tmp/cp-" + std::to_string(cp_iter));  // TODO
+    collection_status_->AddCP(mapjoin_spec->join_collection_id, "/tmp/tmp/cp-" + std::to_string(cp_iter));  // TODO
   }
 
   versions_[plan_id] ++;
