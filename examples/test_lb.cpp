@@ -66,30 +66,24 @@ void pr() {
     [](ObjT obj) {
       int id = obj.a;
       // LOG(INFO) << GREEN("id: "+word+", sleep for: " +std::to_string(500*id) + " ms");
-      // std::this_thread::sleep_for(std::chrono::milliseconds(500*id));
+      std::this_thread::sleep_for(std::chrono::milliseconds(1000*id));
       // return std::pair<int, int>(word, 1);
-      if (obj.a == 0) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-      } else {
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-      }
       std::vector<std::pair<int, int>> ret;
       for (int i = 0; i < num_map_part; ++ i) {
-        ret.push_back({i, 1});
+        ret.push_back({i, obj.a});
       }
       return ret;
     },
     [](ObjT* obj, int m) {
-      obj->b += m;
-      LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+      LOG(INFO) << "part " << obj->a << " received part " << m;
     });
 }
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  mr();
-  // pr();
+  //mr();
+  pr();
 
   Runner::Run();
   // Runner::PrintDag();

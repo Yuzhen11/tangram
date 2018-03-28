@@ -5,6 +5,7 @@
 #include "base/color.hpp"
 
 #include <algorithm>
+//#define WITH_LB
 
 namespace xyz {
 
@@ -28,20 +29,24 @@ void ControlManager::Control(SArrayBinStream bin) {
     // TODO: add logic here
     // for pr
     // for pr() in test_lb.cpp specifically
-    // if (specs_[ctrl.plan_id].id == 3 && map_node_versions_[ctrl.plan_id][ctrl.node_id].first == 1 && migrate_control_) {  
-    //   Migrate(ctrl.plan_id, 5, 1, 4);
-    //   migrate_control_ = false;
-    // }
+    //if (specs_[ctrl.plan_id].id == 3 && 
+    //    ctrl.node_id == 1 &&
+    //    map_node_versions_[ctrl.plan_id][ctrl.node_id].first == 1 && 
+    //    migrate_control_) {  
+    //  Migrate(ctrl.plan_id, 2, 1, 1);
+    //  migrate_control_ = false;
+    //}
     // // for mr
     // if (migrate_control_) {
     //   MigrateMapOnly(ctrl.plan_id, 5, 1, 4);
     //   migrate_control_ = false;
     // }
     // TrySpeculativeMap(ctrl.plan_id);
+    
+    if (migrate_control_) {
+      TryMigrate(ctrl.plan_id);
+    }
 #endif
-    // if (migrate_control_) {
-    //   TryMigrate(ctrl.plan_id);
-    // }
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
@@ -59,6 +64,7 @@ void ControlManager::Control(SArrayBinStream bin) {
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kFinishMigrate) {
     // TODO
+    migrate_control_ = true;
     LOG(INFO) << "[ControlManager] migrate part " << ctrl.part_id << " done";
   } else {
     CHECK(false) << ctrl.DebugString();
@@ -94,11 +100,14 @@ void ControlManager::TryMigrate(int plan_id){
       for (int i = versions_[plan_id]; i < max_version; i++) {
         if (!version[i].empty()) {
           int part_id = version[i].at(0);
+          if (std::find(parts_migrated[part_id].begin(), parts_migrated[part_id].end(), map_part_versions_[plan_id][part_id].first)
+              != parts_migrated[part_id].end()) continue;
           LOG(INFO)<<"[ControlManager Migrate] plan "<<plan_id<<" version "<<versions_[plan_id]
             <<", from node "<< *iter2 <<" version "<< map_node_versions_[plan_id][*iter2].first
             <<", to node "<< *iter1 <<" version "<< map_node_versions_[plan_id][*iter1].first
             <<", migrate part "<< part_id <<" version "<< map_part_versions_[plan_id][part_id].first;
           Migrate(plan_id, *iter2, *iter1, part_id);
+          parts_migrated[part_id].push_back(map_part_versions_[plan_id][part_id].first);
           iter1++;
           migrate_control_ = false;
           return; //only migrate one partition
@@ -326,55 +335,6 @@ void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int par
   bin << migrate_meta << collection_view;
   SendToController(elem_, from_id, ControllerFlag::kMigratePartition, plan_id, bin);
 }
-
-/*
-void ControlManager::TrySpeculativeMap(int plan_id) {
-  PrintMapVersions(plan_id);
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
-    // do not handle this case now.
-    return;
-  }
-  int staleness = mapjoin_spec->staleness;
-  int fastest_version = versions_[plan_id] + staleness + 1;
-
-  std::vector<int> fast_nodes;
-  // identify nodes with fastest version
-  for (auto v : map_versions_[plan_id]) {
-    if (v.second.first == fastest_version) {
-      fast_nodes.push_back(v.first);
-    }
-  }
-  if (fast_nodes.empty()) {
-    return;
-  }
-  // TODO: now I use the first one
-  int fastest_node = fast_nodes[0];
-
-  // identify the slowest node
-  auto min_time_node = std::min_element(map_versions_[plan_id].begin(), map_versions_[plan_id].end(), 
-          [](std::pair<int, std::pair<int, Timepoint>> a, std::pair<int, std::pair<int, Timepoint>> b) {
-            return a.second.second < b.second.second;
-          });
-  int slowest_node = min_time_node->first;
-  if (slowest_node == fastest_node) {
-    return;
-  }
-  LOG(INFO) << "Identify fast node: " << fastest_node << ", slow node: " << slowest_node;
-
-  MigrateMeta meta;
-  meta.plan_id = plan_id;
-  meta.collection_id = mapjoin_spec->map_collection_id;
-  meta.partition_id = -1;
-  meta.from_id = slowest_node;
-  meta.to_id = fastest_node;
-  meta.current_map_version = -1;
-
-  SArrayBinStream bin;
-  bin << meta;
-  SendToController(elem_, slowest_node, ControllerFlag::kRequestPartition, plan_id, bin);
-}
-*/
 
 void ControlManager::UpdateVersion(int plan_id) {
   auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();

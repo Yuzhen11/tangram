@@ -49,6 +49,7 @@ class ControlManager {
   Timepoint start_time_;
 
   int migrate_control_ = true;  // TODO: remove this
+  std::map<int, std::vector<int>> parts_migrated; //part id, versions
 
   // plan_id -> part_id -> {version, time}
   std::map<int, std::map<int, std::pair<int, Timepoint>>> map_part_versions_;

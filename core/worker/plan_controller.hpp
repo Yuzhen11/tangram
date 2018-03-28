@@ -3,6 +3,7 @@
 #include <queue>
 #include <chrono>
 #include <mutex>
+#include <atomic>
 
 #include "core/worker/controller.hpp"
 #include "core/worker/abstract_plan_controller.hpp"
@@ -145,8 +146,7 @@ class PlanController : public AbstractPlanController {
   MapOutputStreamStore stream_store_;
 
   int flush_all_count_ = 0;
-
-  int stop_joining_partition_ = -1;
+  std::atomic<int> stop_joining_partition_{-1};
   struct MigrateData {
     int map_version;
     int join_version;

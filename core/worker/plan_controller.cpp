@@ -148,7 +148,7 @@ bool PlanController::IsMapRunnable(int part_id) {
   }
   // 3. if mid == jid, check whether this part is migrating
   if (map_collection_id_ == join_collection_id_
-          && part_id == stop_joining_partition_) {
+          && part_id == stop_joining_partition_.load()) {
     return false;
   }
   // 4. check version
@@ -166,7 +166,7 @@ bool PlanController::IsMapRunnable(int part_id) {
 bool PlanController::TryRunWaitingJoins(int part_id) {
   // if some fetches are in the waiting_joins_, 
   // join_collection_id_ == fetch_collection_id_
-  if (part_id == stop_joining_partition_) {
+  if (part_id == stop_joining_partition_.load()) {
     // if this part is migrating, do not join or fetch
     return false;
   }
@@ -292,11 +292,34 @@ void PlanController::RunMap(int part_id, int version,
         std::shared_ptr<AbstractPartition> p) {
   CHECK(running_maps_.find(part_id) == running_maps_.end());
   running_maps_.insert(part_id);
+  
+  std::function<void(int, int, Controller*)> AbortMap = [](int plan_id_, int part_id, Controller* controller_){
+    //map a partition to be migrated
+    //avoid a part of ignore messages
+    //need to send a finish map message
+    LOG(INFO) << "[RunMap] map task on a migrating partition: " << part_id <<" submmited, stop map and send finish map msg";
+    Message msg;
+    msg.meta.sender = 0;
+    msg.meta.recver = 0;
+    msg.meta.flag = Flag::kOthers;
+    SArrayBinStream ctrl_bin, plan_bin, bin;
+    ctrl_bin << ControllerFlag::kFinishMap;
+    plan_bin << plan_id_;
+    bin << part_id;
+    msg.AddData(ctrl_bin.ToSArray());
+    msg.AddData(plan_bin.ToSArray());
+    msg.AddData(bin.ToSArray());
+    controller_->GetWorkQueue()->Push(msg);
+  };
 
-  controller_->engine_elem_.executor->Add([this, part_id, version, p]() {
+  controller_->engine_elem_.executor->Add([this, part_id, version, p, AbortMap]() {
     auto start = std::chrono::system_clock::now();
     auto pt = std::make_shared<FakeTracker>();
     // 1. map
+    if (part_id == stop_joining_partition_.load()) {
+      AbortMap(plan_id_, part_id, controller_);
+      return;
+    }
     std::shared_ptr<AbstractMapOutput> map_output;
     if (type_ == SpecWrapper::Type::kMapJoin) {
       auto& map = controller_->engine_elem_.function_store->GetMap(plan_id_);
@@ -307,9 +330,12 @@ void PlanController::RunMap(int part_id, int version,
     } else {
       CHECK(false);
     }
-    // 2. serialize
-    auto start2 = std::chrono::system_clock::now();
 
+    if (part_id == stop_joining_partition_.load()) {
+      AbortMap(plan_id_, part_id, controller_);
+      return;
+    }
+    auto start2 = std::chrono::system_clock::now();
     int buffer_size = map_output->GetBufferSize();
     CHECK_EQ(buffer_size, num_join_part_);
     for (int i = 0; i < buffer_size; ++ i) {
@@ -348,6 +374,12 @@ void PlanController::RunMap(int part_id, int version,
         msg.AddData(bin.ToSArray());
         controller_->engine_elem_.intermediate_store->Add(msg);
       }
+    }
+
+    // 3. send finish run_map msg to itself
+    if (part_id == stop_joining_partition_.load()) {
+      AbortMap(plan_id_, part_id, controller_);
+      return;
     }
     Message msg;
     msg.meta.sender = 0;
@@ -524,7 +556,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
     return;
   }
 
-  if (fetch_meta.meta.part_id == stop_joining_partition_) {
+  if (fetch_meta.meta.part_id == stop_joining_partition_.load()) {
     // if migrating this part
     waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
     return;
@@ -684,7 +716,7 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta migrate_meta) {
     CHECK_EQ(migrate_meta.collection_id, join_collection_id_) << "the migrate collection must be the join collection";
     // TODO: now the migrate partition must be join_collection
     CHECK(join_versions_.find(migrate_meta.partition_id) != join_versions_.end());
-    stop_joining_partition_ = migrate_meta.partition_id;
+    stop_joining_partition_.store(migrate_meta.partition_id);
   }
 }
 
@@ -692,15 +724,30 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
   CHECK_EQ(migrate_meta.from_id, controller_->engine_elem_.node.id) << "only w_a receives FlushAll";
   flush_all_count_ += 1;
   if (flush_all_count_ == migrate_meta.num_nodes) {
-    // flush the buffered data structure to to_id
     while (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
       // if there is a join/fetch task for this part
-      LOG(INFO) << "there is a join/fetch for part " << migrate_meta.partition_id << ", sleep for 500 ms";
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      // TODO: better method
+      // push a msg to the msg queue to run this function again
+      LOG(INFO) << "there is a join/fetch for part, try to migrate partition and msgs later " << migrate_meta.partition_id;
+      flush_all_count_ -= 1;
+      CHECK(migrate_meta.flag == MigrateMeta::MigrateFlag::kFlushAll);
+      Message flush_msg;
+      flush_msg.meta.sender = controller_->engine_elem_.node.id;
+      flush_msg.meta.recver = controller_->engine_elem_.node.id;
+      flush_msg.meta.flag = Flag::kOthers;
+      SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+      ctrl_bin << ControllerFlag::kMigratePartition;
+      plan_bin << plan_id_;
+      ctrl2_bin << migrate_meta;
+      flush_msg.AddData(ctrl_bin.ToSArray());
+      flush_msg.AddData(plan_bin.ToSArray());
+      flush_msg.AddData(ctrl2_bin.ToSArray());
+      controller_->GetWorkQueue()->Push(flush_msg);
+      return;
     }
 
-    stop_joining_partition_ = -1;
+    // flush the buffered data structure to to_id
+    // TODO
+    // stop_joining_partition_.store(-1);
     LOG(INFO) << "[Migrate] Received all Flush signal, send everything to dest";
     // now I don't care about the complexity
     // set the flag
@@ -768,7 +815,6 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
     msg.AddData(bin1.ToSArray());
     msg.AddData(bin2.ToSArray());
     controller_->engine_elem_.sender->Send(std::move(msg));
-    
   }
 }
 
