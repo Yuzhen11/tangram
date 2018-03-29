@@ -209,12 +209,15 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
 }
 
 void PlanController::FinishJoin(SArrayBinStream bin) {
-  int part_id, upstream_part_id, version;
-  bin >> part_id >> upstream_part_id >> version;
+  int part_id, version;
+  std::vector<int> upstream_part_ids;
+  bin >> part_id >> version >> upstream_part_ids;
   // LOG(INFO) << "FinishJoin: partid, version: " << part_id << " " << version;
   running_joins_.erase(part_id);
 
-  join_tracker_[part_id][version].insert(upstream_part_id);
+  for (auto upstream_part_id : upstream_part_ids) {
+    join_tracker_[part_id][version].insert(upstream_part_id);
+  }
   if (join_tracker_[part_id][version].size() == num_upstream_part_) {
     // join_tracker_[part_id].erase(version);  // TODO: should not remove
     join_versions_[part_id] += 1;
@@ -494,7 +497,13 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     SArrayBinStream ctrl_bin, plan_bin, bin;
     ctrl_bin << ControllerFlag::kFinishJoin;
     plan_bin << plan_id_; 
-    bin << meta.meta.part_id << meta.meta.upstream_part_id << meta.meta.version;
+    bin << meta.meta.part_id;
+    bin << meta.meta.version; 
+    if (meta.meta.ext_upstream_part_ids.empty()) {
+      bin << std::vector<int>{meta.meta.upstream_part_id};  // still need to make it vector
+    } else {
+      bin << meta.meta.ext_upstream_part_ids;
+    }
 
     msg.AddData(ctrl_bin.ToSArray());
     msg.AddData(plan_bin.ToSArray());

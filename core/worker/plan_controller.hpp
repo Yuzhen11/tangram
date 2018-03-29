@@ -28,6 +28,7 @@ class PlanController : public AbstractPlanController {
     int sender = -1;
     int recver = -1;
     bool local_mode = false;
+    std::vector<int> ext_upstream_part_ids;
 
     std::string DebugString() const {
       std::stringstream ss;
@@ -41,8 +42,19 @@ class PlanController : public AbstractPlanController {
       ss << ", sender: " << sender;
       ss << ", recver: " << recver;
       ss << ", local_mode: " << local_mode;
+      ss << ", ext_upstream_part_ids size: " << ext_upstream_part_ids.size();
       ss << " }";
       return ss.str();
+    }
+    friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const VersionedShuffleMeta& m) {
+      stream << m.plan_id << m.collection_id << m.part_id << m.upstream_part_id << m.version
+             << m.is_fetch << m.sender << m.recver << m.local_mode << m.ext_upstream_part_ids;
+      return stream;
+    }
+    friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, VersionedShuffleMeta& m) {
+      stream >> m.plan_id >> m.collection_id >> m.part_id >> m.upstream_part_id >> m.version
+             >> m.is_fetch >> m.sender >> m.recver >> m.local_mode >> m.ext_upstream_part_ids;
+      return stream;
     }
   };
   struct VersionedJoinMeta {
