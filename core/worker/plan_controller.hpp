@@ -188,7 +188,8 @@ class PlanController : public AbstractPlanController {
   std::vector<VersionedJoinMeta> buffered_requests_;
   friend class DelayedCombiner;
   std::shared_ptr<DelayedCombiner> delayed_combiner_;
-  int combine_timeout_;
+
+  std::mutex migrate_mu_;
 };
 
 }  // namespace

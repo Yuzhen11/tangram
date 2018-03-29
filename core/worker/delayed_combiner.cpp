@@ -1,4 +1,5 @@
 #include "core/worker/delayed_combiner.hpp"
+#include "base/magic.hpp"
 
 #include "glog/logging.h"
 
@@ -7,13 +8,13 @@ namespace xyz {
 DelayedCombiner::DelayedCombiner(PlanController* plan_controller, int combine_timeout)
   : plan_controller_(plan_controller), combine_timeout_(combine_timeout) {
   store_.resize(plan_controller_->num_join_part_);
-  if (combine_timeout_ > 0 && combine_timeout_ <= 2000) {
+  if (combine_timeout_ > 0 && combine_timeout_ <= kMaxCombineTimeout) {
     detect_thread_ = std::thread([this]() {
       PeriodicCombine();
     });
   }
-  // TODO
-  executor_= std::make_shared<Executor>(5);
+  // TODO: use a new executor or the existing one?
+  executor_= std::make_shared<Executor>(kNumCombineThreads);
 }
 
 void DelayedCombiner::AddMapOutput(int upstream_part_id, int version, 
@@ -30,17 +31,21 @@ void DelayedCombiner::AddMapOutput(int upstream_part_id, int version,
 
 void DelayedCombiner::AddStream(int upstream_part_id, int version, int part_id, 
         std::shared_ptr<AbstractMapOutputStream> stream) {
-  if (combine_timeout_ < 0) {  // if no combiner, directly send
+  if (combine_timeout_ < 0) {  // directly send without combine
     executor_->Add([this, part_id, version, upstream_part_id, stream]() {
       PrepareMsgAndSend(part_id, version, {upstream_part_id}, stream);
     });
-  } else if (combine_timeout_ == 0) {
+  } else if (combine_timeout_ == 0) {  // send with combine
     executor_->Add([this, part_id, version, upstream_part_id, stream]() {
       stream->Combine();
       PrepareMsgAndSend(part_id, version, {upstream_part_id}, stream);
     });
   } else {
     store_[part_id][version].push_back({upstream_part_id, stream});
+    // TODO: the shuffle combine mode (combine all local map parts) may not work
+    // with LB as it uses num_local_map_part_ variable which will be updated during
+    // migration
+    // Turn on PeriodicCombine to make sure all output will be flushed
     if (store_[part_id][version].size() == plan_controller_->num_local_map_part_) {
       Submit(part_id, version, std::move(store_[part_id][version]));
       store_[part_id].erase(version);
@@ -96,6 +101,14 @@ void DelayedCombiner::CombineSerializeSend(int part_id, int version, std::vector
 
 void DelayedCombiner::PrepareMsgAndSend(int part_id, int version, 
         std::vector<int> upstream_part_ids, std::shared_ptr<AbstractMapOutputStream> stream) {
+  // serialize before the lock.
+  // for local mode, this serailization is unnecessary, 
+  // but to support LB and for simplicity, we need to lock
+  // the whole sending part. 
+  // Another way is to use something like double-checked locking.
+  auto bin = stream->Serialize();
+
+  std::lock_guard<std::mutex> lk(plan_controller_->migrate_mu_);
   Message msg;
   msg.meta.sender = plan_controller_->controller_->Qid();
   CHECK(plan_controller_->controller_->engine_elem_.collection_map);
@@ -110,8 +123,7 @@ void DelayedCombiner::PrepareMsgAndSend(int part_id, int version,
   meta.ext_upstream_part_ids = upstream_part_ids;
   meta.part_id = part_id;
   meta.version = version;
-  meta.local_mode = 0;   // TODO: disable local_mode
-  // meta.local_mode = (msg.meta.recver == msg.meta.sender);
+  meta.local_mode = (msg.meta.recver == msg.meta.sender);
 
   SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
   ctrl_bin << ControllerFlag::kReceiveJoin;
@@ -120,21 +132,17 @@ void DelayedCombiner::PrepareMsgAndSend(int part_id, int version,
   msg.AddData(ctrl_bin.ToSArray());
   msg.AddData(plan_bin.ToSArray());
   msg.AddData(ctrl2_bin.ToSArray());
-  auto bin = stream->Serialize();
-  msg.AddData(bin.ToSArray());
-  plan_controller_->controller_->engine_elem_.intermediate_store->Add(msg);
 
-  // if (local_map_mode_ && msg.meta.recver == msg.meta.sender) {
-  //   auto k = std::make_tuple(i, part_id, version);
-  //   stream_store_.Insert(k, map_output->Get(i));
-  //   SArrayBinStream dummy_bin;
-  //   msg.AddData(dummy_bin.ToSArray());
-  //   controller_->GetWorkQueue()->Push(msg);
-  // } else {
-  //   auto bin = map_output->Get(i)->Serialize();
-  //   msg.AddData(bin.ToSArray());
-  //   controller_->engine_elem_.intermediate_store->Add(msg);
-  // }
+  if (plan_controller_->local_map_mode_ && msg.meta.recver == msg.meta.sender) {
+    auto k = std::make_tuple(part_id, upstream_part_ids, version);
+    plan_controller_->stream_store_.Insert(k, stream);
+    SArrayBinStream dummy_bin;
+    msg.AddData(dummy_bin.ToSArray());
+    plan_controller_->controller_->GetWorkQueue()->Push(msg);
+  } else {
+    msg.AddData(bin.ToSArray());
+    plan_controller_->controller_->engine_elem_.intermediate_store->Add(msg);
+  }
 }
 
 }  // namespace xyz

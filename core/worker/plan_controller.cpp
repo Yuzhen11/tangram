@@ -14,6 +14,7 @@ struct FakeTracker : public AbstractMapProgressTracker {
 PlanController::PlanController(Controller* controller)
   : controller_(controller) {
   fetch_executor_ = std::make_shared<Executor>(5);
+  local_map_mode_ = true;
 }
  
 void PlanController::Setup(SpecWrapper spec) {
@@ -42,10 +43,8 @@ void PlanController::Setup(SpecWrapper spec) {
   join_tracker_.clear();
   pending_joins_.clear();
   waiting_joins_.clear();
-  combine_timeout_ = p->combine_timeout;
-  if (combine_timeout_ != -2) {
-    delayed_combiner_ = std::make_shared<DelayedCombiner>(this, combine_timeout_);
-  }
+  int combine_timeout = p->combine_timeout;
+  delayed_combiner_ = std::make_shared<DelayedCombiner>(this, combine_timeout);
 
   auto parts = controller_->engine_elem_.partition_manager->Get(map_collection_id_);
   for (auto& part : parts) {
@@ -327,11 +326,12 @@ void PlanController::RunMap(int part_id, int version,
   controller_->engine_elem_.executor->Add([this, part_id, version, p, AbortMap]() {
     auto start = std::chrono::system_clock::now();
     auto pt = std::make_shared<FakeTracker>();
-    // 1. map
+
     if (part_id == stop_joining_partition_.load()) {
       AbortMap(plan_id_, part_id, controller_);
       return;
     }
+    // 1. map
     std::shared_ptr<AbstractMapOutput> map_output;
     if (type_ == SpecWrapper::Type::kMapJoin) {
       auto& map = controller_->engine_elem_.function_store->GetMap(plan_id_);
@@ -343,60 +343,14 @@ void PlanController::RunMap(int part_id, int version,
       CHECK(false);
     }
 
-    auto start2 = std::chrono::system_clock::now();
-    if (delayed_combiner_) {
-      delayed_combiner_->AddMapOutput(part_id, version, map_output);
-    } else {
-
-      // 2. combine
-      if (combine_timeout_ == -2) {
-        map_output->Combine();
-      }
-
-      if (part_id == stop_joining_partition_.load()) {
-        AbortMap(plan_id_, part_id, controller_);
-        return;
-      }
-      int buffer_size = map_output->GetBufferSize();
-      CHECK_EQ(buffer_size, num_join_part_);
-      for (int i = 0; i < buffer_size; ++ i) {
-        Message msg;
-        msg.meta.sender = controller_->Qid();
-        CHECK(controller_->engine_elem_.collection_map);
-        msg.meta.recver = GetControllerActorQid(controller_->engine_elem_.collection_map->Lookup(join_collection_id_, i));
-        msg.meta.flag = Flag::kOthers;
-        SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
-        ctrl_bin << ControllerFlag::kReceiveJoin;
-
-        plan_bin << plan_id_;
-
-        VersionedShuffleMeta meta;
-        meta.plan_id = plan_id_;
-        meta.collection_id = join_collection_id_;
-        meta.upstream_part_id = part_id;
-        meta.part_id = i;
-        meta.version = version;
-        // now I reuse the local_mode variable used by fetch
-        meta.local_mode = (msg.meta.recver == msg.meta.sender);  
-        ctrl2_bin << meta;
-
-        msg.AddData(ctrl_bin.ToSArray());
-        msg.AddData(plan_bin.ToSArray());
-        msg.AddData(ctrl2_bin.ToSArray());
-
-        if (local_map_mode_ && msg.meta.recver == msg.meta.sender) {
-          auto k = std::make_tuple(i, part_id, version);
-          stream_store_.Insert(k, map_output->Get(i));
-          SArrayBinStream dummy_bin;
-          msg.AddData(dummy_bin.ToSArray());
-          controller_->GetWorkQueue()->Push(msg);
-        } else {
-          auto bin = map_output->Get(i)->Serialize();
-          msg.AddData(bin.ToSArray());
-          controller_->engine_elem_.intermediate_store->Add(msg);
-        }
-      }
+    if (part_id == stop_joining_partition_.load()) {
+      AbortMap(plan_id_, part_id, controller_);
+      return;
     }
+    // 2. send to delayed_combiner
+    auto start2 = std::chrono::system_clock::now();
+    CHECK(delayed_combiner_);
+    delayed_combiner_->AddMapOutput(part_id, version, map_output);
 
     Message msg;
     msg.meta.sender = 0;
@@ -484,7 +438,12 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     auto start = std::chrono::system_clock::now();
 
     if (local_map_mode_ && meta.meta.local_mode) {
-      auto k = std::make_tuple(meta.meta.part_id, meta.meta.upstream_part_id, meta.meta.version);
+      std::tuple<int, std::vector<int>, int> k;
+      if (meta.meta.ext_upstream_part_ids.empty()) {
+        k = std::make_tuple(meta.meta.part_id, std::vector<int>{meta.meta.upstream_part_id}, meta.meta.version);
+      } else {
+        k = std::make_tuple(meta.meta.part_id, meta.meta.ext_upstream_part_ids, meta.meta.version);
+      }
       auto stream = stream_store_.Get(k);
       stream_store_.Remove(k);
       auto& join_func = controller_->engine_elem_.function_store->GetJoin2(plan_id_);
@@ -702,9 +661,12 @@ void PlanController::MigratePartition(Message msg) {
     // update collection_map
     CollectionView collection_view;
     ctrl2_bin >> collection_view;
-    controller_->engine_elem_.collection_map->Insert(collection_view);
-    // send msg to from_id
-    MigratePartitionStartMigrate(migrate_meta);
+    {
+      std::lock_guard<std::mutex> lk(migrate_mu_);
+      controller_->engine_elem_.collection_map->Insert(collection_view);
+      // send msg to from_id
+      MigratePartitionStartMigrate(migrate_meta);
+    }
   } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kFlushAll) {
     MigratePartitionReceiveFlushAll(migrate_meta);
   } else if (migrate_meta.flag == MigrateMeta::MigrateFlag::kDest){
@@ -719,7 +681,6 @@ void PlanController::MigratePartition(Message msg) {
 }
 
 void PlanController::MigratePartitionStartMigrate(MigrateMeta migrate_meta) {
-  // TODO: update collection_map
   migrate_meta.flag = MigrateMeta::MigrateFlag::kFlushAll;
   Message flush_msg;
   flush_msg.meta.sender = controller_->engine_elem_.node.id;
@@ -789,26 +750,30 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
     data.join_version = join_versions_[migrate_meta.partition_id];
     data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
     data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
+
+    auto serialize_from_stream_store = [this](VersionedJoinMeta& meta) {
+      std::tuple<int, std::vector<int>, int> k;
+      if (meta.meta.ext_upstream_part_ids.empty()) {
+        k = std::make_tuple(meta.meta.part_id, std::vector<int>{meta.meta.upstream_part_id}, meta.meta.version);
+      } else {
+        k = std::make_tuple(meta.meta.part_id, meta.meta.ext_upstream_part_ids, meta.meta.version);
+      }
+      auto stream = stream_store_.Get(k);
+      stream_store_.Remove(k);
+      auto bin = stream->Serialize();
+      meta.bin = bin;
+      meta.meta.local_mode = false;
+    };
     for (auto& version_joins : data.pending_joins) {
       for (auto& join_meta : version_joins.second) {
         if (local_map_mode_ && join_meta.meta.local_mode) {
-          auto k = std::make_tuple(join_meta.meta.part_id, join_meta.meta.upstream_part_id, join_meta.meta.version);   
-          auto stream = stream_store_.Get(k);
-          stream_store_.Remove(k);
-          auto bin = stream->Serialize();
-          join_meta.bin = bin;
-          join_meta.meta.local_mode = false;
+          serialize_from_stream_store(join_meta);
         }
       } 
     }
     for (auto& join_meta : data.waiting_joins) {
       if (local_map_mode_ && join_meta.meta.local_mode) {
-        auto k = std::make_tuple(join_meta.meta.part_id, join_meta.meta.upstream_part_id, join_meta.meta.version);   
-        auto stream = stream_store_.Get(k);
-        stream_store_.Remove(k);
-        auto bin = stream->Serialize();
-        join_meta.bin = bin;
-        join_meta.meta.local_mode = false;
+        serialize_from_stream_store(join_meta);
       }
     } 
     data.join_tracker = std::move(join_tracker_[migrate_meta.partition_id]);

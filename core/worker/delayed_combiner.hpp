@@ -48,10 +48,11 @@ class DelayedCombiner {
   // combine_timeout_:
   // <0 : send without combine 
   // 0: directly combine and send
-  // 0-2000 : timeout in ms
-  // >2000: shuffle combine
+  // 0-kMaxCombineTimeout: timeout in ms
+  // >kMaxCombineTimeout: shuffle combine
   const int combine_timeout_ = 0;
   std::atomic<bool> finished_{false};
+  const int kNumCombineThreads = 20;
 };
 
 }  // namespace xyz

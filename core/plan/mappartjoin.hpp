@@ -55,11 +55,9 @@ struct MapPartJoin : public PlanBase {
     checkpoint_interval = cp;
     return this;
   }
-  // combine_timeout_:
-  // <0 : send without combine 
-  // 0: directly combine and send
-  // 0-2000 : timeout in ms
-  // >2000: shuffle combine
+
+  // combine_timeout
+  // see kMaxCombineTimeout in base/magic.hpp
   MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetCombine(
           CombineFuncT combine_f, int timeout = 0) {
     combine_func = std::move(combine_f);
