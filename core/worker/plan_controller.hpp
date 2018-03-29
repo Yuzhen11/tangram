@@ -9,9 +9,11 @@
 #include "core/worker/abstract_plan_controller.hpp"
 #include "base/message.hpp"
 #include "core/map_output/map_output_stream_store.hpp"
+#include "core/worker/delayed_combiner.hpp"
 
 namespace xyz {
 
+class DelayedCombiner;
 class PlanController : public AbstractPlanController {
  public:
   PlanController(Controller* controller);
@@ -115,7 +117,6 @@ class PlanController : public AbstractPlanController {
   // TODO: to be setup
   int map_collection_id_;
   int join_collection_id_;
-  int combine_;
   int fetch_collection_id_ = -1; 
   int plan_id_;
   int num_upstream_part_;
@@ -185,6 +186,9 @@ class PlanController : public AbstractPlanController {
     }
   };
   std::vector<VersionedJoinMeta> buffered_requests_;
+  friend class DelayedCombiner;
+  std::shared_ptr<DelayedCombiner> delayed_combiner_;
+  int combine_timeout_;
 };
 
 }  // namespace

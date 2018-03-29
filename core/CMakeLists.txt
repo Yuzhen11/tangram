@@ -27,6 +27,7 @@ file(GLOB core-src-files
     plan/dag.cpp
     worker/controller.cpp
     worker/plan_controller.cpp
+    worker/delayed_combiner.cpp
   )
 
 # TODO now we let engine and worker depends on HDFS

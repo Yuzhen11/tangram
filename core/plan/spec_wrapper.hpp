@@ -19,7 +19,7 @@ struct Spec {
 struct MapJoinSpec : public Spec {
   int map_collection_id;
   int join_collection_id;
-  int combine = 0;
+  int combine_timeout = 0;
   int num_iter = 1;
   int staleness = 0;
   int checkpoint_interval = 0;
@@ -27,16 +27,16 @@ struct MapJoinSpec : public Spec {
   MapJoinSpec() = default;
   MapJoinSpec(int mid, int jid, int comb, int iter, int s, int cp, std::string d)
       : map_collection_id(mid), join_collection_id(jid), 
-        combine(comb), num_iter(iter), staleness(s), checkpoint_interval(cp),
+        combine_timeout(comb), num_iter(iter), staleness(s), checkpoint_interval(cp),
         description(d) {}
   virtual void ToBin(SArrayBinStream& bin) override {
     bin << map_collection_id << join_collection_id 
-        << combine << num_iter << staleness << checkpoint_interval
+        << combine_timeout << num_iter << staleness << checkpoint_interval
         << description;
   }
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> map_collection_id >> join_collection_id
-        >> combine >> num_iter >> staleness >> checkpoint_interval
+        >> combine_timeout >> num_iter >> staleness >> checkpoint_interval
         >> description;
   }
   virtual ReadWriteVector GetReadWrite() const {
@@ -50,7 +50,7 @@ struct MapJoinSpec : public Spec {
     std::stringstream ss;
     ss << "map_collection_id: " << map_collection_id;
     ss << ", join_collection_id: " << join_collection_id;
-    ss << ", combine: " << combine;
+    ss << ", combine_timeout: " << combine_timeout;
     ss << ", num_iter: " << num_iter;
     ss << ", staleness: " << staleness;
     ss << ", checkpoint_interval: " << checkpoint_interval;

@@ -27,7 +27,6 @@ void PlanController::Setup(SpecWrapper spec) {
   auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   map_collection_id_ = p->map_collection_id;
   join_collection_id_ = p->join_collection_id;
-  combine_ = p->combine;
   checkpoint_interval_ = p->checkpoint_interval;
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
@@ -43,6 +42,10 @@ void PlanController::Setup(SpecWrapper spec) {
   join_tracker_.clear();
   pending_joins_.clear();
   waiting_joins_.clear();
+  combine_timeout_ = p->combine_timeout;
+  if (combine_timeout_ != -2) {
+    delayed_combiner_ = std::make_shared<DelayedCombiner>(this, combine_timeout_);
+  }
 
   auto parts = controller_->engine_elem_.partition_manager->Get(map_collection_id_);
   for (auto& part : parts) {
@@ -340,53 +343,58 @@ void PlanController::RunMap(int part_id, int version,
       CHECK(false);
     }
 
-    // 2. combine
-    if (combine_) {
-      map_output->Combine();
-    }
-
-    if (part_id == stop_joining_partition_.load()) {
-      AbortMap(plan_id_, part_id, controller_);
-      return;
-    }
     auto start2 = std::chrono::system_clock::now();
-    int buffer_size = map_output->GetBufferSize();
-    CHECK_EQ(buffer_size, num_join_part_);
-    for (int i = 0; i < buffer_size; ++ i) {
-      Message msg;
-      msg.meta.sender = controller_->Qid();
-      CHECK(controller_->engine_elem_.collection_map);
-      msg.meta.recver = GetControllerActorQid(controller_->engine_elem_.collection_map->Lookup(join_collection_id_, i));
-      msg.meta.flag = Flag::kOthers;
-      SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
-      ctrl_bin << ControllerFlag::kReceiveJoin;
+    if (delayed_combiner_) {
+      delayed_combiner_->AddMapOutput(part_id, version, map_output);
+    } else {
 
-      plan_bin << plan_id_;
+      // 2. combine
+      if (combine_timeout_ == -2) {
+        map_output->Combine();
+      }
 
-      VersionedShuffleMeta meta;
-      meta.plan_id = plan_id_;
-      meta.collection_id = join_collection_id_;
-      meta.upstream_part_id = part_id;
-      meta.part_id = i;
-      meta.version = version;
-      // now I reuse the local_mode variable used by fetch
-      meta.local_mode = (msg.meta.recver == msg.meta.sender);  
-      ctrl2_bin << meta;
+      if (part_id == stop_joining_partition_.load()) {
+        AbortMap(plan_id_, part_id, controller_);
+        return;
+      }
+      int buffer_size = map_output->GetBufferSize();
+      CHECK_EQ(buffer_size, num_join_part_);
+      for (int i = 0; i < buffer_size; ++ i) {
+        Message msg;
+        msg.meta.sender = controller_->Qid();
+        CHECK(controller_->engine_elem_.collection_map);
+        msg.meta.recver = GetControllerActorQid(controller_->engine_elem_.collection_map->Lookup(join_collection_id_, i));
+        msg.meta.flag = Flag::kOthers;
+        SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+        ctrl_bin << ControllerFlag::kReceiveJoin;
 
-      msg.AddData(ctrl_bin.ToSArray());
-      msg.AddData(plan_bin.ToSArray());
-      msg.AddData(ctrl2_bin.ToSArray());
+        plan_bin << plan_id_;
 
-      if (local_map_mode_ && msg.meta.recver == msg.meta.sender) {
-        auto k = std::make_tuple(i, part_id, version);
-        stream_store_.Insert(k, map_output->Get(i));
-        SArrayBinStream dummy_bin;
-        msg.AddData(dummy_bin.ToSArray());
-        controller_->GetWorkQueue()->Push(msg);
-      } else {
-        auto bin = map_output->Get(i)->Serialize();
-        msg.AddData(bin.ToSArray());
-        controller_->engine_elem_.intermediate_store->Add(msg);
+        VersionedShuffleMeta meta;
+        meta.plan_id = plan_id_;
+        meta.collection_id = join_collection_id_;
+        meta.upstream_part_id = part_id;
+        meta.part_id = i;
+        meta.version = version;
+        // now I reuse the local_mode variable used by fetch
+        meta.local_mode = (msg.meta.recver == msg.meta.sender);  
+        ctrl2_bin << meta;
+
+        msg.AddData(ctrl_bin.ToSArray());
+        msg.AddData(plan_bin.ToSArray());
+        msg.AddData(ctrl2_bin.ToSArray());
+
+        if (local_map_mode_ && msg.meta.recver == msg.meta.sender) {
+          auto k = std::make_tuple(i, part_id, version);
+          stream_store_.Insert(k, map_output->Get(i));
+          SArrayBinStream dummy_bin;
+          msg.AddData(dummy_bin.ToSArray());
+          controller_->GetWorkQueue()->Push(msg);
+        } else {
+          auto bin = map_output->Get(i)->Serialize();
+          msg.AddData(bin.ToSArray());
+          controller_->engine_elem_.intermediate_store->Add(msg);
+        }
       }
     }
 
