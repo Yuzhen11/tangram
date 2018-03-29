@@ -12,6 +12,9 @@ class AbstractMapOutputStream {
   virtual ~AbstractMapOutputStream() {}
 
   virtual SArrayBinStream Serialize() = 0;
+  virtual void Combine() = 0;
+  virtual void Append(std::shared_ptr<AbstractMapOutputStream> other) = 0;
+  virtual void Clear() = 0;
 };
 
 
@@ -28,18 +31,22 @@ class MapOutputStream : public AbstractMapOutputStream {
     return SerializeOneBuffer(buffer_);
   }
 
+  virtual void Append(std::shared_ptr<AbstractMapOutputStream> other) override {
+    auto* p = static_cast<MapOutputStream<KeyT, MsgT>*>(other.get());
+    const auto& other_buffer = p->GetBuffer();
+    buffer_.insert(buffer_.end(), other_buffer.begin(), other_buffer.end());
+  }
+
+  virtual void Clear() override {
+    buffer_.clear();
+  }
+
   static SArrayBinStream SerializeOneBuffer(const std::vector<std::pair<KeyT, MsgT>>& buffer) {
     SArrayBinStream bin;
     for (auto& p : buffer) {
       bin << p.first << p.second;
     }
     return bin;
-  }
-
-  void Combine(const std::function<void(MsgT*, const MsgT&)>& combine_func) {
-    std::sort(buffer_.begin(), buffer_.end(), 
-      [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
-    CombineOneBuffer(buffer_, combine_func);
   }
 
   static void CombineOneBuffer(std::vector<std::pair<KeyT, MsgT>>& buffer, 
@@ -60,12 +67,29 @@ class MapOutputStream : public AbstractMapOutputStream {
     }
   }
 
+  using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
+  void SetCombineFunc(CombineFuncT combine_func) {
+    combine_func_ = std::move(combine_func);
+  }
+
+  virtual void Combine() override {
+    if (!combine_func_) 
+      return;
+    // 1. sort
+    std::sort(buffer_.begin(), buffer_.end(), 
+      [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
+    // 2. combine
+    CombineOneBuffer(buffer_, combine_func_);
+  };
+
   // For test use only.
   const std::vector<std::pair<KeyT, MsgT>>& GetBuffer() const { 
     return buffer_;
   }
  private:
   std::vector<std::pair<KeyT, MsgT>> buffer_;
+
+  CombineFuncT combine_func_;  // optional
 };
 
 }  // namespace xyz

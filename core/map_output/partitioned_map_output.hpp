@@ -41,10 +41,9 @@ class PartitionedMapOutput : public AbstractMapOutput {
   using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   void SetCombineFunc(CombineFuncT combine_func) {
-    combine_func_ = std::move(combine_func);
-  }
-  CombineFuncT GetCombineFunc() const {
-    return combine_func_;
+    for (auto* buffer : buffer_pointers_) {
+      buffer->SetCombineFunc(combine_func);
+    }
   }
 
   void Add(std::pair<KeyT, MsgT> msg) {
@@ -60,11 +59,10 @@ class PartitionedMapOutput : public AbstractMapOutput {
     }
   }
 
+  // TODO: can this be removed as we call combine for each mapoutputstream?
   virtual void Combine() override {
-    if (!combine_func_) 
-      return;
     for (auto* buffer : buffer_pointers_) {
-      buffer->Combine(combine_func_);
+      buffer->Combine();
     }
   }
 
@@ -102,8 +100,6 @@ class PartitionedMapOutput : public AbstractMapOutput {
 
   std::shared_ptr<AbstractKeyToPartMapper> key_to_part_mapper_;
   TypedKeyToPartMapper<KeyT>* typed_mapper_ = nullptr;
-
-  std::function<void(MsgT*, const MsgT&)> combine_func_;  // optional
 };
 
 }  // namespace

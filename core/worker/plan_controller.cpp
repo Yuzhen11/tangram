@@ -27,6 +27,7 @@ void PlanController::Setup(SpecWrapper spec) {
   auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   map_collection_id_ = p->map_collection_id;
   join_collection_id_ = p->join_collection_id;
+  combine_ = p->combine;
   checkpoint_interval_ = p->checkpoint_interval;
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
@@ -336,6 +337,11 @@ void PlanController::RunMap(int part_id, int version,
       CHECK(false);
     }
 
+    // 2. combine
+    if (combine_) {
+      map_output->Combine();
+    }
+
     if (part_id == stop_joining_partition_.load()) {
       AbortMap(plan_id_, part_id, controller_);
       return;
@@ -419,6 +425,7 @@ void PlanController::ReceiveJoin(Message msg) {
   if (join_versions_.find(meta.part_id) == join_versions_.end()) {
     // if receive something that is not belong to here
     buffered_requests_.push_back(join_meta);
+    LOG(INFO) << "buffered requsts size: " << buffered_requests_.size();
     return;
   }
 

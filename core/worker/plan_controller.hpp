@@ -101,9 +101,9 @@ class PlanController : public AbstractPlanController {
   Controller* controller_;
 
   // TODO: to be setup
-  // TODO: now only support running 1 plan at a time
   int map_collection_id_;
   int join_collection_id_;
+  int combine_;
   int fetch_collection_id_ = -1; 
   int plan_id_;
   int num_upstream_part_;

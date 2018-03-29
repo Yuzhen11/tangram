@@ -71,8 +71,9 @@ struct MapPartWithJoin : public PlanBase {
     checkpoint_interval = cp;
     return this;
   }
-  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCombine(CombineFuncT combine_func) {
-    combine = std::move(combine_func);
+  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCombine(CombineFuncT combine_f) {
+    combine_func = std::move(combine_f);
+    combine = 1;
     return this;
   }
   MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetName(std::string n) {
@@ -84,7 +85,7 @@ struct MapPartWithJoin : public PlanBase {
     // TODO the with collection
     SpecWrapper w;
     w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin,
-            map_collection->Id(), join_collection->Id(), num_iter, 
+            map_collection->Id(), join_collection->Id(), combine, num_iter, 
             staleness, checkpoint_interval, with_collection->Id(),
             description_);
     w.name = name;
@@ -99,9 +100,8 @@ struct MapPartWithJoin : public PlanBase {
                 std::shared_ptr<AbstractFetcher> fetcher,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
       auto map_output = map_part_with(version, partition, fetcher, tracker);
-      if (this->combine) {
-        static_cast<PartitionedMapOutput<typename ObjT3::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(this->combine);
-        map_output->Combine();
+      if (combine_func) {
+        static_cast<PartitionedMapOutput<typename ObjT3::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine_func);
       }
       return map_output;
     });
@@ -136,11 +136,12 @@ struct MapPartWithJoin : public PlanBase {
 
   MapPartWithFuncT mappartwith;
   JoinFuncT join;
-  CombineFuncT combine;
+  CombineFuncT combine_func;
 
   int num_iter = 1;
   int staleness = 0;
   int checkpoint_interval = 0;
+  int combine = 0;
   std::string description_;
 };
 
