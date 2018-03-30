@@ -729,7 +729,8 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
   if (flush_all_count_.find(migrate_meta.partition_id) == flush_all_count_.end()){
     flush_all_count_[migrate_meta.partition_id] = 0;
   };
-  flush_all_count_ [migrate_meta.partition_id]+= 1;
+  flush_all_count_[migrate_meta.partition_id] += 1;
+  LOG(INFO) << "[Migrate] Received one Flush signal";
   if (flush_all_count_[migrate_meta.partition_id] == migrate_meta.num_nodes) {
     if (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
       // if there is a join/fetch task for this part
@@ -868,7 +869,7 @@ void PlanController::MigratePartitionDest(Message msg) {
 
   // handle buffered request
   LOG(INFO) << "[MigrateDone] part to migrate: " << migrate_meta.partition_id 
-    <<", buffered_requests_ size: " << buffered_requests_.size();
+    <<", buffered_requests_ size: " << buffered_requests_[migrate_meta.partition_id].size();
   for (auto& request: buffered_requests_[migrate_meta.partition_id]) {
     CHECK_EQ(request.meta.part_id, migrate_meta.partition_id);
     if (map_collection_id_ == join_collection_id_
