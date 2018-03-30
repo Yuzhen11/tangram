@@ -39,6 +39,15 @@ class Launcher:
     self.hostfile_path = join(self.proj_dir, self.hostfile)
     self.prog_path = join(self.proj_dir, self.progfile)
 
+    # parse the machine file
+    assert os.path.isfile(self.hostfile_path)
+    with open(self.hostfile_path, "r") as f:
+      self.hostlist = []
+      hostlines = f.read().splitlines()
+      for line in hostlines:
+        if not line.startswith("#"):
+          self.hostlist.append(line) # host
+
   def Launch(self, argv):
     if (len(argv) == 1):
       self.launch_workers()
@@ -58,50 +67,41 @@ class Launcher:
     cmd = "killall -q " + scheduler_name
     os.system(cmd)
 
-    assert os.path.isfile(self.hostfile_path)
     prog_name = self.prog_path.split("/")[-1]  # To prevent users give a path to prog
     print "Start killing <%s> according to <%s>" % (prog_name, self.hostfile_path)
 
-    # Get host IPs
-    with open(self.hostfile_path, "r") as f:
-      host_ips = f.read().splitlines()
-
-    for ip in host_ips:
-      cmd = ssh_cmd + ip + " killall -q " + prog_name
+    for host in self.hostlist:
+      cmd = ssh_cmd + host + " killall -q " + prog_name
       os.system(cmd)
+      
     print "Done killing <%s> for <%s>" % (prog_name, self.hostfile_path)
 
   def launch_workers(self):
     assert os.path.isfile(self.prog_path)
-    assert os.path.isfile(self.hostfile_path)
      
-    clear_cmd = "ls " + self.hostfile_path + " > /dev/null; ls " + self.prog_path + " > /dev/null; "
+    clear_cmd = " ls " + self.prog_path + " > /dev/null; "
     if self.dump_core:
-        clear_cmd += "ulimit -c unlimited; "
-    with open(self.hostfile_path, "r") as f:
-      hostlist = []
-      hostlines = f.read().splitlines()
-      for line in hostlines:
-        if not line.startswith("#"):
-          hostlist.append(line) # host
+      clear_cmd += "ulimit -c unlimited; "
   
-      self.program_params.update(self.common_params)
-      for host in hostlist:
-        print "host:%s" % host
-        cmd = ssh_cmd + host + " "  # Start ssh command
-        cmd += "\""  # Remote command starts
-        cmd += clear_cmd
-        # Command to run program
-        cmd += self.env_params + " " + self.prog_path
-        cmd += "".join([" --%s=%s" % (k,v) for k,v in self.program_params.items()])
+    self.program_params.update(self.common_params)
+    for host in self.hostlist:
+      print "host:%s" % host
+      cmd = ssh_cmd + host + " "  # Start ssh command
+      cmd += "\""  # Remote command starts
+      cmd += clear_cmd
+      # Command to run program
+      cmd += self.env_params + " " + self.prog_path
+      cmd += "".join([" --%s=%s" % (k,v) for k,v in self.program_params.items()])
   
-        cmd += "\""  # Remote Command ends
-        cmd += " &"
-        print cmd
-        os.system(cmd)
+      cmd += "\""  # Remote Command ends
+      cmd += " &"
+      print cmd
+      os.system(cmd)
 
   def launch_scheduler(self):
     self.scheduler_params.update(self.common_params);
+    self.scheduler_params["num_worker"] = len(self.hostlist)
+
     clear_cmd = "ls " + self.scheduler_path + " > /dev/null; "
     if self.dump_core:
         clear_cmd += "ulimit -c unlimited; "

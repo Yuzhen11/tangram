@@ -19,7 +19,6 @@ program_params = {
 }
 
 scheduler_params = {
-    "num_worker" : 5,
 }
 
 env_params = (

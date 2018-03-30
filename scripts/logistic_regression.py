@@ -26,7 +26,6 @@ program_params = {
 }
 
 scheduler_params = {
-    "num_worker" : 5,
     "dag_runner_type" : "sequential",
 }
 

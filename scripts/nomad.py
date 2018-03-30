@@ -79,7 +79,6 @@ program_params = {
 program_params.update(dataset_param)
 
 scheduler_params = {
-    "num_worker" : 5,
 }
 
 env_params = (
