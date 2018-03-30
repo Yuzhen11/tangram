@@ -9,12 +9,6 @@
 #include "boost/tokenizer.hpp"
 #include "core/index/hash_key_to_part_mapper.hpp"
 
-DEFINE_string(scheduler, "", "The host of scheduler");
-DEFINE_int32(scheduler_port, -1, "The port of scheduler");
-DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
-DEFINE_int32(hdfs_port, -1, "The port of hdfs");
-DEFINE_int32(num_local_threads, 1, "# local_threads");
-
 DEFINE_string(url, "", "The url for hdfs file");
 
 using namespace xyz;

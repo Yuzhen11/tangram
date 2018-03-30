@@ -1,5 +1,12 @@
 #include "core/plan/runner.hpp"
 
+DEFINE_string(scheduler, "", "The host of scheduler");
+DEFINE_int32(scheduler_port, -1, "The port of scheduler");
+DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
+DEFINE_int32(hdfs_port, -1, "The port of hdfs");
+DEFINE_int32(num_local_threads, 1, "# local_threads");
+DEFINE_int32(node_id, -1, "node id");
+
 namespace xyz {
 
 void Runner::Init(int argc, char** argv) {

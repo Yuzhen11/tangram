@@ -84,13 +84,14 @@ class Launcher:
       clear_cmd += "ulimit -c unlimited; "
   
     self.program_params.update(self.common_params)
-    for host in self.hostlist:
+    for idx, host in enumerate(self.hostlist):
       print "host:%s" % host
       cmd = ssh_cmd + host + " "  # Start ssh command
       cmd += "\""  # Remote command starts
       cmd += clear_cmd
       # Command to run program
       cmd += self.env_params + " " + self.prog_path
+      cmd += " --node_id=" + str(idx) # the node id
       cmd += "".join([" --%s=%s" % (k,v) for k,v in self.program_params.items()])
   
       cmd += "\""  # Remote Command ends

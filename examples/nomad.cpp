@@ -6,14 +6,7 @@
 
 #include <cmath>
 
-DEFINE_string(scheduler, "", "The host of scheduler");
-DEFINE_int32(scheduler_port, -1, "The port of scheduler");
-DEFINE_string(hdfs_namenode, "proj10", "The namenode of hdfs");
-DEFINE_int32(hdfs_port, 9000, "The port of hdfs");
-DEFINE_int32(num_local_threads, 1, "# local_threads");
-
 DEFINE_string(url, "", "The url for hdfs file");
-
 
 DEFINE_int32(kNumPartition, 2, "");
 DEFINE_int32(kNumItem, 3, "");

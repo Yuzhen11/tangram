@@ -3,11 +3,6 @@
 #include "glog/logging.h"
 #include "boost/tokenizer.hpp"
 
-DEFINE_string(scheduler, "", "The host of scheduler");
-DEFINE_int32(scheduler_port, -1, "The port of scheduler");
-DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
-DEFINE_int32(hdfs_port, -1, "The port of hdfs");
-DEFINE_int32(num_local_threads, 1, "# local_threads");
 DEFINE_int32(num_parts, 100, "# num of partitions");
 
 DEFINE_string(url, "", "The url for hdfs file");
@@ -76,6 +71,9 @@ struct TopK {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
   const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
+  }
 
   auto dataset = Context::load(FLAGS_url, [](std::string& s) {//s cannot be empty 
     boost::char_separator<char> sep(" \t");
