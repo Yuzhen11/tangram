@@ -48,8 +48,8 @@ class ControlManager {
   std::map<int, SpecWrapper> specs_;
   Timepoint start_time_;
 
-  int migrate_control_ = true;  // TODO: remove this
   std::map<int, std::vector<int>> parts_migrated; //part id, versions
+  std::map<int, std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> migrate_time;//migrate part id, start time, end time
 
   // plan_id -> part_id -> {version, time}
   std::map<int, std::map<int, std::pair<int, Timepoint>>> map_part_versions_;

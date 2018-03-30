@@ -158,8 +158,11 @@ class PlanController : public AbstractPlanController {
   bool local_map_mode_ = true;  // TODO: turn it on
   MapOutputStreamStore stream_store_;
 
-  int flush_all_count_ = 0;
-  std::atomic<int> stop_joining_partition_{-1};
+  std::map<int, int> flush_all_count_; //migrate part id, flush all count
+  std::set<int> stop_joining_partitions_;
+  std::mutex stop_joining_partitions_mu_;
+  std::mutex collection_view_mu_;
+
   struct MigrateData {
     int map_version;
     int join_version;
@@ -185,7 +188,7 @@ class PlanController : public AbstractPlanController {
       return ss.str();
     }
   };
-  std::vector<VersionedJoinMeta> buffered_requests_;
+  std::map<int, std::vector<VersionedJoinMeta>> buffered_requests_; //part_id -> requests
   friend class DelayedCombiner;
   std::shared_ptr<DelayedCombiner> delayed_combiner_;
 

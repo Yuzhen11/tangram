@@ -43,9 +43,9 @@ void ControlManager::Control(SArrayBinStream bin) {
     // }
     // TrySpeculativeMap(ctrl.plan_id);
     
-    // if (migrate_control_) {
-    //   TryMigrate(ctrl.plan_id);
-    // }
+    if (specs_[ctrl.plan_id].name == "pagerank main logic") {
+      TryMigrate(ctrl.plan_id);
+    }
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
@@ -63,9 +63,10 @@ void ControlManager::Control(SArrayBinStream bin) {
       }
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kFinishMigrate) {
-    // TODO
-    migrate_control_ = true;
-    LOG(INFO) << "[ControlManager] migrate part " << ctrl.part_id << " done";
+    migrate_time[ctrl.part_id].second = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = migrate_time[ctrl.part_id].second - migrate_time[ctrl.part_id].first;
+    LOG(INFO) << "[ControlManager] migrate part " << ctrl.part_id << " done, migrate time: "
+      << duration.count();
   } else {
     CHECK(false) << ctrl.DebugString();
   }
@@ -87,10 +88,11 @@ void ControlManager::TryMigrate(int plan_id){
       }
       break; //only migrate for the min version
     }
+    auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+   
+    //TODO: better schedule migration
     auto iter1 = fast_nodes.begin();
     auto iter2 = slow_nodes.begin();
-    
-    auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
     while (iter1 != fast_nodes.end() && iter2 != slow_nodes.end()) {
       std::vector<int> part_ids = collection_view.mapper.GetNodeParts(*iter2);
       std::map<int, std::vector<int>> version; // version, part_ids
@@ -109,8 +111,7 @@ void ControlManager::TryMigrate(int plan_id){
           Migrate(plan_id, *iter2, *iter1, part_id);
           parts_migrated[part_id].push_back(map_part_versions_[plan_id][part_id].first);
           iter1++;
-          migrate_control_ = false;
-          return; //only migrate one partition
+          //return; //only migrate one partition at one time
         }
         break; //only migrate for the min version
       }
@@ -140,7 +141,7 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
       node_versions[node_id].second = std::chrono::system_clock::now();
 
       // LOG(INFO) << DebugVersions(ctrl.plan_id);
-      LOG(INFO) << "node: " << node_id << ", map version: " << node_versions[node_id].first;
+      LOG(INFO) << "[ControlManager::HandleUpdateMapVersion] node: " << node_id << ", map version: " << node_versions[node_id].first;
       // update node_count to next version
       node_count[node_id] = 0;
       for (auto& pv : part_versions) {
@@ -200,11 +201,12 @@ void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
 }
 
 void ControlManager::Migrate(int plan_id, int from_id, int to_id, int part_id) {
+  migrate_time[part_id].first = std::chrono::system_clock::now();
   auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
   auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
   auto& part_to_node = collection_view.mapper.Mutable();
   CHECK_LT(part_id, part_to_node.size());
-  CHECK_EQ(part_to_node[part_id], from_id);
+  CHECK_EQ(part_to_node[part_id], from_id) << ", part_id: " << part_id;
   part_to_node[part_id] = to_id;
 
   auto current_time = std::chrono::system_clock::now();
@@ -237,7 +239,7 @@ void ControlManager::Migrate(int plan_id, int from_id, int to_id, int part_id) {
     join_node_count_[plan_id][from_id] = count;
     join_node_versions_[plan_id][from_id].first = new_min;
     join_node_versions_[plan_id][from_id].second = current_time;
-    LOG(INFO) << "update join_node_versions_ for node: " << from_id << " to " << new_min << ", min_count: " << count;
+    LOG(INFO) << "[ControlManager::Migrate] update join_node_versions_ for node: " << from_id << " to " << new_min << ", min_count: " << count;
   } else {
     CHECK(false);
   }
@@ -245,10 +247,11 @@ void ControlManager::Migrate(int plan_id, int from_id, int to_id, int part_id) {
   // LOG(INFO) << DebugVersions(plan_id);
   // map
   if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
-    if (map_node_versions_[plan_id][from_id].first == map_part_versions_[plan_id][to_id].first) {
+    if (map_node_versions_[plan_id][from_id].first == map_part_versions_[plan_id][part_id].first) {
       // migrating the min version
       if (map_node_count_[plan_id][from_id] > 1) {
         map_node_count_[plan_id][from_id] -= 1;
+        LOG(INFO) << "pid, fid, min_count: " << plan_id << ", " << from_id << ", " << map_node_count_[plan_id][from_id];
       } else {
         // 1. find a new version
         int new_min = 1000000;
