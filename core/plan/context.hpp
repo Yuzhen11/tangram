@@ -12,6 +12,7 @@
 #include "core/plan/checkpoint.hpp"
 
 #include "core/plan/dag.hpp"
+#include "base/magic.hpp"
 
 namespace xyz {
 

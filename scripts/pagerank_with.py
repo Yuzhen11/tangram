@@ -18,6 +18,7 @@ program_params = {
     "url" : "/datasets/graph/google-adj",
     "num_local_threads" : 20,
     "num_parts" : 100,
+    "combine_type": "kDirectCombine",
 }
 
 scheduler_params = {
