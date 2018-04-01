@@ -35,6 +35,7 @@ class AbstractFunctionStore {
   using GetterFuncT = std::function<
       SArrayBinStream(SArrayBinStream bin, std::shared_ptr<AbstractPartition>)>;
   using CreatePartFuncT = std::function<std::shared_ptr<AbstractPartition>()>;
+  using CreatePartFromStringFuncT = std::function<std::shared_ptr<AbstractPartition>(std::string)>;
   ~AbstractFunctionStore(){}
   virtual void AddMap(int id, MapFuncT func) = 0;
   virtual void AddMergeCombine(int id, MergeCombineFuncT func) = 0;
@@ -47,6 +48,7 @@ class AbstractFunctionStore {
   virtual void AddWritePart(int id, WritePartFuncT func) = 0;
   virtual void AddGetter(int id, GetterFuncT func) = 0;
   virtual void AddCreatePartFunc(int id, CreatePartFuncT func) = 0;
+  virtual void AddCreatePartFromStringFunc(int id, CreatePartFromStringFuncT func) = 0;
 };
 
 }  // namespaca xyz

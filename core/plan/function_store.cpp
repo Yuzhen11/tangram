@@ -51,6 +51,11 @@ const FunctionStore::CreatePartFuncT& FunctionStore::GetCreatePart(int id) {
   return create_part_[id];
 }
 
+const FunctionStore::CreatePartFromStringFuncT& FunctionStore::GetCreatePartFromString(int id) {
+  CHECK(create_part_from_string_.find(id) != create_part_from_string_.end()) << id;
+  return create_part_from_string_[id];
+}
+
 void FunctionStore::AddMap(int id, MapFuncT map) {
   maps_.insert({id, map});
 }
@@ -97,6 +102,11 @@ void FunctionStore::AddGetter(int id, GetterFuncT func) {
 void FunctionStore::AddCreatePartFunc(int id, CreatePartFuncT func) {
   create_part_.insert({id, func});
   CHECK(create_part_.find(id) != create_part_.end());
+}
+
+void FunctionStore::AddCreatePartFromStringFunc(int id, CreatePartFromStringFuncT func) {
+  create_part_from_string_.insert({id, func});
+  CHECK(create_part_from_string_.find(id) != create_part_from_string_.end());
 }
 
 }  // namespaca xyz

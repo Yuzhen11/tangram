@@ -36,6 +36,7 @@ class FunctionStore : public AbstractFunctionStore {
   const WritePartFuncT& GetWritePartFunc(int id);
   const GetterFuncT& GetGetter(int id);
   const CreatePartFuncT& GetCreatePart(int id);
+  const CreatePartFromStringFuncT& GetCreatePartFromString(int id);
 
   // Used by plan to register function.
   virtual void AddMap(int id, MapFuncT func) override;
@@ -48,6 +49,7 @@ class FunctionStore : public AbstractFunctionStore {
   virtual void AddWritePart(int id, WritePartFuncT func) override;
   virtual void AddGetter(int id, GetterFuncT func) override;
   virtual void AddCreatePartFunc(int id, CreatePartFuncT func) override;
+  virtual void AddCreatePartFromStringFunc(int id, CreatePartFromStringFuncT func) override;
 
  private:
   std::map<int, MapFuncT> maps_;
@@ -61,6 +63,7 @@ class FunctionStore : public AbstractFunctionStore {
   std::map<int, WritePartFuncT> write_part_;
   std::map<int, GetterFuncT> getter_;
   std::map<int, CreatePartFuncT> create_part_;
+  std::map<int, CreatePartFromStringFuncT> create_part_from_string_;
 };
 
 }  // namespaca xyz

@@ -34,6 +34,17 @@ struct Load : public PlanBase {
       }
       return part;
     });
+
+    // TODO: for the file reader
+    // enable this to read the whole file
+    /*
+    function_store->AddCreatePartFromStringFunc(collection_id, [](std::string str) { 
+      auto part = std::make_shared<SeqPartition<T>>();
+      // TODO: the string contains the whole file
+      // parse the string.
+      return part;
+    });
+    */
   }
 
   std::function<T(std::string&)> parse_line;
