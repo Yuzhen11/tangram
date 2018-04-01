@@ -32,9 +32,12 @@ void DelayedCombiner::AddMapOutput(int upstream_part_id, int version,
 void DelayedCombiner::AddStream(int upstream_part_id, int version, int part_id, 
         std::shared_ptr<AbstractMapOutputStream> stream) {
   if (combine_timeout_ < 0) {  // directly send without combine
-    executor_->Add([this, part_id, version, upstream_part_id, stream]() {
-      PrepareMsgAndSend(part_id, version, {upstream_part_id}, stream);
-    });
+    // executor_->Add([this, part_id, version, upstream_part_id, stream]() {
+    //   PrepareMsgAndSend(part_id, version, {upstream_part_id}, stream);
+    // });
+    // use the same thread to send the message to ensure that
+    // local output will be applied before next local map
+    PrepareMsgAndSend(part_id, version, {upstream_part_id}, stream);
   } else if (combine_timeout_ == 0) {  // send with combine
     executor_->Add([this, part_id, version, upstream_part_id, stream]() {
       stream->Combine();

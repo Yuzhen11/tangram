@@ -18,6 +18,7 @@ DEFINE_int32(staleness, 0, "staleness");
 DEFINE_int32(num_line_per_part, -1, "num_line_per_part");
 DEFINE_int32(backoff_time, 100, "backoff time if there is no item in ms");
 DEFINE_int32(max_sample_item_size_each_round, -1, "");
+DEFINE_int32(max_retry, 0, "may set to 0 for bsp");
 
 using namespace xyz;
 
@@ -227,6 +228,26 @@ int main(int argc, char** argv) {
       auto with_iter = static_cast<TypedPartition<Collector>*>(with_part.get())->begin();
       int version = typed_cache->GetVersion();
 
+      // FLAGS_max_retry may set to 0 for bsp
+      int retry = 0;
+      while (with_iter->items.empty() && FLAGS_max_retry) {
+        LOG(INFO) << "retrying " << p->id << " no items, sleep for " << FLAGS_backoff_time << " ms";
+        typed_cache->ReleasePart(p->id);
+        std::this_thread::sleep_for(std::chrono::milliseconds(FLAGS_backoff_time));
+        with_part = typed_cache->GetPartition(p->id);
+        with_iter = static_cast<TypedPartition<Collector>*>(with_part.get())->begin();
+        retry += 1;
+        if (retry == FLAGS_max_retry) {
+          LOG(INFO) << p->id << " reach max retry";
+          break;
+        }
+      }
+      // LOG(INFO) << "item count: " << items.size() << " on " << p->id;
+      if (with_iter->items.empty()) {
+        LOG(INFO) << p->id << " no items, sleep for " << FLAGS_backoff_time << " ms";
+        std::this_thread::sleep_for(std::chrono::milliseconds(FLAGS_backoff_time));
+      }
+
       Msg update_users;
       Msg migrate_items;
       update_users.version = version;
@@ -238,13 +259,10 @@ int main(int argc, char** argv) {
       int c = 0;
       int sample = 2;
       int item_count = 0;
-      LOG(INFO) << "item count: " << items.size() << " on " << p->id;
-      if (items.empty()) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(FLAGS_backoff_time));
-      }
       for (auto& item : items) {
         item_count += 1;
         if (item_count == FLAGS_max_sample_item_size_each_round) {
+          LOG(INFO) << p->id << " truncated by max_sample_item_size_each_round: " << FLAGS_max_sample_item_size_each_round;
           break;
         }
         // LOG(INFO) << "item: " << item.DebugString();
@@ -255,7 +273,7 @@ int main(int argc, char** argv) {
           auto& user = with_iter->users[u_r.first];
           // LOG(INFO) << "user: " << user.DebugString();
           float diff = -std::inner_product(user.latent, user.latent+kNumLatent, item.latent, -u_r.second);
-          if (c < sample) {
+          if (c < sample && p->id == 0) {
             LOG(INFO) << "uid, iid: " << user.key << "," << item.key << ", estimated, real: " << std::inner_product(user.latent, user.latent+kNumLatent, item.latent, 0.0) << ", " << u_r.second;
           }
           c += 1;
