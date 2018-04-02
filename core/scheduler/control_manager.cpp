@@ -341,16 +341,21 @@ void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int par
 
 void ControlManager::UpdateVersion(int plan_id) {
   auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
+  // udpate version before AddCP
+  // TODO: note that the checkpoint may not be written when AddCP is called
+  versions_[plan_id] ++;
+
   if (mapjoin_spec->checkpoint_interval != 0 
-          && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
+          && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0
+          && versions_[plan_id] != 0) {
     int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
     CHECK(mapjoin_spec->checkpoint_path.size());
     std::string checkpoint_path = mapjoin_spec->checkpoint_path;
-    collection_status_->AddCP(mapjoin_spec->join_collection_id, 
-            checkpoint_path + "/cp-" + std::to_string(cp_iter));  // TODO
+    checkpoint_path = checkpoint_path + "/cp-" + std::to_string(cp_iter);
+    collection_status_->AddCP(mapjoin_spec->join_collection_id, checkpoint_path);
+    LOG(INFO) << "[ControlManager::UpdateVersion] Add checkpoint: " << checkpoint_path;
   }
 
-  versions_[plan_id] ++;
   //record time 
   version_time_[plan_id].push_back(std::chrono::system_clock::now());
   
