@@ -154,4 +154,16 @@ struct MigrateMeta {
   }
 };
 
+namespace {
+
+// shared by checkpoint_loader, checkpoint_manager, plan_controller
+std::string GetCheckpointUrl(std::string url, 
+        int collection_id, int partition_id) {
+  std::string dest_url = url + 
+      "/c" + std::to_string(collection_id) + "-p" + std::to_string(partition_id);
+  return dest_url;
+}
+
+}  // namespace
+
 } // namespace xyz

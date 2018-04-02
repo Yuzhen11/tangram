@@ -125,6 +125,7 @@ class PlanController : public AbstractPlanController {
   int num_local_map_part_;
   SpecWrapper::Type type_;
   int checkpoint_interval_;
+  std::string checkpoint_path_;
 
   int min_version_;
   int staleness_;

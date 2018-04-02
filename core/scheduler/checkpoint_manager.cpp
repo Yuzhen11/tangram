@@ -15,7 +15,7 @@ void CheckpointManager::Checkpoint(SpecWrapper s) {
   for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
     int node_id = collection_view.mapper.Get(i);
     SArrayBinStream bin;
-    std::string dest_url = CheckpointLoader::GetCheckpointUrl(url, cid, i);
+    std::string dest_url = GetCheckpointUrl(url, cid, i);
     bin << cid << i << dest_url;  // collection_id, partition_id, url
     SendTo(elem_, node_id, ScheduleFlag::kCheckpoint, bin);
   }

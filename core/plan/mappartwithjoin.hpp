@@ -67,8 +67,9 @@ struct MapPartWithJoin : public PlanBase {
     num_iter = iter;
     return this;
   }
-  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCheckpointInterval(int cp) {
+  MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCheckpointInterval(int cp, std::string path = "/tmp/tmp") {
     checkpoint_interval = cp;
+    checkpoint_path = path;
     return this;
   }
   MapPartWithJoin<C1, C2, C3, ObjT1, ObjT2, ObjT3, MsgT>* SetCombine(
@@ -87,8 +88,8 @@ struct MapPartWithJoin : public PlanBase {
     SpecWrapper w;
     w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin,
             map_collection->Id(), join_collection->Id(), combine_timeout, num_iter, 
-            staleness, checkpoint_interval, with_collection->Id(),
-            description_);
+            staleness, checkpoint_interval, checkpoint_path, 
+            description_, with_collection->Id());
     w.name = name;
     return w;
   }
@@ -141,6 +142,7 @@ struct MapPartWithJoin : public PlanBase {
 
   int num_iter = 1;
   int staleness = 0;
+  std::string checkpoint_path;
   int checkpoint_interval = 0;
   int combine_timeout = -1;
   std::string description_;

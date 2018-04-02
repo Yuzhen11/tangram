@@ -2,13 +2,6 @@
 
 namespace xyz {
 
-std::string CheckpointLoader::GetCheckpointUrl(std::string url, 
-        int collection_id, int partition_id) {
-  std::string dest_url = url + 
-      "/c" + std::to_string(collection_id) + "-p" + std::to_string(partition_id);
-  return dest_url;
-}
-
 void CheckpointLoader::LoadCheckpoint(int cid, std::string url,
         std::function<void()> f) {
   LOG(INFO) << "[CheckpointLoader] loading checkpoint for collection: " << cid;

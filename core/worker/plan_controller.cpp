@@ -29,6 +29,10 @@ void PlanController::Setup(SpecWrapper spec) {
   map_collection_id_ = p->map_collection_id;
   join_collection_id_ = p->join_collection_id;
   checkpoint_interval_ = p->checkpoint_interval;
+  checkpoint_path_ = p->checkpoint_path;
+  if (checkpoint_interval_ != 0) {
+    CHECK(checkpoint_path_.size());
+  }
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
   num_join_part_ = controller_->engine_elem_.collection_map->GetNumParts(join_collection_id_);
@@ -242,10 +246,9 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 bool PlanController::TryCheckpoint(int part_id) {
   if (checkpoint_interval_ != 0 && join_versions_[part_id] % checkpoint_interval_ == 0) {
     int checkpoint_iter = join_versions_[part_id] / checkpoint_interval_;
-    std::string dest_url = "/tmp/tmp/c"
-        +std::to_string(join_collection_id_)
-        +"-p"+std::to_string(part_id)
-        +"-cp"+std::to_string(checkpoint_iter);
+    std::string dest_url = checkpoint_path_ + 
+        "/cp-" + std::to_string(checkpoint_iter);
+    dest_url = GetCheckpointUrl(dest_url, join_collection_id_, part_id);
 
     CHECK(running_joins_.find(part_id) == running_joins_.end());
     running_joins_.insert({part_id, -1});
@@ -289,6 +292,7 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   CHECK(running_joins_.find(part_id) != running_joins_.end());
   running_joins_.erase(part_id);
   TryRunWaitingJoins(part_id);
+  TryRunSomeMaps();
 }
 
 void PlanController::ReportFinishPart(ControllerMsg::Flag flag, 

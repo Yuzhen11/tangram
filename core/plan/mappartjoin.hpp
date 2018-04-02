@@ -51,8 +51,9 @@ struct MapPartJoin : public PlanBase {
     num_iter = iter;
     return this;
   }
-  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetCheckpointInterval(int cp) {
+  MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>* SetCheckpointInterval(int cp, std::string path = "/tmp/tmp") {
     checkpoint_interval = cp;
+    checkpoint_path = path;
     return this;
   }
 
@@ -73,7 +74,7 @@ struct MapPartJoin : public PlanBase {
     SpecWrapper w;
     w.SetSpec<MapJoinSpec>(plan_id, SpecWrapper::Type::kMapJoin,
             map_collection->Id(), join_collection->Id(), combine_timeout, num_iter, 
-            staleness, checkpoint_interval, description_);
+            staleness, checkpoint_interval, checkpoint_path, description_);
     w.name = name;
     return w;
   }
@@ -117,6 +118,7 @@ struct MapPartJoin : public PlanBase {
 
   int num_iter = 1;
   int staleness = 0;
+  std::string checkpoint_path;
   int checkpoint_interval = 0;
   int combine_timeout = -1;
   std::string description_;

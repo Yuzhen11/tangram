@@ -23,21 +23,23 @@ struct MapJoinSpec : public Spec {
   int num_iter = 1;
   int staleness = 0;
   int checkpoint_interval = 0;
+  std::string checkpoint_path;
   std::string description;
   MapJoinSpec() = default;
-  MapJoinSpec(int mid, int jid, int comb, int iter, int s, int cp, std::string d)
+  MapJoinSpec(int mid, int jid, int comb, int iter, int s, 
+          int cp, std::string path, std::string d)
       : map_collection_id(mid), join_collection_id(jid), 
         combine_timeout(comb), num_iter(iter), staleness(s), checkpoint_interval(cp),
-        description(d) {}
+        checkpoint_path(path), description(d) {}
   virtual void ToBin(SArrayBinStream& bin) override {
     bin << map_collection_id << join_collection_id 
         << combine_timeout << num_iter << staleness << checkpoint_interval
-        << description;
+        << checkpoint_path << description;
   }
   virtual void FromBin(SArrayBinStream& bin) override {
     bin >> map_collection_id >> join_collection_id
         >> combine_timeout >> num_iter >> staleness >> checkpoint_interval
-        >> description;
+        >> checkpoint_path >> description;
   }
   virtual ReadWriteVector GetReadWrite() const {
     if (map_collection_id == join_collection_id) {
@@ -54,6 +56,7 @@ struct MapJoinSpec : public Spec {
     ss << ", num_iter: " << num_iter;
     ss << ", staleness: " << staleness;
     ss << ", checkpoint_interval: " << checkpoint_interval;
+    ss << ", checkpoint_path: " << checkpoint_path;
     ss << ", description: " << description;
     return ss.str();
   }
@@ -62,8 +65,9 @@ struct MapJoinSpec : public Spec {
 struct MapWithJoinSpec : public MapJoinSpec {
   int with_collection_id;
   MapWithJoinSpec() = default;
-  MapWithJoinSpec(int mid, int jid, int comb, int iter, int s, int cp, int wid, std::string d)
-      : MapJoinSpec(mid, jid, comb, iter, s, cp, d), with_collection_id(wid) {}
+  MapWithJoinSpec(int mid, int jid, int comb, int iter, int s, int cp, 
+          std::string path, std::string d, int wid)
+      : MapJoinSpec(mid, jid, comb, iter, s, cp, path, d), with_collection_id(wid) {}
   virtual void ToBin(SArrayBinStream& bin) override {
     MapJoinSpec::ToBin(bin);
     bin << with_collection_id;
