@@ -14,8 +14,12 @@ bool Fetcher::IsVersionSatisfied(const FetchMeta& meta) {
 
 // required to have lock first
 void Fetcher::TryAccessLocal(const FetchMeta& meta) {
-  if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
-    local_access_count_[{meta.collection_id, meta.partition_id}] += 1;
+  // if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
+  //   local_access_count_[{meta.collection_id, meta.partition_id}] += 1;
+  // }
+  auto p = std::make_pair(meta.collection_id, meta.partition_id);
+  if (local_access_count_.find(p) != local_access_count_.end()) {
+    local_access_count_[p] += 1;
   }
 }
 
@@ -51,6 +55,7 @@ std::shared_ptr<AbstractPartition> Fetcher::FetchPart(FetchMeta meta) {
 }
 
 void Fetcher::FinishPart(FetchMeta meta) {
+    /*
   if (meta.local_mode && partition_manager_->Has(meta.collection_id, meta.partition_id)) {
     std::unique_lock<std::mutex> lk(m_);
     local_access_count_[{meta.collection_id, meta.partition_id}] -= 1;
@@ -67,6 +72,26 @@ void Fetcher::FinishPart(FetchMeta meta) {
       TryFetchNextVersion(meta, version);
     }
   }
+  */
+  std::unique_lock<std::mutex> lk(m_);
+  auto p = std::make_pair(meta.collection_id, meta.partition_id);
+  if (local_access_count_.find(p) != local_access_count_.end()) {
+    CHECK(local_access_count_[p] > 0);
+    local_access_count_[p] -= 1;
+    // when no one is accessing this part, SendFinishPart
+    // TODO: the reference count of local part will drop to 0 even
+    // when fetch_collection != join_collection (fetch_collection 
+    // is immutable), and thus local part need to be refetched.
+    // But it should be fast
+    if (local_access_count_[p] == 0) {
+      SendFinishPart(meta);
+      int version = partition_versions_[meta.collection_id][meta.partition_id];
+      partition_versions_[meta.collection_id].erase(meta.partition_id);
+      partition_cache_[meta.collection_id].erase(meta.partition_id);
+      TryFetchNextVersion(meta, version);
+      local_access_count_.erase(p);
+    }
+  }
 }
 
 void Fetcher::SendFinishPart(const FetchMeta& meta) {
@@ -74,8 +99,8 @@ void Fetcher::SendFinishPart(const FetchMeta& meta) {
   Message msg;
   msg.meta.sender = Qid();
   msg.meta.recver = GetControllerActorQid(GetNodeId(Qid()));
-  CHECK_EQ(msg.meta.recver, 
-    GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id)));
+  // CHECK_EQ(msg.meta.recver, 
+  //   GetControllerActorQid(collection_map_->Lookup(meta.collection_id, meta.partition_id)));
   msg.meta.flag = Flag::kOthers;
   SArrayBinStream ctrl_bin, plan_bin, bin;
   ctrl_bin << ControllerFlag::kFinishFetch;
@@ -139,6 +164,8 @@ void Fetcher::FetchPartReplyLocal(Message msg) {
   std::unique_lock<std::mutex> lk(m_);
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
+  CHECK(local_access_count_.find({meta.collection_id, meta.partition_id}) == local_access_count_.end());
+  local_access_count_[{meta.collection_id, meta.partition_id}] = 0;
   cv_.notify_all();
 }
 
