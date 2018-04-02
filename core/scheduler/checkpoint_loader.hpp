@@ -23,6 +23,8 @@ class CheckpointLoader {
         std::function<void()> f);
 
   void SendLoadCommand(int cid, int part_id, int node_id, std::string url);
+
+  static std::string GetCheckpointUrl(std::string url, int collection_id, int partition_id);
  private:
   std::shared_ptr<SchedulerElem> elem_;
 

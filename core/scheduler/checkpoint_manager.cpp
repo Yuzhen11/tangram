@@ -15,7 +15,7 @@ void CheckpointManager::Checkpoint(SpecWrapper s) {
   for (int i = 0; i < collection_view.mapper.GetNumParts(); ++ i) {
     int node_id = collection_view.mapper.Get(i);
     SArrayBinStream bin;
-    std::string dest_url = url + "c" + std::to_string(cid) + "-p" + std::to_string(i);
+    std::string dest_url = CheckpointLoader::GetCheckpointUrl(url, cid, i);
     bin << cid << i << dest_url;  // collection_id, partition_id, url
     SendTo(elem_, node_id, ScheduleFlag::kCheckpoint, bin);
   }
@@ -26,11 +26,13 @@ void CheckpointManager::LoadCheckpoint(SpecWrapper s) {
   CHECK(s.type == SpecWrapper::Type::kLoadCheckpoint);
   auto* load_checkpoint_spec = static_cast<LoadCheckpointSpec*>(s.spec.get());
   int cid = load_checkpoint_spec->cid;
+  cid_pid_[cid] = s.id;
   std::string url = collection_status_->GetLastCP(cid);
   checkpoint_loader_->LoadCheckpoint(cid, url, [this, cid]() {
     SArrayBinStream reply_bin;
     reply_bin << cid_pid_[cid];
     ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    cid_pid_.erase(cid);
   });
 }
 
@@ -42,6 +44,7 @@ void CheckpointManager::FinishCheckpoint(SArrayBinStream bin) {
     SArrayBinStream reply_bin;
     reply_bin << cid_pid_[collection_id];
     ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    cid_pid_.erase(collection_id);
   }
 }
 

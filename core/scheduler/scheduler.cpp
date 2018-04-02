@@ -69,6 +69,7 @@ void Scheduler::Process(Message msg) {
     LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
     dag_runner_->Finish(plan_id);
     collection_status_->FinishPlan(plan_id);
+    // LOG(INFO) << collection_status_->DebugString();
     TryRunPlan();
     break;
   }

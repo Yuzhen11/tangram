@@ -35,7 +35,7 @@ void CollectionStatus::FinishPlan(int plan_id) {
   for (auto r: p.first) {
     CHECK(read_ids_.find(r) != read_ids_.end());
     read_ids_[r] --;
-    if (read_ids_.count(r) == 0) {
+    if (read_ids_[r] == 0) {
       read_ids_.erase(r);
     }
   }

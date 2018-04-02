@@ -45,6 +45,11 @@ class SArrayBinStream {
     buffer_.CopyFrom(data, size);
     front_ = 0;
   }
+
+  void Resize(size_t size) {
+    buffer_.resize(size);
+  }
+  char* GetBegin() { return &buffer_[0]; }
  private:
   third_party::SArray<char> buffer_;
   size_t front_ = 0;

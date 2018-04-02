@@ -188,18 +188,15 @@ void Worker::LoadCheckPoint(SArrayBinStream bin) {
     reader->Init(dest_url);
     size_t file_size = reader->GetFileSize();
     CHECK_NE(file_size, 0);
-    LOG(INFO) << "file_size: " << std::to_string(file_size);
-    char *data = new char[file_size];
-    reader->Read(data, file_size);
-    std::string str(data);
-    LOG(INFO) << "data: " << str;
+    // LOG(INFO) << "file_size: " << std::to_string(file_size);
+    
+    SArrayBinStream bin;
+    bin.Resize(file_size);
+    reader->Read(bin.GetBegin(), file_size);
 
-    // 2. put readed data into partition_manager
+    // 2. construct partition and insert
     auto get_func = engine_elem_.function_store->GetCreatePart(collection_id);
     auto p = get_func();
-    SArrayBinStream bin;
-    bin.AddBin(data, file_size);
-    delete [] data;
     p->FromBin(bin);
     engine_elem_.partition_manager->Insert(collection_id, part_id, std::move(p));
 
