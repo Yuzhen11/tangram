@@ -27,7 +27,9 @@ class Engine {
   struct Config {
     std::string scheduler;
     int scheduler_port;
-    int num_threads;
+    int num_local_threads;
+    int num_join_threads;
+    int num_combine_threads;
     std::string namenode;
     int port;
     std::string DebugString() const {
@@ -35,7 +37,9 @@ class Engine {
       ss << " { ";
       ss << ", scheduler: " << scheduler;
       ss << ", scheduler_port: " << scheduler_port;
-      ss << ", num_threads: " << num_threads;
+      ss << ", num_local_threads: " << num_local_threads;
+      ss << ", num_join_threads: " << num_join_threads;
+      ss << ", num_combine_threads: " << num_combine_threads;
       ss << ", namenode: " << namenode;
       ss << ", port: " << port;
       ss << " } ";

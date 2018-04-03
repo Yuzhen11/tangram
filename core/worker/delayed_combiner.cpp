@@ -14,7 +14,8 @@ DelayedCombiner::DelayedCombiner(PlanController* plan_controller, int combine_ti
     });
   }
   // TODO: use a new executor or the existing one?
-  executor_= std::make_shared<Executor>(kNumCombineThreads);
+  CHECK_NOTNULL(plan_controller_->controller_);
+  executor_= std::make_shared<Executor>(plan_controller_->controller_->engine_elem_.num_combine_threads);
 }
 
 void DelayedCombiner::AddMapOutput(int upstream_part_id, int version, 

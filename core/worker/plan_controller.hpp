@@ -163,7 +163,6 @@ class PlanController : public AbstractPlanController {
   std::map<int, int> flush_all_count_; //migrate part id, flush all count
   std::set<int> stop_joining_partitions_;
   std::mutex stop_joining_partitions_mu_;
-  std::mutex collection_view_mu_;
 
   std::map<int, bool> load_finished_;
   std::mutex load_finished_mu_;

@@ -52,7 +52,6 @@ class DelayedCombiner {
   // >kMaxCombineTimeout: shuffle combine
   const int combine_timeout_ = 0;
   std::atomic<bool> finished_{false};
-  const int kNumCombineThreads = 20;
 };
 
 }  // namespace xyz

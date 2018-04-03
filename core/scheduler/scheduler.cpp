@@ -8,6 +8,17 @@
 
 namespace xyz {
 
+const int kRecoverMagic = 10000;
+int GetRecoverPlanId(int id) {
+  return id * kRecoverMagic;
+}
+int GetRealId(int id) {
+  return id >= kRecoverMagic ? id%kRecoverMagic : id;
+}
+bool IsRecoverPlan(int id) {
+  return id >= kRecoverMagic ? true:false;
+}
+
 // make the scheduler ready and start receiving RegisterProgram
 void Scheduler::Ready(std::vector<Node> nodes) {
   start = std::chrono::system_clock::now();
@@ -67,6 +78,10 @@ void Scheduler::Process(Message msg) {
     int plan_id;
     bin >> plan_id;
     LOG(INFO) << "[Scheduler] " << YELLOW("Finish plan " + std::to_string(plan_id));
+    if (IsRecoverPlan(plan_id)) {
+      plan_id = GetRealId(plan_id);
+      LOG(INFO) << "[Scheduler] " << RED("Finish a recovery plan");
+    }
     dag_runner_->Finish(plan_id);
     collection_status_->FinishPlan(plan_id);
     // LOG(INFO) << collection_status_->DebugString();
@@ -172,6 +187,9 @@ void Scheduler::FinishRecovery() {
       // directly update the version
       mapjoin_spec->num_iter = new_iter;
     }
+
+    spec.id = GetRecoverPlanId(pid);  // setting a new id
+    LOG(INFO) << RED("rerunning plan for recovery: " + std::to_string(spec.id));
     // relaunch the plan
     RunPlan(pid);
   }

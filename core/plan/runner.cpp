@@ -4,8 +4,10 @@ DEFINE_string(scheduler, "", "The host of scheduler");
 DEFINE_int32(scheduler_port, -1, "The port of scheduler");
 DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
 DEFINE_int32(hdfs_port, -1, "The port of hdfs");
-DEFINE_int32(num_local_threads, 1, "# local_threads");
 DEFINE_int32(node_id, -1, "node id");
+DEFINE_int32(num_local_threads, 20, "# local_threads");
+DEFINE_int32(num_join_threads, 20, "# join_threads");
+DEFINE_int32(num_combine_threads, 20, "# combine_threads");
 
 namespace xyz {
 
@@ -36,7 +38,9 @@ void Runner::Run() {
   Engine::Config config;
   config.scheduler = FLAGS_scheduler;
   config.scheduler_port = FLAGS_scheduler_port;
-  config.num_threads = FLAGS_num_local_threads;
+  config.num_local_threads = FLAGS_num_local_threads;
+  config.num_join_threads = FLAGS_num_join_threads;
+  config.num_combine_threads = FLAGS_num_combine_threads;
   config.namenode = FLAGS_hdfs_namenode;
   config.port = FLAGS_hdfs_port;
 

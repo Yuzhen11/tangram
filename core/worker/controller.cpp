@@ -4,6 +4,8 @@
 
 #include "core/worker/plan_controller.hpp"
 
+#include "base/color.hpp"
+
 namespace xyz {
 
 void Controller::Process(Message msg) {
@@ -18,7 +20,11 @@ void Controller::Process(Message msg) {
   plan_bin >> plan_id;
 
   if (flag != ControllerFlag::kSetup) {
-    CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
+    // CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
+    if (plan_controllers_.find(plan_id) == plan_controllers_.end()) {
+      LOG(INFO) << RED("[Controller::Process] Ignoring message for plan: " + std::to_string(plan_id));
+      return;
+    }
   }
 
   switch (flag) {
