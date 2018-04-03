@@ -14,6 +14,8 @@ class TestPlanController : public testing::Test {};
 TEST_F(TestPlanController, Create) {
   int qid = 0;
   EngineElem elem;
+  elem.num_local_threads = 1;
+  elem.num_join_threads = 1;
   auto io_wrapper = std::make_shared<IOWrapper>(
       []() { return std::make_shared<FakeReader>(); },
       []() { return std::make_shared<FakeWriter>(); });
