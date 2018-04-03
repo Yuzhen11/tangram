@@ -152,7 +152,12 @@ void Scheduler::RunPlan(int plan_id) {
     block_manager_->Load(spec);
   } else if (spec.type == SpecWrapper::Type::kMapJoin
           || spec.type == SpecWrapper::Type::kMapWithJoin) {
-    control_manager_->RunPlan(spec);
+    int id = spec.id;
+    control_manager_->RunPlan(spec, [this, id]() {
+      SArrayBinStream reply_bin;
+      reply_bin << id;
+      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
+    });
   } else if (spec.type == SpecWrapper::Type::kWrite) {
     LOG(INFO) << "[Scheduler] Writing: " << spec.DebugString();
     write_manager_->Write(spec);
@@ -209,16 +214,21 @@ void Scheduler::Recovery(SArrayBinStream bin) {
 
   // terminate plan
   auto cur_plans = collection_status_->GetCurrentPlans();
+  CHECK_EQ(cur_plans.size(), 1);  // TODO
   for (auto pid: cur_plans) {
     auto spec_wrapper = program_.specs[pid];
     CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
          || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
-    SArrayBinStream dummy_bin;
-    SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, pid, dummy_bin);
+    // SArrayBinStream dummy_bin;
+    // SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, pid, dummy_bin);
+    control_manager_->AbortPlan(pid, [this, dead_nodes]() {
+      // TODO: only work for 1 running plan
+      // To support more plan, use a counter to record the aborted plans.
+      // recover the collections and update collection map
+      recover_manager_->Recover(dead_nodes);
+    });
   }
 
-  // recover the collections and update collection map
-  recover_manager_->Recover(dead_nodes);
 }
 
 void Scheduler::Exit() {

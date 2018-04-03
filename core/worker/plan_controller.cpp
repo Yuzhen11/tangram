@@ -14,6 +14,7 @@ struct FakeTracker : public AbstractMapProgressTracker {
 PlanController::PlanController(Controller* controller)
   : controller_(controller) {
   fetch_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_join_threads);
+  map_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_local_threads);
   local_map_mode_ = true;
 }
  
@@ -66,7 +67,7 @@ void PlanController::Setup(SpecWrapper spec) {
   ctrl.plan_id = plan_id_;
   ctrl.version = -1;
   reply_bin << ctrl;
-  SendMsgToScheduler(reply_bin);
+  controller_->SendMsgToScheduler(reply_bin);
 }
 
 void PlanController::StartPlan() {
@@ -77,19 +78,20 @@ void PlanController::StartPlan() {
 void PlanController::UpdateVersion(SArrayBinStream bin) {
   int new_version;
   bin >> new_version;
-  if (new_version == -1) { // finish plan
-    SArrayBinStream bin;
-    ControllerMsg ctrl;
-    ctrl.flag = ControllerMsg::Flag::kFinish;
-    ctrl.version = -1;
-    ctrl.node_id = controller_->engine_elem_.node.id;
-    ctrl.plan_id = plan_id_;
-    bin << ctrl;
-    SendMsgToScheduler(bin);
-   
-    DisplayTime();
-    return;
-  }
+  CHECK_LT(new_version, expected_num_iter_);
+  // if (new_version == -1) { // finish plan
+  //   SArrayBinStream bin;
+  //   ControllerMsg ctrl;
+  //   ctrl.flag = ControllerMsg::Flag::kFinish;
+  //   ctrl.version = -1;
+  //   ctrl.node_id = controller_->engine_elem_.node.id;
+  //   ctrl.plan_id = plan_id_;
+  //   bin << ctrl;
+  //   SendMsgToScheduler(bin);
+  //  
+  //   DisplayTime();
+  //   return;
+  // }
   CHECK_EQ(new_version, min_version_+1);
   min_version_ = new_version;
   for (auto& part_version : join_tracker_) {
@@ -310,7 +312,7 @@ void PlanController::ReportFinishPart(ControllerMsg::Flag flag,
   ctrl.plan_id = plan_id_;
   ctrl.part_id = part_id;
   bin << ctrl;
-  SendMsgToScheduler(bin);
+  controller_->SendMsgToScheduler(bin);
 }
 
 void PlanController::RunMap(int part_id, int version, 
@@ -338,7 +340,7 @@ void PlanController::RunMap(int part_id, int version,
     controller_->GetWorkQueue()->Push(msg);
   };
 
-  controller_->engine_elem_.executor->Add([this, part_id, version, p, AbortMap]() {
+  map_executor_->Add([this, part_id, version, p, AbortMap]() {
     auto start = std::chrono::system_clock::now();
     auto pt = std::make_shared<FakeTracker>();
 
@@ -503,18 +505,6 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
       join_time_[meta.meta.part_id][meta.meta.upstream_part_id] = std::make_pair(start, end);
     }
   });
-}
-
-void PlanController::SendMsgToScheduler(SArrayBinStream bin) {
-  Message msg;
-  msg.meta.sender = controller_->Qid();
-  msg.meta.recver = 0;
-  msg.meta.flag = Flag::kOthers;
-  SArrayBinStream ctrl_bin;
-  ctrl_bin << ScheduleFlag::kControl;
-  msg.AddData(ctrl_bin.ToSArray());
-  msg.AddData(bin.ToSArray());
-  controller_->engine_elem_.sender->Send(std::move(msg));
 }
 
 void PlanController::ReceiveFetchRequest(Message msg) {
@@ -946,7 +936,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   ctrl.plan_id = plan_id_;
   ctrl.part_id = migrate_meta.partition_id;
   bin << ctrl;
-  SendMsgToScheduler(bin);
+  controller_->SendMsgToScheduler(bin);
 }
 
 void PlanController::FinishLoadWith(SArrayBinStream bin) {

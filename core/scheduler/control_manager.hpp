@@ -22,7 +22,8 @@ class ControlManager {
         collection_manager_(collection_manager) {}
 
   void Control(SArrayBinStream bin);
-  void RunPlan(SpecWrapper spec);
+  void RunPlan(SpecWrapper spec, std::function<void()> f);
+  void AbortPlan(int id, std::function<void()> f);
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
   
@@ -76,6 +77,8 @@ class ControlManager {
   std::shared_ptr<CheckpointLoader> checkpoint_loader_;
   std::shared_ptr<CollectionStatus> collection_status_;
   bool migrate_control = true;
+
+  std::map<int, std::function<void()>> callbacks_;
 };
 
 

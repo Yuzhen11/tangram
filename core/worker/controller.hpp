@@ -23,6 +23,7 @@ class Controller : public Actor {
 
   void Setup(SArrayBinStream bin);
   void TerminatePlan(int plan_id);
+  void SendMsgToScheduler(SArrayBinStream bin);
 
   std::shared_ptr<IOWrapper> io_wrapper_;
   EngineElem engine_elem_;

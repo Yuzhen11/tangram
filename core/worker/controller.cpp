@@ -101,9 +101,32 @@ void Controller::Setup(SArrayBinStream bin) {
 void Controller::TerminatePlan(int plan_id) {
   CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
   LOG(INFO) << "[Controller] Terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
+  plan_controllers_[plan_id]->DisplayTime();
   plan_controllers_.erase(plan_id);
-  LOG(INFO) << "[Controller] executor size: " << engine_elem_.executor->GetNumPendingTask();
+  // LOG(INFO) << "[Controller] executor size: " << engine_elem_.executor->GetNumPendingTask();
+
+  SArrayBinStream bin;
+  ControllerMsg ctrl;
+  ctrl.flag = ControllerMsg::Flag::kFinish;
+  ctrl.version = -1;
+  ctrl.node_id = engine_elem_.node.id;
+  ctrl.plan_id = plan_id;
+  bin << ctrl;
+  SendMsgToScheduler(bin);
 }
+
+void Controller::SendMsgToScheduler(SArrayBinStream bin) {
+  Message msg;
+  msg.meta.sender = Qid();
+  msg.meta.recver = 0;
+  msg.meta.flag = Flag::kOthers;
+  SArrayBinStream ctrl_bin;
+  ctrl_bin << ScheduleFlag::kControl;
+  msg.AddData(ctrl_bin.ToSArray());
+  msg.AddData(bin.ToSArray());
+  engine_elem_.sender->Send(std::move(msg));
+}
+
 
 }  // namespace xyz
 

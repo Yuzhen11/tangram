@@ -81,6 +81,7 @@ class PlanController : public AbstractPlanController {
   virtual void ReceiveFetchRequest(Message msg) override;
   virtual void FinishFetch(SArrayBinStream bin) override;
   virtual void FinishCheckpoint(SArrayBinStream bin) override;
+  virtual void DisplayTime() override;
 
   virtual void MigratePartition(Message msg) override;
 
@@ -95,8 +96,6 @@ class PlanController : public AbstractPlanController {
   void RunJoin(VersionedJoinMeta meta);
   void RunFetchRequest(VersionedJoinMeta fetch_meta);
   void Fetch(VersionedJoinMeta fetch_meta, int version);
-  void SendMsgToScheduler(SArrayBinStream bin);
-  void DisplayTime();
 
   // checkpoint
   bool TryCheckpoint(int part_id);
@@ -152,6 +151,7 @@ class PlanController : public AbstractPlanController {
   std::map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
 
   std::shared_ptr<Executor> fetch_executor_;
+  std::shared_ptr<Executor> map_executor_;
 
   std::mutex time_mu_;  
   std::map<int, std::tuple<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> map_time_;//part id

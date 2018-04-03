@@ -63,15 +63,19 @@ void ControlManager::Control(SArrayBinStream bin) {
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
-      SArrayBinStream reply_bin;
-      reply_bin << ctrl.plan_id;
-      ToScheduler(elem_, ScheduleFlag::kFinishPlan, reply_bin);
-
-      // print version intervals
-      for (int i = 0; i < version_time_[ctrl.plan_id].size()-1; i++) {
-        std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
-        LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
+      if (versions_[ctrl.plan_id] == expected_versions_[ctrl.plan_id]) {
+        // print version intervals
+        for (int i = 0; i < version_time_[ctrl.plan_id].size()-1; i++) {
+          std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
+          LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
+        }
+      } else {
+        LOG(INFO) << "[ControlManager] Abort Plan: " << ctrl.plan_id;
       }
+
+      CHECK(callbacks_.find(ctrl.plan_id) != callbacks_.end());
+      callbacks_[ctrl.plan_id]();
+      callbacks_.erase(ctrl.plan_id);
     }
   } else if (ctrl.flag == ControllerMsg::Flag::kFinishMigrate) {
     migrate_time[ctrl.part_id].second = std::chrono::system_clock::now();
@@ -431,11 +435,9 @@ void ControlManager::UpdateVersion(int plan_id) {
   version_time_[plan_id].push_back(std::chrono::system_clock::now());
   
   if (versions_[plan_id] == expected_versions_[plan_id]) {
-    LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id] << " for plan " << plan_id;
-    // send finish
-    SArrayBinStream bin;
-    bin << int(-1);
-    SendToAllControllers(elem_, ControllerFlag::kUpdateVersion, plan_id, bin);
+    LOG(INFO) << "[ControlManager] Finish versions: " << versions_[plan_id] << " for plan " << plan_id << " send kTerminatePlan";
+    SArrayBinStream dummy_bin;
+    SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, plan_id, dummy_bin);
   } else {
     LOG(INFO) << "[ControlManager] Update min version: " << versions_[plan_id] << " for plan " << plan_id; 
     // update version
@@ -445,7 +447,16 @@ void ControlManager::UpdateVersion(int plan_id) {
   }
 }
 
-void ControlManager::RunPlan(SpecWrapper spec) {
+void ControlManager::AbortPlan(int plan_id, std::function<void()> f) {
+  CHECK(callbacks_.find(plan_id) != callbacks_.end());
+  callbacks_[plan_id] = f;  // reset the callback
+
+  // terminate it
+  SArrayBinStream dummy_bin;
+  SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, plan_id, dummy_bin);
+}
+
+void ControlManager::RunPlan(SpecWrapper spec, std::function<void()> f) {
   CHECK(spec.type == SpecWrapper::Type::kMapJoin
        || spec.type == SpecWrapper::Type::kMapWithJoin);
 
@@ -457,6 +468,7 @@ void ControlManager::RunPlan(SpecWrapper spec) {
   versions_[plan_id] = 0;
   expected_versions_[plan_id] = static_cast<MapJoinSpec*>(spec.spec.get())->num_iter;
   CHECK_NE(expected_versions_[plan_id], 0);
+  callbacks_[plan_id] = f;
   // LOG(INFO) << "[ControlManager] Start a plan num_iter: " << expected_versions_[plan_id]; 
 
   SArrayBinStream bin;
