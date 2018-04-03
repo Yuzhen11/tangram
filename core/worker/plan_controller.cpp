@@ -2,8 +2,11 @@
 #include "core/scheduler/control.hpp"
 #include "core/partition/abstract_map_progress_tracker.hpp"
 #include "glog/logging.h"
+#include "base/color.hpp"
 
 #include <limits>
+#include <stdlib.h>
+//#define WITH_LB_JOIN
 
 namespace xyz {
 
@@ -78,20 +81,19 @@ void PlanController::StartPlan() {
 void PlanController::UpdateVersion(SArrayBinStream bin) {
   int new_version;
   bin >> new_version;
+  
+#ifdef WITH_LB_JOIN
+  std::thread cpu_limit([this, new_version](){
+    if (controller_->engine_elem_.node.id == 1 &&
+        new_version == 2) {
+      LOG(INFO) << RED("[PlanController::UpdateVersion] start to run cpulimit on node 1");
+      system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 50 -e PageRankWith");
+    }
+  });
+  cpu_limit.detach();
+#endif
+
   CHECK_LT(new_version, expected_num_iter_);
-  // if (new_version == -1) { // finish plan
-  //   SArrayBinStream bin;
-  //   ControllerMsg ctrl;
-  //   ctrl.flag = ControllerMsg::Flag::kFinish;
-  //   ctrl.version = -1;
-  //   ctrl.node_id = controller_->engine_elem_.node.id;
-  //   ctrl.plan_id = plan_id_;
-  //   bin << ctrl;
-  //   SendMsgToScheduler(bin);
-  //  
-  //   DisplayTime();
-  //   return;
-  // }
   CHECK_EQ(new_version, min_version_+1);
   min_version_ = new_version;
   for (auto& part_version : join_tracker_) {
@@ -849,7 +851,6 @@ void PlanController::MigratePartitionDest(Message msg) {
 
   {
     bool is_mapwithjoin = false;//TODO: automatically detect
-    std::lock_guard<std::mutex> lk(load_finished_mu_);
     if (is_mapwithjoin &&
         map_collection_id_ == join_collection_id_ &&
         map_collection_id_ != fetch_collection_id_ &&
@@ -943,7 +944,6 @@ void PlanController::FinishLoadWith(SArrayBinStream bin) {
   std::tuple<int, int, int> submeta;
   bin >> submeta;
   {
-    std::lock_guard<std::mutex> lk(load_finished_mu_);
     load_finished_[std::get<2>(submeta)] = true;
     LOG(INFO) << "[PlanController::FinishLoadWith] from_id: " << 
       std::get<0>(submeta) << " to_id: " << std::get<1>(submeta)

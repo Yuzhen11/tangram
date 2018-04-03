@@ -165,7 +165,6 @@ class PlanController : public AbstractPlanController {
   std::mutex stop_joining_partitions_mu_;
 
   std::map<int, bool> load_finished_;
-  std::mutex load_finished_mu_;
 
   struct MigrateData {
     int map_version;

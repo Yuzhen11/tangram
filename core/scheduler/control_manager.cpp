@@ -6,6 +6,7 @@
 
 #include <algorithm>
 //#define WITH_LB
+//#define WITH_LB_JOIN
 
 namespace xyz {
 
@@ -60,6 +61,22 @@ void ControlManager::Control(SArrayBinStream bin) {
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
+#ifdef WITH_LB_JOIN
+    if (migrate_control && 
+        specs_[ctrl.plan_id].name == "pagerank main logic" &&
+        versions_[ctrl.plan_id] == 2) {//migrate at version 2
+      std::vector<std::tuple<int, int, int>> meta;
+      int from_id = 1;
+      int node_num = 20;
+      int num_parts = 400;
+      for (int i = 0; i < num_parts; i = i + num_parts/node_num) {
+        int to_id = ( (i / node_num) % (node_num - 1) + 1 + from_id - 1) % node_num + 1;
+        meta.push_back(std::make_tuple(from_id, to_id, i));
+      }
+      PreBatchMigrate(ctrl.plan_id, meta);
+      migrate_control = false;
+    }
+#endif
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {

@@ -268,7 +268,9 @@ int main(int argc, char** argv) {
           }
           if (!MSG.second.empty()) kvs.push_back(MSG); // do not send empty msg
         }
-        typed_cache->ReleasePart(0);
+        for (int i = 0; i < num_part; i++) {
+          typed_cache->ReleasePart(i);
+        }
         return kvs;
       },
       [iteration, pattern](Matcher* matcher, std::vector<std::tuple<int, int, Vertex>> msgs){
