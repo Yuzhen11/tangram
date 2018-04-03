@@ -21,7 +21,7 @@ class Executor: public AbstractExecutor {
   // Return the number of tasks that are either running or waiting in the queue.
   int GetNumPendingTask() {
     std::lock_guard<std::mutex> lk(mu_);
-    return num_finished_ - num_added_;
+    return num_added_ - num_finished_;
   }
   bool HasFreeThreads() {
     return GetNumPendingTask() < num_threads_;

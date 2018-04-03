@@ -15,7 +15,7 @@ private:
   std::mutex heartbeat_mu_;
   std::unordered_map<int, time_t> heartbeats_; // heartbeats from workers
   // in seconds
-  const int kHeartbeatTimeout = 1;
+  const int kHeartbeatTimeout = 3;
   const int kHeartbeatCheckInterval = 1;
   std::set<int> GetDeadNodes(int timeout = 60);
   void CheckHeartbeat(int time_out);

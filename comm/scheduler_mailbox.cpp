@@ -1,4 +1,5 @@
 #include "comm/scheduler_mailbox.hpp"
+#include "base/color.hpp"
 
 namespace xyz {
 
@@ -201,12 +202,10 @@ void SchedulerMailbox::CheckHeartbeat(int time_out) {
     if (!ready_.load())
       break;
 
-    break;  // TODO
-
     std::set<int> deadnodes = GetDeadNodes(time_out);
     if (!deadnodes.empty()) {
       // TODO: start a new worker node
-      LOG(INFO) << "Detected " << std::to_string(deadnodes.size()) << " deadnode";
+      LOG(INFO) << RED("Detected " + std::to_string(deadnodes.size()) + " deadnode");
       Message msg;
       msg.meta.recver = 0;
       msg.meta.flag = Flag::kOthers;
@@ -216,7 +215,20 @@ void SchedulerMailbox::CheckHeartbeat(int time_out) {
       msg.AddData(ctrl_bin.ToSArray());
       msg.AddData(bin.ToSArray());
       Send(msg);
+      
+      // Delete the deadnode from connected_nodes_ and its heartbeat info
+      for (auto node_id : deadnodes) {
+        for (auto it = connected_nodes_.begin(); it != connected_nodes_.end(); ++it) {
+          if (it->second == node_id) { 
+            connected_nodes_.erase(it);
+            break; 
+          }
+        }
+        heartbeats_.erase(node_id);
+      }
+
     }
+
   }
 }
 
@@ -224,8 +236,6 @@ void SchedulerMailbox::UpdateHeartbeat(int node_id) {
   time_t t = time(NULL);
   std::lock_guard<std::mutex> lk(heartbeat_mu_);
   heartbeats_[node_id] = t;
-  VLOG(1) << "Heartbeat from node_id: " << std::to_string(node_id)
-          << " time: " << std::to_string(t);
 }
 
 const std::vector<int> SchedulerMailbox::GetNodeIDs() {
@@ -259,6 +269,7 @@ void SchedulerMailbox::Receiving() {
       } else if (ctrl.flag == MailboxFlag::kRegister) {
         HandleRegisterMsg(&msg, recovery_node);
       } else if (ctrl.flag == MailboxFlag::kHeartbeat) {
+        // LOG(INFO) << "Recv heartbeat from node " + std::to_string(msg.meta.sender);
         UpdateHeartbeat(msg.meta.sender);
       }
     } else {

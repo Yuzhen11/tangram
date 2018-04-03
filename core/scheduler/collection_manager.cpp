@@ -3,7 +3,7 @@
 namespace xyz {
 
 void CollectionManager::Update(int collection_id, std::function<void()> f) {
-  LOG(INFO) << "[Scheduler] UpdateCollection for collection_id: " 
+  LOG(INFO) << "[Scheduler] Update Collection for collection_id: " 
       << collection_id;
   callbacks_.insert({collection_id, f});
   received_replies_[collection_id].clear();
@@ -21,7 +21,7 @@ void CollectionManager::FinishUpdate(SArrayBinStream bin) {
   received_replies_[collection_id].insert(node_id);
   if (received_replies_[collection_id].size() == elem_->nodes.size()) {
     received_replies_[collection_id].clear();
-    LOG(INFO) << "[Scheduler] UpdateCollection for collection_id: "
+    LOG(INFO) << "[Scheduler] Update Collection for collection_id: "
         << collection_id << " done";
     // finish_plan
     // invoke the callback

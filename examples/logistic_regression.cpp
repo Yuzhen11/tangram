@@ -85,32 +85,43 @@ int main(int argc, char **argv) {
   int num_params = FLAGS_num_params;
   int num_data = FLAGS_num_data;
   double alpha = FLAGS_alpha;
+  int num_parts = 5;
 
-  auto params = Context::placeholder<Param>(1);
+  auto params = Context::placeholder<Param>(num_parts);
   auto p =
       Context::mappartwithjoin(
           dataset, params, params,
-          [num_params, num_data, alpha](TypedPartition<Point> *p,
+          [num_params, num_data, alpha, num_parts](TypedPartition<Point> *p,
                                         TypedCache<Param> *typed_cache,
                                         AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs;
             std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
+            // Dense
             if (!FLAGS_is_sparse) {
-              auto part = typed_cache->GetPartition(0);
-              auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
+              // auto part = typed_cache->GetPartition(0);
+              // auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
+              // LOG(INFO) << GREEN(std::to_string(p->GetSize()));
+              // LOG(INFO) << GREEN(std::to_string(with_p->GetSize()));
 
-              LOG(INFO) << GREEN(std::to_string(p->GetSize()));
-              LOG(INFO) << GREEN(std::to_string(with_p->GetSize()));
-
-              auto iter1 = with_p->begin();
-              std::vector<float> old_params(num_params);
-              while (iter1 != with_p->end()) {
-                CHECK_LT(iter1->fea, num_params);
-                old_params[iter1->fea] = iter1->val;
-                ++iter1;
+              std::vector<TypedPartition<Param>*> with_parts;
+              for (int i = 0; i < num_parts; i++) {
+                auto part = typed_cache->GetPartition(i);
+                auto *with_p = static_cast<TypedPartition<Param>*>(part.get());
+                with_parts.push_back(with_p);
               }
+
+              std::vector<float> old_params(num_params);
+              for (auto with_p : with_parts) {
+                  auto iter1 = with_p->begin();
+                  while (iter1 != with_p->end()) {
+                      CHECK_LT(iter1->fea, num_params);
+                      old_params[iter1->fea] = iter1->val;
+                      ++iter1;
+                  }
+              }
+
               auto iter2 = p->begin();
               while (iter2 != p->end()) {
                 auto &x = iter2->x;
@@ -134,9 +145,13 @@ int main(int argc, char **argv) {
                 step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
                 ++iter2;
               }
-              typed_cache->ReleasePart(0);
+
+              for (int i = 0; i < num_parts; i++) {
+                typed_cache->ReleasePart(i);
+              }
             }
 
+            // Sparse
             else {
               std::set<int> keys_set;
               std::map<int, float> old_params;

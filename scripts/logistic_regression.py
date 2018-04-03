@@ -20,9 +20,9 @@ program_params = {
     "num_params" : 123,
     "num_data" : 32561,
     "alpha" : 0.005,
-    "num_iter" : 50,
+    "num_iter" : 500,
     "staleness" : 2,
-    "is_sparse" : True,
+    "is_sparse" : False,
 }
 
 scheduler_params = {
