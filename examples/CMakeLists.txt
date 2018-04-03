@@ -35,7 +35,7 @@ target_link_libraries(PageRankWith ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET PageRankWith PROPERTY CXX_STANDARD 14)
 add_dependencies(PageRankWith ${external_project_dependencies})
 
-# GraphMatching 
+# GraphMatching
 add_executable(GraphMatching graph_matching.cpp)
 target_link_libraries(GraphMatching xyz)
 target_link_libraries(GraphMatching ${HUSKY_EXTERNAL_LIB})
@@ -89,4 +89,11 @@ add_executable(TestLB test_lb.cpp)
 target_link_libraries(TestLB xyz)
 target_link_libraries(TestLB ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestLB PROPERTY CXX_STANDARD 14)
-add_dependencies(TestLB ${external_project_dependencies})
+
+# TFIDF
+add_executable(TFIDF tfidf.cpp)
+target_link_libraries(TFIDF xyz)
+target_link_libraries(TFIDF ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TFIDF PROPERTY CXX_STANDARD 14)
+add_dependencies(TFIDF ${external_project_dependencies})
+add_dependencies(TFIDF ${external_project_dependencies})

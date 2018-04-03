@@ -95,6 +95,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
+  /*
   engine_elem_.executor->Add([this, block]() {
     // read
     CHECK(block_reader_getter_);
@@ -112,10 +113,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
   });
-
-  // TODO: for the file reader
-  // enable this to read the whole file
-  /*
+*/
   engine_elem_.executor->Add([this, block]() {
     auto reader = io_wrapper_->GetReader();
     CHECK_EQ(block.offset, 0);
@@ -137,7 +135,6 @@ void Worker::LoadBlock(SArrayBinStream bin) {
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
   });
-  */
 }
 
 void Worker::Distribute(SArrayBinStream bin) {
