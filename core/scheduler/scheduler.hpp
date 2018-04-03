@@ -54,7 +54,7 @@ public:
 
     block_manager_ = std::make_shared<BlockManager>(elem_, collection_manager_, builder);
     control_manager_ = std::make_shared<ControlManager>(elem_, 
-            checkpoint_loader_, collection_status_);
+            checkpoint_loader_, collection_status_, collection_manager_);
     distribute_manager_ = std::make_shared<DistributeManager>(elem_, collection_manager_);
     write_manager_ = std::make_shared<WriteManager>(elem_);
     checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_, collection_status_);

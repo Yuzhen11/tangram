@@ -106,7 +106,8 @@ class PlanController : public AbstractPlanController {
   // for migration
   void MigratePartitionStartMigrate(MigrateMeta);
   void MigratePartitionReceiveFlushAll(MigrateMeta);
-  void MigratePartitionDest(Message msg);
+  void MigratePartitionDest(Message msg) override;
+  void FinishLoadWith(SArrayBinStream bin) override;//for load cp in migration
 
   // for speculative execution
   void MigratePartitionStartMigrateMapOnly(MigrateMeta);
@@ -163,6 +164,9 @@ class PlanController : public AbstractPlanController {
   std::set<int> stop_joining_partitions_;
   std::mutex stop_joining_partitions_mu_;
   std::mutex collection_view_mu_;
+
+  std::map<int, bool> load_finished_;
+  std::mutex load_finished_mu_;
 
   struct MigrateData {
     int map_version;

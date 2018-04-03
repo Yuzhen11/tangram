@@ -410,7 +410,7 @@ void PlanController::ReceiveJoin(Message msg) {
   if (join_versions_.find(meta.part_id) == join_versions_.end()) {
     // if receive something that is not belong to here
     buffered_requests_[meta.part_id].push_back(join_meta);
-    LOG(INFO) << "part to migrate: " << meta.part_id <<  ", buffered requsts size: " << buffered_requests_[meta.part_id].size();
+    //LOG(INFO) << "part to migrate: " << meta.part_id <<  ", buffered requsts size: " << buffered_requests_[meta.part_id].size();
     return;
   }
 
@@ -857,6 +857,41 @@ void PlanController::MigratePartitionDest(Message msg) {
   bin1 >> migrate_data;
   CHECK_EQ(migrate_meta.to_id, controller_->engine_elem_.node.id) << "only w_b receive this";
 
+  {
+    bool is_mapwithjoin = false;//TODO: automatically detect
+    std::lock_guard<std::mutex> lk(load_finished_mu_);
+    if (is_mapwithjoin &&
+        map_collection_id_ == join_collection_id_ &&
+        map_collection_id_ != fetch_collection_id_ &&
+        (load_finished_.find(migrate_meta.partition_id) == load_finished_.end() || !load_finished_[migrate_meta.partition_id])
+       ) {
+      // if load cp has not finished for this part
+      // push a msg to the msg queue to run this function again
+      // why does not ReciveFlushALL produce massive msg?
+      std::thread migrate_thread([this, migrate_meta, bin1, bin2](){
+        LOG(INFO) << "load cp has not finished for part: " << migrate_meta.partition_id <<", try to run later";
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        Message msg;
+        msg.meta.sender = controller_->engine_elem_.node.id;
+        msg.meta.recver = controller_->engine_elem_.node.id;
+        msg.meta.flag = Flag::kOthers;
+        SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
+        ctrl_bin << ControllerFlag::kMigratePartitionDest;
+        plan_bin << plan_id_;
+        ctrl2_bin << migrate_meta;
+        msg.AddData(ctrl_bin.ToSArray());
+        msg.AddData(plan_bin.ToSArray());
+        msg.AddData(ctrl2_bin.ToSArray());
+        msg.AddData(bin1.ToSArray());
+        msg.AddData(bin2.ToSArray());
+        controller_->GetWorkQueue()->Push(msg);
+      });
+      migrate_thread.detach();
+      return;
+    }
+    load_finished_[migrate_meta.partition_id] = false;
+  }
+
   LOG(INFO) << "[MigrateDone] " << migrate_data.DebugString();
   if (map_collection_id_ == join_collection_id_) {
     CHECK(map_versions_.find(migrate_meta.partition_id) == map_versions_.end());
@@ -912,6 +947,18 @@ void PlanController::MigratePartitionDest(Message msg) {
   ctrl.part_id = migrate_meta.partition_id;
   bin << ctrl;
   SendMsgToScheduler(bin);
+}
+
+void PlanController::FinishLoadWith(SArrayBinStream bin) {
+  std::tuple<int, int, int> submeta;
+  bin >> submeta;
+  {
+    std::lock_guard<std::mutex> lk(load_finished_mu_);
+    load_finished_[std::get<2>(submeta)] = true;
+    LOG(INFO) << "[PlanController::FinishLoadWith] from_id: " << 
+      std::get<0>(submeta) << " to_id: " << std::get<1>(submeta)
+      << " part_id: " << std::get<2>(submeta);
+  }
 }
 
 void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_meta) {

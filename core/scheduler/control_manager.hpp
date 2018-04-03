@@ -5,6 +5,7 @@
 #include "core/scheduler/control.hpp"
 #include "core/scheduler/checkpoint_loader.hpp"
 #include "core/scheduler/collection_status.hpp"
+#include "core/scheduler/collection_manager.hpp"
 
 #include "core/plan/spec_wrapper.hpp"
 
@@ -14,9 +15,11 @@ class ControlManager {
  public:
   ControlManager(std::shared_ptr<SchedulerElem> elem,
           std::shared_ptr<CheckpointLoader> cp_loader,
-          std::shared_ptr<CollectionStatus> collection_status)
+          std::shared_ptr<CollectionStatus> collection_status,
+          std::shared_ptr<CollectionManager> collection_manager)
       : elem_(elem), checkpoint_loader_(cp_loader),
-        collection_status_(collection_status) {}
+        collection_status_(collection_status),
+        collection_manager_(collection_manager) {}
 
   void Control(SArrayBinStream bin);
   void RunPlan(SpecWrapper spec);
@@ -33,10 +36,13 @@ class ControlManager {
   void UpdateVersion(int plan_id);
   void Init(int plan_id);
   void Migrate(int plan_id, int from_id, int to_id, int part_id);
+  void PreBatchMigrate(int plan_id, std::vector<std::tuple<int, int, int>> meta);
+  void BatchMigrate(int plan_id, std::vector<std::tuple<int, int, int>> meta);
   void MigrateMapOnly(int plan_id, int from_id, int to_id, int part_id);
   void TryMigrate(int plan_id);
  private:
   std::shared_ptr<SchedulerElem> elem_;
+  std::shared_ptr<CollectionManager> collection_manager_;
 
   std::map<int, int> versions_;
   std::map<int, int> expected_versions_;
@@ -69,6 +75,7 @@ class ControlManager {
 
   std::shared_ptr<CheckpointLoader> checkpoint_loader_;
   std::shared_ptr<CollectionStatus> collection_status_;
+  bool migrate_control = true;
 };
 
 

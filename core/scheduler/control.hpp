@@ -24,7 +24,7 @@ enum class ScheduleFlag : char {
   kUpdateCollection,
   kUpdateCollectionReply,
   kRecovery,
-  kFinishRecovery
+  kFinishRecovery,
 };
 
 static const char *ScheduleFlagName[] = {"kRegisterProgram",
@@ -98,6 +98,8 @@ enum class ControllerFlag : char {
   kFinishCheckpoint,
   kMigratePartition,
   kTerminatePlan,
+  kFinishLoadWith,
+  kMigratePartitionDest,
 };
 
 struct FetchMeta {

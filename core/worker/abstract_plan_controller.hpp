@@ -18,6 +18,8 @@ struct AbstractPlanController {
   virtual void FinishCheckpoint(SArrayBinStream bin) = 0;
 
   virtual void MigratePartition(Message msg) = 0;
+  virtual void FinishLoadWith(SArrayBinStream bin) = 0;
+  virtual void MigratePartitionDest(Message msg) = 0;
 };
 
 }  // namespace xyz
