@@ -26,7 +26,7 @@ template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT
 struct MapPartJoin : public PlanBase {
   using MapPartFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
           TypedPartition<ObjT1>* p, AbstractMapProgressTracker* t)>;
-  using JoinFuncT = std::function<void(ObjT2*, const MsgT&)>;
+  using JoinFuncT = std::function<void(ObjT2*, MsgT)>;
   using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   // for internal use

@@ -13,7 +13,7 @@ struct FakeTracker : public AbstractMapProgressTracker {
 
 PlanController::PlanController(Controller* controller)
   : controller_(controller) {
-  fetch_executor_ = std::make_shared<Executor>(5);
+  fetch_executor_ = std::make_shared<Executor>(20);
   local_map_mode_ = true;
 }
  
