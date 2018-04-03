@@ -4,21 +4,23 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
-progfile = "debug/TFIDF"
-schedulerfile = "debug/SchedulerMain"
+progfile = "release/TFIDF"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
-    "scheduler_port" : "33224",
+    "scheduler_port" : "33254",
     "hdfs_namenode" : "proj10",
     "hdfs_port" : 9000,
 }
 
 program_params = {
-    # "url" : "http://course.cse.cuhk.edu.hk/~csci4140",
+    # "url" : "/datasets/corpus/enwiki/wiki_0",
     "url" : "/datasets/corpus/enwiki",
     "num_local_threads" : 20,
     "num_of_docs" : 10000,
+    "num_doc_partition" : 10,
+    "num_term_partition" : 10,
 }
 
 scheduler_params = {
@@ -35,7 +37,7 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-dump_core = True
+dump_core = False
 l = Launcher(schedulerfile, progfile, hostfile,
              common_params, scheduler_params, program_params, env_params,
              dump_core)

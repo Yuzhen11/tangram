@@ -35,10 +35,9 @@ struct Load : public PlanBase {
       return part;
     });
 
+    // TODO: enable this only for tfidf (parse file)
     function_store->AddCreatePartFromStringFunc(collection_id, [this](std::string str) { 
       auto part = std::make_shared<SeqPartition<T>>();
-      // TODO: the string contains the whole file
-      // parse the string.
       std::string::size_type pos = 0;
       std::string::size_type prev = 0;
       std::string doc;
@@ -52,9 +51,7 @@ struct Load : public PlanBase {
           doc += " " + line;
         }
         prev = pos + 1;
-
       }
-      
       return part;
     });
   }

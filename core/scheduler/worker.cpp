@@ -95,7 +95,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   AssignedBlock block;
   bin >> block;
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
-  /*
+
   engine_elem_.executor->Add([this, block]() {
     // read
     CHECK(block_reader_getter_);
@@ -113,20 +113,28 @@ void Worker::LoadBlock(SArrayBinStream bin) {
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
   });
-*/
+
+  // TODO: enable this only for tfidf (parse file)
+  /*
   engine_elem_.executor->Add([this, block]() {
     auto reader = io_wrapper_->GetReader();
     CHECK_EQ(block.offset, 0);
     reader->Init(block.url);
     size_t file_size = reader->GetFileSize();
+    CHECK_GT(file_size, 0);
 
-    char *data = new char[file_size];
-    reader->Read(data, file_size);
-    std::string str(data);  // TODO: remove the copy
+    // char *data = new char[file_size];
+    // reader->Read(data, file_size);
+    // std::string str(data);  // TODO: remove the copy
+
+    std::string str;
+    str.resize(file_size);
+    reader->Read(&str[0], file_size);
+
     auto func = engine_elem_.function_store->GetCreatePartFromString(block.collection_id);
     auto part = func(std::move(str));
     engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
-    delete data;
+    // delete data;
 
     SArrayBinStream reply_bin;
     FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
@@ -135,6 +143,7 @@ void Worker::LoadBlock(SArrayBinStream bin) {
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
   });
+  */
 }
 
 void Worker::Distribute(SArrayBinStream bin) {

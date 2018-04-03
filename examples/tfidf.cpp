@@ -6,12 +6,9 @@
 #include <cmath>
 #include <regex>
 
-//DEFINE_string(scheduler, "", "The host of scheduler");
-//DEFINE_int32(scheduler_port, -1, "The port of scheduler");
-//DEFINE_string(hdfs_namenode, "", "The namenode of hdfs");
-//DEFINE_int32(hdfs_port, -1, "The port of hdfs");
-//DEFINE_int32(num_local_threads, 1, "# local_threads");
 DEFINE_int32(num_of_docs, 1, "# number of docs");
+DEFINE_int32(num_doc_partition, 10, "");
+DEFINE_int32(num_term_partition, 10, "");
 
 DEFINE_string(url, "", "The url for hdfs file");
 
@@ -82,7 +79,7 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
 
   // load and generate two collections
-  auto p0 = Context::load(FLAGS_url, [](std::string &content) {
+  auto loaded_docs = Context::load(FLAGS_url, [](std::string &content) {
 
       //parse extract title
       std::regex rgx(".*?title=\"(.*?)\".*?");
@@ -91,14 +88,11 @@ int main(int argc, char **argv) {
       if (std::regex_search(content, match, rgx)){
         //LOG(INFO) << match[1];
         title = match[1];
+      } else {
+        CHECK(false) << "cannot match title";
       }
-      else
-        LOG(INFO) << "Cannot match";
       
       Document doc(title);
-      doc.words.resize(0);
-
-
       std::vector<int> count;
       if (content.size() > 0) {
         boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
@@ -130,12 +124,10 @@ int main(int argc, char **argv) {
       return doc;
   });
 
-
-
-  auto params = Context::placeholder<Term>(10);
-  auto dataset = Context::placeholder<Document>(10);
+  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_term_partition);
+  auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
   Context::mappartjoin(
-      p0, dataset,
+      loaded_docs, indexed_docs,
       [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
         std::vector<std::pair<std::string, Document>> ret;
         for (auto& doc : *p) {
@@ -146,45 +138,48 @@ int main(int argc, char **argv) {
       [](Document *p_doc, Document doc) { 
         *p_doc = std::move(doc);
       })
-      ->SetName("Serialize dataset");
-  auto p1 =
-      Context::mappartjoin(
-          p0, params,
-          [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
-            std::vector<std::pair<std::string, Msg>> ret;
-            for (auto& doc : *p) {
-              for(int i = 0; i < doc.words.size(); i++){
-                Msg msg;
-                msg.index = i;
-                msg.title = doc.id();
-                ret.push_back({doc.words[i],msg});
-              }
-            }
-            return ret;
-          },
-          [](Term *term, Msg msg) { 
-              term->titles.push_back(msg.title);
-              term->indexs.push_back(msg.index);
-              term->idf += 1;
+      ->SetName("build indexed_docs from loaded_docs");
 
-          })
-          ->SetName("Out all the doc");
-  
-  auto p2 =
-      Context::mappartjoin(
-          params, dataset,
-          [](TypedPartition<Term>* p, AbstractMapProgressTracker* t) {
-            std::vector<std::pair<std::string, std::pair<int, int> >> ret;
-            for (auto& term : *p) {
-              for(int i = 0; i < term.indexs.size(); i++) {
-                ret.push_back({term.titles[i], std::make_pair(term.indexs[i], term.idf)});
-              }
-            }
-            return ret;
-          },
-          [dataset](Document *doc, std::pair<int, int> m) { 
-            doc->tf_idf[m.first] = std::log(FLAGS_num_of_docs / double(m.second));
-          })
-          ->SetName("Send idf back to doc");
+  Context::sort_each_partition(indexed_docs);
+
+  Context::mappartjoin(
+      indexed_docs, terms,
+      [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
+        std::vector<std::pair<std::string, Msg>> ret;
+        for (auto& doc : *p) {
+          for(int i = 0; i < doc.words.size(); i++){
+            Msg msg;
+            msg.index = i;
+            msg.title = doc.id();
+            ret.push_back({doc.words[i],msg});
+          }
+        }
+        return ret;
+      },
+      [](Term *term, Msg msg) { 
+          term->titles.push_back(msg.title);
+          term->indexs.push_back(msg.index);
+          term->idf += 1;
+
+      })
+      ->SetName("Out all the doc");
+
+  // Context::count(terms);
+
+  Context::mappartjoin(
+      terms, indexed_docs,
+      [](TypedPartition<Term>* p, AbstractMapProgressTracker* t) {
+        std::vector<std::pair<std::string, std::pair<int, int> >> ret;
+        for (auto& term : *p) {
+          for(int i = 0; i < term.indexs.size(); i++) {
+            ret.push_back({term.titles[i], std::make_pair(term.indexs[i], term.idf)});
+          }
+        }
+        return ret;
+      },
+      [](Document *doc, std::pair<int, int> m) { 
+        doc->tf_idf[m.first] = std::log(FLAGS_num_of_docs / double(m.second));
+      })
+      ->SetName("Send idf back to doc");
   Runner::Run();
 }
