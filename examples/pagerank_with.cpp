@@ -3,8 +3,9 @@
 #include "glog/logging.h"
 #include "boost/tokenizer.hpp"
 
-DEFINE_int32(num_parts, 100, "# num of partitions");
+// #define ENABLE_CP
 
+DEFINE_int32(num_parts, 100, "# num of partitions");
 DEFINE_string(url, "", "The url for hdfs file");
 DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
 
@@ -128,6 +129,11 @@ int main(int argc, char** argv) {
 
   Context::sort_each_partition(vertex);
   Context::sort_each_partition(links);
+
+#ifdef ENABLE_CP
+  Context::checkpoint(vertex, "/tmp/tmp/yz");
+  Context::checkpoint(links, "/tmp/tmp/yz");
+#endif
   
   auto p = Context::mappartwithjoin(vertex, links, vertex,
       [](TypedPartition<Vertex>* p,
@@ -157,8 +163,11 @@ int main(int argc, char** argv) {
   ->SetCombine([](float* a, float b){
    *a = *a + b; 
    }, combine_timeout)
-  ->SetIter(5)
+  ->SetIter(25)
   ->SetStaleness(0)
+#ifdef ENABLE_CP
+  ->SetCheckpointInterval(5, "/tmp/tmp/yz")
+#endif
   ->SetName("pagerank main logic");
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");

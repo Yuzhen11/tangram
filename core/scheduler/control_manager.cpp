@@ -81,13 +81,14 @@ void ControlManager::Control(SArrayBinStream bin) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
       if (versions_[ctrl.plan_id] == expected_versions_[ctrl.plan_id]) {
-        // print version intervals
-        for (int i = 0; i < version_time_[ctrl.plan_id].size()-1; i++) {
-          std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
-          LOG(INFO) << "[ControlManager] version interval: " << "(" << i << "->" << i+1 << ") " << duration.count();
-        }
       } else {
         LOG(INFO) << "[ControlManager] Abort Plan: " << ctrl.plan_id;
+        version_time_[ctrl.plan_id].push_back(std::chrono::system_clock::now());
+      }
+      // print version intervals
+      for (int i = 0; i < version_time_[ctrl.plan_id].size()-1; i++) {
+        std::chrono::duration<double> duration = version_time_[ctrl.plan_id].at(i+1) - version_time_[ctrl.plan_id].at(i);
+        LOG(INFO) << "[ControlManager] version interval for plan: " << ctrl.plan_id << ": " << "(" << i << "->" << i+1 << ") " << duration.count();
       }
 
       CHECK(callbacks_.find(ctrl.plan_id) != callbacks_.end());

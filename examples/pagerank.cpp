@@ -3,7 +3,11 @@
 #include "glog/logging.h"
 #include "boost/tokenizer.hpp"
 
+// #define ENABLE_CP
+
+DEFINE_int32(num_parts, 100, "# num of partitions");
 DEFINE_string(url, "", "The url for hdfs file");
+DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
 
 using namespace xyz;
 
@@ -32,9 +36,12 @@ struct Vertex
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
+  const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
+  }
 
-  auto c1 = Context::load(FLAGS_url, [](std::string& s) {
-
+  auto loaded_dataset = Context::load(FLAGS_url, [](std::string& s) {
     Vertex v;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);
@@ -49,9 +56,9 @@ int main(int argc, char** argv) {
     return v;
   })->SetName("dataset");
 
-  auto c2 = Context::placeholder<Vertex>(100)->SetName("vertex");
+  auto vertex = Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
 
-  auto p1 = Context::mapjoin(c1, c2,
+  auto p1 = Context::mapjoin(loaded_dataset, vertex,
     [](const Vertex& v) {
       return std::pair<int, std::vector<int>> (v.vertex, v.outlinks);
     },
@@ -61,24 +68,37 @@ int main(int argc, char** argv) {
       }
       v->pr = 0.15;
     })->SetName("construct vertex");
-  auto p2 = Context::mapjoin(c2, c2,
-    [](const Vertex& v) {
+
+  Context::sort_each_partition(vertex);
+
+#ifdef ENABLE_CP
+  Context::checkpoint(vertex, "/tmp/tmp/yz");
+#endif
+
+  auto p2 = Context::mappartjoin(vertex, vertex,
+    [](TypedPartition<Vertex>* p,
+      AbstractMapProgressTracker* t) {
       std::vector<std::pair<int, float>> contribs;
-      for (auto outlink : v.outlinks) {
-        contribs.push_back(std::pair<int, float>(outlink, v.pr/v.outlinks.size()));
+      for (auto& v: *p) {
+        for (auto outlink : v.outlinks) {
+          contribs.push_back(std::pair<int, float>(outlink, v.pr/v.outlinks.size()));
+        }
       }
       return contribs;
-    }, 
+    },
     [](Vertex* v, float contrib) {
       v->pr += 0.85 * contrib;
     })
     ->SetCombine([](float* a, float b) {
       *a = *a + b;
-    })
-    ->SetIter(10)
+    }, combine_timeout)
+    ->SetIter(25)
     ->SetStaleness(0)
+#ifdef ENABLE_CP
+    ->SetCheckpointInterval(5, "/tmp/tmp/yz")
+#endif
     ->SetName("pagerank main logic");
 
-  Context::count(c1);
+  // Context::count(loaded_dataset);
   Runner::Run();
 }
