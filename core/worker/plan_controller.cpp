@@ -20,6 +20,10 @@ PlanController::PlanController(Controller* controller)
   map_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_local_threads);
   local_map_mode_ = true;
 }
+
+PlanController::~PlanController() {
+  LOG(INFO) << RED("~PlanController: " + std::to_string(plan_id_));
+}
  
 void PlanController::Setup(SpecWrapper spec) {
   type_ = spec.type;
@@ -356,11 +360,11 @@ void PlanController::RunMap(int part_id, int version,
     // 1. map
     std::shared_ptr<AbstractMapOutput> map_output;
     if (type_ == SpecWrapper::Type::kMapJoin) {
-      auto& map = controller_->engine_elem_.function_store->GetMap(plan_id_);
+      auto& map = controller_->engine_elem_.function_store->GetMap(GetRealId(plan_id_));
       map_output = map(p, pt); 
     } else if (type_ == SpecWrapper::Type::kMapWithJoin){
-      auto& mapwith = controller_->engine_elem_.function_store->GetMapWith(plan_id_);
-      map_output = mapwith(version, p, controller_->engine_elem_.fetcher, pt); 
+      auto& mapwith = controller_->engine_elem_.function_store->GetMapWith(GetRealId(plan_id_));
+      map_output = mapwith(plan_id_, version, p, controller_->engine_elem_.fetcher, pt); 
     } else {
       CHECK(false);
     }
@@ -470,12 +474,12 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
       }
       auto stream = stream_store_.Get(k);
       stream_store_.Remove(k);
-      auto& join_func = controller_->engine_elem_.function_store->GetJoin2(plan_id_);
+      auto& join_func = controller_->engine_elem_.function_store->GetJoin2(GetRealId(plan_id_));
       CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
       auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
       join_func(p, stream);
     } else {
-      auto& join_func = controller_->engine_elem_.function_store->GetJoin(plan_id_);
+      auto& join_func = controller_->engine_elem_.function_store->GetJoin(GetRealId(plan_id_));
       CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
       auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
       join_func(p, meta.bin);

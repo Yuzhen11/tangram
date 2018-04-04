@@ -19,6 +19,7 @@ void Controller::Process(Message msg) {
   int plan_id;
   plan_bin >> plan_id;
 
+  // LOG(INFO) << "flag: " << static_cast<int>(flag);
   if (flag != ControllerFlag::kSetup) {
     // CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
     if (plan_controllers_.find(plan_id) == plan_controllers_.end()) {

@@ -97,11 +97,11 @@ struct MapPartWithJoin : public PlanBase {
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     auto map_part_with = GetMapPartWithFunc();
     function_store->AddMapWith(this->plan_id, [this, map_part_with](
-                int version,
+                int pid, int version,
                 std::shared_ptr<AbstractPartition> partition,
                 std::shared_ptr<AbstractFetcher> fetcher,
                 std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      auto map_output = map_part_with(version, partition, fetcher, tracker);
+      auto map_output = map_part_with(pid, version, partition, fetcher, tracker);
       if (combine_func) {
         static_cast<PartitionedMapOutput<typename ObjT3::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine_func);
       }
@@ -115,11 +115,11 @@ struct MapPartWithJoin : public PlanBase {
 
   MapPartWithTempFuncT GetMapPartWithFunc() {
     CHECK_NOTNULL(mappartwith);
-    return [this](int version, std::shared_ptr<AbstractPartition> partition, 
+    return [this](int pid, int version, std::shared_ptr<AbstractPartition> partition, 
               std::shared_ptr<AbstractFetcher> fetcher,
               std::shared_ptr<AbstractMapProgressTracker> tracker) {
       bool local_mode = true;
-      TypedCache<ObjT2> typed_cache(plan_id, partition->id, version, 
+      TypedCache<ObjT2> typed_cache(pid, partition->id, version, 
               with_collection->Id(), fetcher, this->with_collection->GetMapper(), 
               staleness, local_mode);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());

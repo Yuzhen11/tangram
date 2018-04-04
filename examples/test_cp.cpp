@@ -38,14 +38,14 @@ void mj() {
   // mapjoin
   Context::mapjoin(c1, c2, 
     [](int id) {
-      LOG(INFO) << GREEN("id: "+std::to_string(id)+", sleep for: " +std::to_string(50000) + " ms");
-      std::this_thread::sleep_for(std::chrono::milliseconds(50000));
+      LOG(INFO) << GREEN("id: "+std::to_string(id)+", sleep for: " +std::to_string(2000) + " ms");
+      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
       return std::pair<int, int>(id, 1);
     },
     [](ObjT* obj, int m) {
       obj->b += m;
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    });
+    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(5);
 }
 
 void mpj() {
@@ -64,8 +64,9 @@ void mpj() {
    // mappartjoin
    Context::mappartjoin(c0, c1, 
     [](TypedPartition<int>* p, AbstractMapProgressTracker* t) {
-      LOG(INFO) << GREEN("Sleep for: " +std::to_string(50000) + " ms");
-      std::this_thread::sleep_for(std::chrono::milliseconds(50000));
+      LOG(INFO) << GREEN("Sleep for: " +std::to_string(2000) + " ms");
+      std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+      LOG(INFO) << GREEN("Sleep done");
       std::vector<std::pair<int, int>> kvs;
       for (auto& elem : *p) {
         kvs.push_back({elem, 1});
@@ -75,15 +76,15 @@ void mpj() {
     [](ObjT* obj, int m) {
       obj->b += m;
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    });
+    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(5);
 } 
  
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  mj();
-  // mpj();
+  // mj();
+  mpj();
 
   Runner::Run();
   // Runner::PrintDag();

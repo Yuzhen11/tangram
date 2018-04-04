@@ -23,7 +23,7 @@ class AbstractFunctionStore {
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
   using JoinFunc2T = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutputStream>)>;
   using MapWith = 
-      std::function<std::shared_ptr<AbstractMapOutput>(int,
+      std::function<std::shared_ptr<AbstractMapOutput>(int, int,
                                                        std::shared_ptr<AbstractPartition>,
                                                        std::shared_ptr<AbstractFetcher>,
                                                        std::shared_ptr<AbstractMapProgressTracker>)>;

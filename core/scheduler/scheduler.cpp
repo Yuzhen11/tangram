@@ -8,17 +8,6 @@
 
 namespace xyz {
 
-const int kRecoverMagic = 10000;
-int GetRecoverPlanId(int id) {
-  return id * kRecoverMagic;
-}
-int GetRealId(int id) {
-  return id >= kRecoverMagic ? id%kRecoverMagic : id;
-}
-bool IsRecoverPlan(int id) {
-  return id >= kRecoverMagic ? true:false;
-}
-
 // make the scheduler ready and start receiving RegisterProgram
 void Scheduler::Ready(std::vector<Node> nodes) {
   start = std::chrono::system_clock::now();
@@ -176,17 +165,19 @@ void Scheduler::FinishRecovery() {
   LOG(INFO) << "[Scheduler] FinishRecovery";
   auto cur_plans = collection_status_->GetCurrentPlans();
   for (auto pid: cur_plans) {
+      LOG(INFO) << "[FinishRecovery] pid: " << pid;
     collection_status_->FinishPlan(pid);
     CHECK_LT(pid, program_.specs.size());
     auto& spec = program_.specs[pid];
     // TODO: now I assert it must be mj or mwj
     CHECK(spec.type == SpecWrapper::Type::kMapJoin
        || spec.type == SpecWrapper::Type::kMapWithJoin);
-
     if (spec.type == SpecWrapper::Type::kMapJoin
     || spec.type == SpecWrapper::Type::kMapWithJoin) {
       auto* mapjoin_spec = program_.specs[pid].GetMapJoinSpec();
       int cur_version = control_manager_->GetCurVersion(pid);
+      LOG(INFO) << mapjoin_spec->DebugString();
+      CHECK(mapjoin_spec->checkpoint_interval);
       int new_iter = mapjoin_spec->num_iter - 
           (cur_version / mapjoin_spec->checkpoint_interval * mapjoin_spec->checkpoint_interval);
       // directly update the version
@@ -206,11 +197,6 @@ void Scheduler::Recovery(SArrayBinStream bin) {
   bin >> dead_nodes;
   for (auto node : dead_nodes)
     elem_->nodes.erase(node);
-
-  std::vector<int> remaining_nodes;
-  for( auto it = elem_->nodes.begin(); it != elem_->nodes.end(); ++it) {
-    remaining_nodes.push_back(it->first);
-  }
 
   // terminate plan
   auto cur_plans = collection_status_->GetCurrentPlans();

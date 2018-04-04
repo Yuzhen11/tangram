@@ -11,6 +11,7 @@ void RecoverManager::Recover(std::set<int> dead_nodes) {
     recovering_collections_.insert(w);
     ReplaceDeadnodesAndReturnUpdated(w, dead_nodes);
     std::string url = collection_status_->GetLastCP(w);
+    LOG(INFO) << "Recovering write checkpoint from: " << url;
     checkpoint_loader_->LoadCheckpoint(w, url, [this, w]() {
       RecoverDoneForACollection(w, Type::LoadCheckpoint);
     });
@@ -22,6 +23,7 @@ void RecoverManager::Recover(std::set<int> dead_nodes) {
     recovering_collections_.insert(r);
     auto updates = ReplaceDeadnodesAndReturnUpdated(r, dead_nodes);
     std::string url = collection_status_->GetLastCP(r);
+    LOG(INFO) << "Recovering read checkpoint from: " << url;
     // only load the lost pasts.
     checkpoint_loader_->LoadCheckpointPartial(r, url, updates, [this, r]() {
       RecoverDoneForACollection(r, Type::LoadCheckpoint);
@@ -57,6 +59,7 @@ void RecoverManager::RecoverDoneForACollection(int cid, RecoverManager::Type typ
   }
   if (recovering_collections_.empty() && updating_collections_.empty()) {
     // all collections recovered, notify scheduler
+    LOG(INFO) << "All collections recovered!";
     SArrayBinStream reply_bin;
     ToScheduler(elem_, ScheduleFlag::kFinishRecovery, reply_bin);
   }

@@ -1,6 +1,8 @@
 #include "comm/scheduler_mailbox.hpp"
 #include "base/color.hpp"
 
+#include <sstream>
+
 namespace xyz {
 
 SchedulerMailbox::SchedulerMailbox(Node scheduler_node, int num_workers)
@@ -205,7 +207,11 @@ void SchedulerMailbox::CheckHeartbeat(int time_out) {
     std::set<int> deadnodes = GetDeadNodes(time_out);
     if (!deadnodes.empty()) {
       // TODO: start a new worker node
-      LOG(INFO) << RED("Detected " + std::to_string(deadnodes.size()) + " deadnode");
+      std::stringstream ss;
+      for (auto n : deadnodes) {
+        ss << n << " ";
+      }
+      LOG(INFO) << RED("Detected " + std::to_string(deadnodes.size()) + " deadnode, ids: " + ss.str());
       Message msg;
       msg.meta.recver = 0;
       msg.meta.flag = Flag::kOthers;

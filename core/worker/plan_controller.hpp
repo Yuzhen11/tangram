@@ -18,7 +18,7 @@ class PlanController : public AbstractPlanController {
  public:
   PlanController(Controller* controller);
 
-  ~PlanController() = default;
+  ~PlanController();
 
   struct VersionedShuffleMeta {
     int plan_id;  // TODO may not need plan_id, etc

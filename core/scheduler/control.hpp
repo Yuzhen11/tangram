@@ -2,7 +2,7 @@
 
 #include <sstream>
 #include <string>
-
+#include <glog/logging.h>
 namespace xyz {
 
 enum class ScheduleFlag : char {
@@ -165,6 +165,20 @@ std::string GetCheckpointUrl(std::string url,
       "/c" + std::to_string(collection_id) + "-p" + std::to_string(partition_id);
   return dest_url;
 }
+
+const int kRecoverMagic = 10000;
+bool IsRecoverPlan(int id) {
+  return id >= kRecoverMagic ? true:false;
+}
+int GetRecoverPlanId(int id) {
+  CHECK(!IsRecoverPlan(id)) << "cannot recover recovery plan";
+  return id + kRecoverMagic;
+}
+
+int GetRealId(int id) {
+  return id >= kRecoverMagic ? id - kRecoverMagic : id;
+}
+
 
 }  // namespace
 
