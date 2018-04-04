@@ -78,7 +78,7 @@ set_property(TARGET LRExample PROPERTY CXX_STANDARD 14)
 add_dependencies(LRExample ${external_project_dependencies})
 
 # Nomad
-add_executable(Nomad nomad.cpp)
+add_executable(Nomad nomad2.cpp)
 target_link_libraries(Nomad xyz)
 target_link_libraries(Nomad ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET Nomad PROPERTY CXX_STANDARD 14)
