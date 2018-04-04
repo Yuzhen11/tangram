@@ -4,6 +4,8 @@
 #include "core/engine.hpp"
 #include "core/program_context.hpp"
 
+#include "base/color.hpp"
+
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 

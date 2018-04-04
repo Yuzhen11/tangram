@@ -1,5 +1,4 @@
 #include "core/plan/runner.hpp"
-#include "base/color.hpp"
 
 using namespace xyz;
 
@@ -45,7 +44,7 @@ void mj() {
     [](ObjT* obj, int m) {
       obj->b += m;
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(5);
+    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(2);
 }
 
 void mpj() {
@@ -83,8 +82,8 @@ void mpj() {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  // mj();
-  mpj();
+  mj();
+  // mpj();
 
   Runner::Run();
   // Runner::PrintDag();

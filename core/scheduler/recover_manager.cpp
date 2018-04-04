@@ -1,7 +1,14 @@
 #include "core/scheduler/recover_manager.hpp"
 
+#include <sstream>
+#include "base/color.hpp"
+
 namespace xyz {
 void RecoverManager::Recover(std::set<int> dead_nodes) {
+  CHECK_EQ(started_, false);
+  started_ = true;
+  start_time_ = std::chrono::system_clock::now();
+
   recovering_collections_.clear();
   updating_collections_.clear();
 
@@ -11,7 +18,9 @@ void RecoverManager::Recover(std::set<int> dead_nodes) {
     recovering_collections_.insert(w);
     ReplaceDeadnodesAndReturnUpdated(w, dead_nodes);
     std::string url = collection_status_->GetLastCP(w);
-    LOG(INFO) << "Recovering write checkpoint from: " << url;
+    std::stringstream ss;
+    ss << "Recovering write checkpoint (full) for plan: " << w << ", from: " << url;
+    LOG(INFO) << RED(ss.str());
     checkpoint_loader_->LoadCheckpoint(w, url, [this, w]() {
       RecoverDoneForACollection(w, Type::LoadCheckpoint);
     });
@@ -23,7 +32,14 @@ void RecoverManager::Recover(std::set<int> dead_nodes) {
     recovering_collections_.insert(r);
     auto updates = ReplaceDeadnodesAndReturnUpdated(r, dead_nodes);
     std::string url = collection_status_->GetLastCP(r);
-    LOG(INFO) << "Recovering read checkpoint from: " << url;
+
+    std::stringstream ss;
+    ss << "Recovering read checkpoint (partial) for plan: " << r << ", from: " << url;
+    ss << ", recovering partial partitions: ";
+    for (auto update: updates) {
+      ss << update << " ";
+    }
+    LOG(INFO) << RED(ss.str());
     // only load the lost pasts.
     checkpoint_loader_->LoadCheckpointPartial(r, url, updates, [this, r]() {
       RecoverDoneForACollection(r, Type::LoadCheckpoint);
@@ -46,6 +62,7 @@ void RecoverManager::Recover(std::set<int> dead_nodes) {
 }
 
 void RecoverManager::RecoverDoneForACollection(int cid, RecoverManager::Type type) {
+  CHECK(started_);
   if (type == RecoverManager::Type::LoadCheckpoint) {
     CHECK(recovering_collections_.find(cid) != recovering_collections_.end());
     LOG(INFO) << "[RecoverManager] collection " << cid << " recovered from checkpoint";
@@ -59,7 +76,10 @@ void RecoverManager::RecoverDoneForACollection(int cid, RecoverManager::Type typ
   }
   if (recovering_collections_.empty() && updating_collections_.empty()) {
     // all collections recovered, notify scheduler
-    LOG(INFO) << "All collections recovered!";
+    auto current_time = std::chrono::system_clock::now();
+    std::chrono::duration<double> duration = current_time - start_time_;
+    LOG(INFO) << RED("All collections recovered! Recovery time: " + std::to_string(duration.count()) + " ms");
+    started_ = false;
     SArrayBinStream reply_bin;
     ToScheduler(elem_, ScheduleFlag::kFinishRecovery, reply_bin);
   }

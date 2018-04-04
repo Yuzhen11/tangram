@@ -16,7 +16,7 @@ void HdfsReader::InitFilesize(hdfsFS fs, std::string url) {
   hdfsFileInfo *file_info = hdfsGetPathInfo(fs, url.c_str());
   CHECK_EQ(file_info[0].mKind, kObjectKindFile);
   hdfs_file_size_ = file_info[0].mSize;
-  LOG(INFO) << "File size: " << std::to_string(hdfs_file_size_);
+  // LOG(INFO) << "File size: " << std::to_string(hdfs_file_size_);
   hdfsFreeFileInfo(file_info, 1);
 }
 

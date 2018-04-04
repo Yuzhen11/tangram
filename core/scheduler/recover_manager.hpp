@@ -6,6 +6,8 @@
 #include "core/scheduler/collection_status.hpp"
 #include "core/plan/spec_wrapper.hpp"
 
+#include <chrono>
+
 namespace xyz {
 
 class RecoverManager {
@@ -30,6 +32,9 @@ class RecoverManager {
 
   std::set<int> recovering_collections_;
   std::set<int> updating_collections_;
+
+  std::chrono::system_clock::time_point start_time_;
+  bool started_ = false;
 };
 
 } // namespace xyz

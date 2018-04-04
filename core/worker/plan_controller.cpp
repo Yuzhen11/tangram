@@ -239,14 +239,14 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
     join_tracker_[part_id][version].insert(upstream_part_id);
   }
   if (join_tracker_[part_id][version].size() == num_upstream_part_) {
-    // join_tracker_[part_id].erase(version);  // TODO: should not remove
     join_versions_[part_id] += 1;
-    ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
 
-    // TODO: now we call try checkpoint after report to control_manager
     bool runcp = TryCheckpoint(part_id);
     if (runcp) {
+      // if runcp, ReportFinishPart after checkpoint
       return;
+    } else {
+      ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
     }
   }
   TryRunWaitingJoins(part_id);
@@ -304,6 +304,9 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   LOG(INFO) << "finish checkpoint: " << part_id;
   CHECK(running_joins_.find(part_id) != running_joins_.end());
   running_joins_.erase(part_id);
+
+  ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
+
   TryRunWaitingJoins(part_id);
   TryRunSomeMaps();
 }

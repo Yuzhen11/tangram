@@ -164,6 +164,7 @@ void Scheduler::RunPlan(int plan_id) {
 void Scheduler::FinishRecovery() {
   LOG(INFO) << "[Scheduler] FinishRecovery";
   auto cur_plans = collection_status_->GetCurrentPlans();
+  CHECK_EQ(cur_plans.size(), 1);
   for (auto pid: cur_plans) {
       LOG(INFO) << "[FinishRecovery] pid: " << pid;
     collection_status_->FinishPlan(pid);
@@ -172,20 +173,19 @@ void Scheduler::FinishRecovery() {
     // TODO: now I assert it must be mj or mwj
     CHECK(spec.type == SpecWrapper::Type::kMapJoin
        || spec.type == SpecWrapper::Type::kMapWithJoin);
-    if (spec.type == SpecWrapper::Type::kMapJoin
-    || spec.type == SpecWrapper::Type::kMapWithJoin) {
-      auto* mapjoin_spec = program_.specs[pid].GetMapJoinSpec();
-      int cur_version = control_manager_->GetCurVersion(pid);
-      LOG(INFO) << mapjoin_spec->DebugString();
-      CHECK(mapjoin_spec->checkpoint_interval);
-      int new_iter = mapjoin_spec->num_iter - 
-          (cur_version / mapjoin_spec->checkpoint_interval * mapjoin_spec->checkpoint_interval);
-      // directly update the version
-      mapjoin_spec->num_iter = new_iter;
-    }
+
+    auto* mapjoin_spec = program_.specs[pid].GetMapJoinSpec();
+    int cur_version = control_manager_->GetCurVersion(pid);
+    LOG(INFO) << mapjoin_spec->DebugString();
+    CHECK(mapjoin_spec->checkpoint_interval);
+    int new_iter = mapjoin_spec->num_iter - 
+        (cur_version / mapjoin_spec->checkpoint_interval * mapjoin_spec->checkpoint_interval);
+    // directly update the version
+    mapjoin_spec->num_iter = new_iter;
 
     spec.id = GetRecoverPlanId(pid);  // setting a new id
-    LOG(INFO) << RED("rerunning plan for recovery: " + std::to_string(spec.id));
+    LOG(INFO) << RED("rerunning plan for recovery: " + std::to_string(spec.id) 
+            + " remaining iters: " + std::to_string(new_iter));
     // relaunch the plan
     RunPlan(pid);
   }
