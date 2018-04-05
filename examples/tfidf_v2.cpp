@@ -21,8 +21,8 @@ class Document {
     Document() = default;
     explicit Document(const KeyT& t) : title(t) {}
     KeyT title;
-    std::vector<double> tf;
-    std::vector<double> tf_idf;
+    std::vector<float> tf;
+    std::vector<float> tf_idf;
     std::vector<std::string> words;
     int total_words = 0;
     const KeyT& id() const { return title; }
@@ -100,15 +100,16 @@ int main(int argc, char **argv) {
         doc.tf.resize(doc.words.size());
         doc.tf_idf.resize(doc.words.size());
         for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<double>(count.at(i)) / doc.total_words;
+            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
         }
       }
 
       return doc;
   });
 
-  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_term_partition);
-  auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
+  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
+  auto terms_key_part_mapper = std::make_shared<HashKeyToPartMapper<std::string>>(FLAGS_num_term_partition);
+  auto terms = Context::placeholder<Term>(FLAGS_num_term_partition, terms_key_part_mapper);
   Context::mappartjoin(
       loaded_docs, indexed_docs,
       [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
@@ -123,7 +124,8 @@ int main(int argc, char **argv) {
       })
       ->SetName("build indexed_docs from loaded_docs");
 
-  Context::sort_each_partition(indexed_docs);
+  // Context::sort_each_partition(indexed_docs);
+  Context::sort_each_partition(terms);
 
   Context::mappartjoin(
       indexed_docs, terms,
@@ -137,46 +139,66 @@ int main(int argc, char **argv) {
         return ret;
       },
       [](Term *term, int n) { 
-          term->idf += n;
+        term->idf += n;
 
       })
       ->SetCombine([](int *a, int b){
-                *a += b;
-              })
+        *a += b;
+      })
       ->SetName("Out all the doc");
 
   // Context::count(terms);
-  int num_part = FLAGS_num_term_partition;
+  auto dummy_collection = Context::placeholder<CountObjT>(1);
   Context::mappartwithjoin(
-      indexed_docs, terms, terms,
-      [num_part](TypedPartition<Document>* p, TypedCache<Term> *typed_cache, AbstractMapProgressTracker* t) {
+      indexed_docs, terms, dummy_collection,
+      [terms_key_part_mapper](TypedPartition<Document>* p, TypedCache<Term> *typed_cache, AbstractMapProgressTracker* t) {
         
-        std::vector<std::pair<std::string, std::pair<int, int> >> ret;
-        std::vector<TypedPartition<Term>*> with_parts;
+        std::vector<std::pair<int, int>> ret;
+        std::vector<IndexedSeqPartition<Term>*> with_parts;
         std::map<std::string, int> terms_map;
-        for (int i = 0; i < num_part; i++) {
+        for (int i = 0; i < FLAGS_num_term_partition; i++) {
           auto part = typed_cache->GetPartition(i);
-          auto *with_p = static_cast<TypedPartition<Term>*>(part.get());
+          auto *with_p = static_cast<IndexedSeqPartition<Term>*>(part.get());
           with_parts.push_back(with_p);
         }
-		for (auto with_p : with_parts) { 
+        // LOG(INFO) << "fetch done";
+        // method1: copy and find
+        
+        /*
+        for (auto with_p : with_parts) { 
           for (auto& term : *with_p) {
             terms_map[term.id()] = term.idf;
           }   
-		}
+        }
+
+        LOG(INFO) << "building local terms_map";
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
             std::string term  = doc.words[i];
             int count = terms_map[term];
-            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs / double(count));
+            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
           }
         }
-        for (int i = 0; i < num_part; i++) {
+        */
+
+        // method2
+        for (auto& doc : *p) {
+          for(int i = 0; i < doc.words.size(); i++){
+            std::string term  = doc.words[i];
+            auto* with_p = with_parts[terms_key_part_mapper->Get(term)];
+            auto* t = with_p->Find(term);
+            CHECK_NOTNULL(t);
+            int count = t->idf;
+            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
+          }
+        }
+
+        for (int i = 0; i < FLAGS_num_term_partition; i++) {
           typed_cache->ReleasePart(i);
         }
         return ret;
       },
-      [](Term* t, std::pair<int, int> m) { 
+      [](CountObjT* t, int) { 
       })
       ->SetName("Send idf back to doc");
   Runner::Run();

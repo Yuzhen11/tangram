@@ -21,8 +21,8 @@ class Document {
     Document() = default;
     explicit Document(const KeyT& t) : title(t) {}
     KeyT title;
-    std::vector<double> tf;
-    std::vector<double> tf_idf;
+    std::vector<float> tf;
+    std::vector<float> tf_idf;
     std::vector<std::string> words;
     int total_words = 0;
     const KeyT& id() const { return title; }
@@ -117,14 +117,14 @@ int main(int argc, char **argv) {
         doc.tf.resize(doc.words.size());
         doc.tf_idf.resize(doc.words.size());
         for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<double>(count.at(i)) / doc.total_words;
+            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
         }
       }
 
       return doc;
   });
 
-  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_term_partition);
+  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
   Context::mappartjoin(
       loaded_docs, indexed_docs,
@@ -178,7 +178,7 @@ int main(int argc, char **argv) {
         return ret;
       },
       [](Document *doc, std::pair<int, int> m) { 
-        doc->tf_idf[m.first] = std::log(FLAGS_num_of_docs / double(m.second));
+        doc->tf_idf[m.first] = std::log(FLAGS_num_of_docs / float(m.second));
       })
       ->SetName("Send idf back to doc");
   Runner::Run();

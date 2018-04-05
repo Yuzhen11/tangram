@@ -1021,6 +1021,7 @@ void PlanController::MigratePartitionReceiveMapOnly(Message msg) {
 }
 
 void PlanController::DisplayTime() {
+  std::lock_guard<std::mutex> lk(time_mu_);
   double avg_map_time = 0;
   double avg_map_stime = 0;
   double avg_join_time = 0;

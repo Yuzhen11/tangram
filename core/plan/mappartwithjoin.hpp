@@ -30,7 +30,7 @@ MapPartWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::O
 
 template<typename C1, typename C2, typename C3, typename ObjT1, typename ObjT2, typename ObjT3, typename MsgT>
 struct MapPartWithJoin : public PlanBase {
-  using MapPartWithFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
+  using MapPartWithFuncT = std::function<std::vector<std::pair<typename ObjT3::KeyT, MsgT>>(
           TypedPartition<ObjT1>* p, 
           TypedCache<ObjT2>* c, 
           AbstractMapProgressTracker* t)>;
