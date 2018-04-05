@@ -1,5 +1,7 @@
 include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 
+add_subdirectory(pagerank)
+
 # SchedulerExample
 add_executable(SchedulerExample scheduler_example.cpp)
 target_link_libraries(SchedulerExample xyz)
@@ -20,27 +22,6 @@ target_link_libraries(LoadExample xyz)
 target_link_libraries(LoadExample ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET LoadExample PROPERTY CXX_STANDARD 14)
 add_dependencies(LoadExample ${external_project_dependencies})
-
-# PageRank
-add_executable(PageRank pagerank.cpp)
-target_link_libraries(PageRank xyz)
-target_link_libraries(PageRank ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET PageRank PROPERTY CXX_STANDARD 14)
-add_dependencies(PageRank ${external_project_dependencies})
-
-# PageRankWith
-add_executable(PageRankWith pagerank_with.cpp)
-target_link_libraries(PageRankWith xyz)
-target_link_libraries(PageRankWith ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET PageRankWith PROPERTY CXX_STANDARD 14)
-add_dependencies(PageRankWith ${external_project_dependencies})
-
-# PageRankConverge
-add_executable(PageRankConverge pagerank-converge.cpp)
-target_link_libraries(PageRankConverge xyz)
-target_link_libraries(PageRankConverge ${HUSKY_EXTERNAL_LIB})
-set_property(TARGET PageRankConverge PROPERTY CXX_STANDARD 14)
-add_dependencies(PageRankConverge ${external_project_dependencies})
 
 # GraphMatching 
 add_executable(GraphMatching graph_matching.cpp)
