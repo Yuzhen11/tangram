@@ -35,6 +35,13 @@ target_link_libraries(PageRankWith ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET PageRankWith PROPERTY CXX_STANDARD 14)
 add_dependencies(PageRankWith ${external_project_dependencies})
 
+# PageRankConverge
+add_executable(PageRankConverge pagerank-converge.cpp)
+target_link_libraries(PageRankConverge xyz)
+target_link_libraries(PageRankConverge ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET PageRankConverge PROPERTY CXX_STANDARD 14)
+add_dependencies(PageRankConverge ${external_project_dependencies})
+
 # GraphMatching 
 add_executable(GraphMatching graph_matching.cpp)
 target_link_libraries(GraphMatching xyz)
