@@ -253,10 +253,12 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 }
 
 bool PlanController::TryCheckpoint(int part_id) {
+  /*
   if (join_versions_[part_id] == expected_num_iter_) {
     // TODO: ignore the last one
     return false;
   }
+  */
   if (checkpoint_interval_ != 0 && join_versions_[part_id] % checkpoint_interval_ == 0) {
     int checkpoint_iter = join_versions_[part_id] / checkpoint_interval_;
     std::string dest_url = checkpoint_path_ + 
