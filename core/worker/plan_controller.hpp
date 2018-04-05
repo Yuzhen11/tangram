@@ -45,6 +45,7 @@ class PlanController : public AbstractPlanController {
       ss << ", recver: " << recver;
       ss << ", local_mode: " << local_mode;
       ss << ", ext_upstream_part_ids size: " << ext_upstream_part_ids.size();
+      for (int id : ext_upstream_part_ids) ss << "; " << id;
       ss << " }";
       return ss.str();
     }
@@ -105,7 +106,7 @@ class PlanController : public AbstractPlanController {
   // for migration
   void MigratePartitionStartMigrate(MigrateMeta);
   void MigratePartitionReceiveFlushAll(MigrateMeta);
-  void MigratePartitionDest(Message msg) override;
+  void MigratePartitionDest(Message msg);
   void FinishLoadWith(SArrayBinStream bin) override;//for load cp in migration
 
   // for speculative execution
@@ -161,7 +162,7 @@ class PlanController : public AbstractPlanController {
   MapOutputStreamStore stream_store_;
 
   std::map<int, int> flush_all_count_; //migrate part id, flush all count
-  std::set<int> stop_joining_partitions_;
+  std::map<int, bool> stop_joining_partitions_; //migrate part id, flag indicating whether it could be erased
   std::mutex stop_joining_partitions_mu_;
 
   std::map<int, bool> load_finished_;

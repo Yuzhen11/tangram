@@ -23,7 +23,10 @@ void Controller::Process(Message msg) {
   if (flag != ControllerFlag::kSetup) {
     // CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
     if (plan_controllers_.find(plan_id) == plan_controllers_.end()) {
-      LOG(INFO) << RED("[Controller::Process] Ignoring message for plan: " + std::to_string(plan_id));
+      LOG(INFO) << RED("[Controller::Process] Ignoring message ControllerFlag: " + 
+          ControllerFlagName[static_cast<int>(flag)] +
+          " for plan: " + std::to_string(plan_id))
+        << " meta: " << msg.meta.DebugString();
       return;
     }
   }
@@ -76,10 +79,6 @@ void Controller::Process(Message msg) {
   case ControllerFlag::kFinishLoadWith: {
     plan_controllers_[plan_id]->FinishLoadWith(bin);
     break;                                      
-  }
-  case ControllerFlag::kMigratePartitionDest: {
-    plan_controllers_[plan_id]->MigratePartitionDest(msg);                                                
-    break;
   }
   default: CHECK(false);
   }

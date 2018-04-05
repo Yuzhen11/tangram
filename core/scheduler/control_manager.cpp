@@ -66,6 +66,7 @@ void ControlManager::Control(SArrayBinStream bin) {
         specs_[ctrl.plan_id].name == "pagerank main logic" &&
         versions_[ctrl.plan_id] == 2) {//migrate at version 2
       std::vector<std::tuple<int, int, int>> meta;
+      // NEED TO BE MANUALLY SET
       int from_id = 1;
       int node_num = 20;
       int num_parts = 400;
@@ -242,11 +243,10 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
     migrate_time[part_id].first = std::chrono::system_clock::now();
   }
 
-  bool is_mapwithjoin = false;//TODO: automatically detect
   auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  if (is_mapwithjoin &&
+  if (dynamic_cast<MapWithJoinSpec*>(specs_[plan_id].spec.get()) != nullptr &&
       mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id
-      ) {
+      ) { // only for mapwith and co-allocated
     auto* mapjoin_spec = static_cast<MapWithJoinSpec*>(specs_[plan_id].spec.get());
     if (mapjoin_spec->map_collection_id != mapjoin_spec->with_collection_id) {
       // no need to migrate with_part if map collection equals with collection
@@ -259,18 +259,20 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
         int from_id = std::get<0>(submeta);
         int to_id = std::get<1>(submeta);
         int part_id = std::get<2>(submeta);
-        CHECK_EQ(from_id, part_to_node[part_id]);
+        CHECK_EQ(from_id, part_to_node[part_id])
+          << " " << from_id << " " << to_id << " " << part_id
+          << collection_view.mapper.DebugString();
         part_to_node[part_id] = to_id;
         with_parts.push_back(std::get<2>(submeta));
       }
       int with_collection_id = mapjoin_spec->with_collection_id;
       checkpoint_loader_->LoadCheckpointPartial(mapjoin_spec->with_collection_id,
-          url, with_parts, [this, plan_id, meta, with_collection_id, part_to_node]() {
+          url, with_parts, [this, plan_id, meta, with_collection_id]() {
         //load checkpoint finished
         //1. update with collection view
         LOG(INFO) << GREEN("[ControlManager::PreBatchMigrate] load checkpoint finished");
         collection_manager_->Update(with_collection_id,
-            [this, plan_id, meta, with_collection_id, part_to_node](){
+            [this, plan_id, meta, with_collection_id](){
           //update with collection view finished
           //2. send msgs to controller
           LOG(INFO) << GREEN("[ControlManager::PreBatchMigrate] update with collection view finished");

@@ -27,25 +27,26 @@ enum class ScheduleFlag : char {
   kFinishRecovery,
 };
 
-static const char *ScheduleFlagName[] = {"kRegisterProgram",
-                                         "kFinishBlock",
-                                         "kLoadBlock",
-                                         "kDummy",
-                                         "kExit",
-                                         "kDistribute",
-                                         "kFinishDistribute",
-                                         "kCheckpoint",
-                                         "kFinishCheckpoint",
-                                         "kLoadCheckpoint",
-                                         "kFinishLoadCheckpoint",
-                                         "kWritePartition",
-                                         "kFinishWritePartition",
-                                         "kControl",
-                                         "kFinishPlan",
-                                         "kUpdateCollection",
-                                         "kUpdateCollectionReply",
-                                         "kRecovery",
-                                         "kFinishRecovery"
+static const char *ScheduleFlagName[] = {
+  "kRegisterProgram",
+  "kFinishBlock",
+  "kLoadBlock",
+  "kDummy",
+  "kExit",
+  "kDistribute",
+  "kFinishDistribute",
+  "kCheckpoint",
+  "kFinishCheckpoint",
+  "kLoadCheckpoint",
+  "kFinishLoadCheckpoint",
+  "kWritePartition",
+  "kFinishWritePartition",
+  "kControl",
+  "kFinishPlan",
+  "kUpdateCollection",
+  "kUpdateCollectionReply",
+  "kRecovery",
+  "kFinishRecovery"
 };
 
 enum class FetcherFlag : char{
@@ -99,7 +100,21 @@ enum class ControllerFlag : char {
   kMigratePartition,
   kTerminatePlan,
   kFinishLoadWith,
-  kMigratePartitionDest,
+};
+
+static const char *ControllerFlagName[] = {
+  "kSetup",
+  "kStart",
+  "kFinishMap",
+  "kFinishJoin",
+  "kUpdateVersion",
+  "kReceiveJoin",
+  "kFetchRequest",
+  "kFinishFetch",
+  "kFinishCheckpoint",
+  "kMigratePartition",
+  "kTerminatePlan",
+  "kFinishLoadWith",
 };
 
 struct FetchMeta {

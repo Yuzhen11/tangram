@@ -6,7 +6,7 @@
 
 #include <limits>
 #include <stdlib.h>
-//#define WITH_LB_JOIN
+//#define CPULIMIT
 
 namespace xyz {
 
@@ -86,12 +86,13 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
   int new_version;
   bin >> new_version;
   
-#ifdef WITH_LB_JOIN
+#ifdef CPULIMIT 
   std::thread cpu_limit([this, new_version](){
     if (controller_->engine_elem_.node.id == 1 &&
         new_version == 2) {
       LOG(INFO) << RED("[PlanController::UpdateVersion] start to run cpulimit on node 1");
-      system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 50 -e PageRankWith");
+      system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 100 -e PageRankWith");
+      //system("/data/yuzhen/utils/runAll.sh \"pkill cpulimit\"");
     }
   });
   cpu_limit.detach();
@@ -111,6 +112,17 @@ void PlanController::FinishMap(SArrayBinStream bin) {
   bool update_version;
   bin >> part_id >> update_version;
   running_maps_.erase(part_id);
+
+  {
+    // the migrate partition is running map
+    // when finished running map and stop_joining is erasable
+    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
+    if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end() &&
+        stop_joining_partitions_[part_id]) {
+      stop_joining_partitions_.erase(part_id);
+    }
+  }
+
   if (!update_version) {
     return;
   }
@@ -430,7 +442,6 @@ void PlanController::ReceiveJoin(Message msg) {
   // if already joined, omit it.
   // still need to check again in RunJoin as this upstream_part_id may be in waiting joins.
   if (IsJoinedBefore(meta)) {
-    LOG(INFO) << "ignore join in ReceiveJoin, already joined: " << meta.DebugString();
     return;
   }
 
@@ -447,9 +458,24 @@ void PlanController::ReceiveJoin(Message msg) {
 
 // check whether this upstream_part_id is joined already
 bool PlanController::IsJoinedBefore(const VersionedShuffleMeta& meta) {
+  if (meta.upstream_part_id == -1) {
+    CHECK_GT(meta.ext_upstream_part_ids.size(), 0);
+    bool result = join_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(0))
+      != join_tracker_[meta.part_id][meta.version].end();
+    for (int i = 1; i < meta.ext_upstream_part_ids.size(); i++) {
+      CHECK_EQ(result, 
+          join_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(i))
+          != join_tracker_[meta.part_id][meta.version].end());
+    }
+    if (result) {
+      LOG(INFO) << "[PlanController::IsJoinedBefore] (ext_upstream_part_ids)ignore join, already joined: " << meta.DebugString();
+    } 
+    return result;
+  }
+
   if (join_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
       != join_tracker_[meta.part_id][meta.version].end()) {
-    LOG(INFO) << "ignore join, already joined: " << meta.DebugString();
+    LOG(INFO) << "[PlanController::IsJoinedBefore] ignore join, already joined: " << meta.DebugString();
     return true;
   } else {
     return false;
@@ -729,7 +755,8 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta migrate_meta) {
     {
       std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
       CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) == stop_joining_partitions_.end());
-      stop_joining_partitions_.insert(migrate_meta.partition_id);
+      // insert the migrate partition into stop_joining_partitions_
+      stop_joining_partitions_[migrate_meta.partition_id] = false;
     }
   }
 }
@@ -769,7 +796,15 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
       std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
       CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) != 
           stop_joining_partitions_.end());
-      stop_joining_partitions_.erase(migrate_meta.partition_id);
+      // stop_joining is erasable from now on
+      stop_joining_partitions_[migrate_meta.partition_id] = true;
+      if (running_maps_.find(migrate_meta.partition_id) != running_maps_.end()) {
+        // migrate a partition in running_maps
+        // delay, leave it to RunMap to erase
+        // RunMap will call FinishMap to erase it whether aborted or not
+      } else {
+        stop_joining_partitions_.erase(migrate_meta.partition_id);
+      }
     }
     LOG(INFO) << "[Migrate] Received all Flush signal for partition "
       << migrate_meta.partition_id <<", send everything to dest";
@@ -859,15 +894,13 @@ void PlanController::MigratePartitionDest(Message msg) {
   CHECK_EQ(migrate_meta.to_id, controller_->engine_elem_.node.id) << "only w_b receive this";
 
   {
-    bool is_mapwithjoin = false;//TODO: automatically detect
-    if (is_mapwithjoin &&
+    if (fetch_collection_id_ != -1 &&
         map_collection_id_ == join_collection_id_ &&
         map_collection_id_ != fetch_collection_id_ &&
         (load_finished_.find(migrate_meta.partition_id) == load_finished_.end() || !load_finished_[migrate_meta.partition_id])
-       ) {
+       ) { // only for mapwith and co-allocated
       // if load cp has not finished for this part
       // push a msg to the msg queue to run this function again
-      // why does not ReciveFlushALL produce massive msg?
       std::thread migrate_thread([this, migrate_meta, bin1, bin2](){
         LOG(INFO) << "load cp has not finished for part: " << migrate_meta.partition_id <<", try to run later";
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -876,9 +909,10 @@ void PlanController::MigratePartitionDest(Message msg) {
         msg.meta.recver = controller_->engine_elem_.node.id;
         msg.meta.flag = Flag::kOthers;
         SArrayBinStream ctrl_bin, plan_bin, ctrl2_bin;
-        ctrl_bin << ControllerFlag::kMigratePartitionDest;
+        ctrl_bin << ControllerFlag::kMigratePartition;
         plan_bin << plan_id_;
         ctrl2_bin << migrate_meta;
+        CHECK(migrate_meta.flag == MigrateMeta::MigrateFlag::kDest);
         msg.AddData(ctrl_bin.ToSArray());
         msg.AddData(plan_bin.ToSArray());
         msg.AddData(ctrl2_bin.ToSArray());

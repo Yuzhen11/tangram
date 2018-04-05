@@ -19,7 +19,6 @@ struct AbstractPlanController {
 
   virtual void MigratePartition(Message msg) = 0;
   virtual void FinishLoadWith(SArrayBinStream bin) = 0;
-  virtual void MigratePartitionDest(Message msg) = 0;
 
   virtual void DisplayTime() = 0;
 };
