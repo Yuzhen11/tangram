@@ -91,12 +91,15 @@ int main(int argc, char** argv) {
   })->SetName("dataset");
 
   auto vertex = Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
-  auto p1 = Context::mapjoin(dataset, vertex,
-    [](const Links& obj) {
+  auto p1 = Context::mappartjoin(dataset, vertex,
+    [](TypedPartition<Links>* p,
+      AbstractMapProgressTracker* t) {
       std::vector<std::pair<int,int>> all;
-      all.push_back(std::make_pair(obj.vertex_id, 0));
-      for (auto outlink : obj.outlinks) {
-        all.push_back(std::make_pair(outlink, 0));
+      for (auto& v: *p) {
+        all.push_back(std::make_pair(v.vertex_id, 0));
+        for (auto outlink : v.outlinks) {
+          all.push_back(std::make_pair(outlink, 0));
+        }
       }
       return all;
     },
@@ -107,13 +110,15 @@ int main(int argc, char** argv) {
     ->SetName("construct vertex from dataset");
  
   auto links = Context::placeholder<Links>(FLAGS_num_parts)->SetName("links");
-  auto p2 = Context::mapjoin(dataset, links,
-    [](const Links& obj) {
+  auto p2 = Context::mappartjoin(dataset, links,
+    [](TypedPartition<Links>* p,
+      AbstractMapProgressTracker* t) {
       std::vector<std::pair<int, std::vector<int>>> all;
-      all.push_back(std::make_pair(obj.vertex_id, obj.outlinks));
-      std::vector<int> empty;
-      for (auto outlink : obj.outlinks) {
-        all.push_back(std::make_pair(outlink, empty));
+      for (auto& v: *p) {
+        all.push_back(std::make_pair(v.vertex_id, v.outlinks));
+        for (auto outlink : v.outlinks) {
+          all.push_back(std::make_pair(outlink, std::vector<int>()));
+        }
       }
       return all;
     },

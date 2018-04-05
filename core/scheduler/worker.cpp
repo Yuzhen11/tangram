@@ -226,11 +226,6 @@ void Worker::WritePartition(SArrayBinStream bin) {
     auto write_part_func = engine_elem_.function_store->GetWritePartFunc(collection_id);
     write_part_func(part, writer, dest_url);
 
-    SArrayBinStream bin;
-    part->ToBin(bin);
-    bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
-    CHECK_EQ(rc, 0);
-
     // 2. reply
     SArrayBinStream reply_bin;
     reply_bin << Qid() << collection_id;

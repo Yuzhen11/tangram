@@ -79,9 +79,17 @@ int main(int argc, char** argv) {
 
   auto vertex = Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
 
-  auto p1 = Context::mapjoin(loaded_dataset, vertex,
-    [](const Vertex& v) {
-      return std::pair<int, std::vector<int>> (v.vertex, v.outlinks);
+  Context::mappartjoin(loaded_dataset, vertex, 
+    [](TypedPartition<Vertex>* p,
+      AbstractMapProgressTracker* t) {
+      std::vector<std::pair<int, std::vector<int>>> all;
+      for (auto& v: *p) {
+        all.push_back({v.vertex, v.outlinks});
+        for (auto outlink: v.outlinks) {
+          all.push_back({outlink, std::vector<int>()});
+        }
+      }
+      return all;
     },
     [](Vertex* v, std::vector<int> outlinks) {
       for (auto outlink : outlinks) {
@@ -91,7 +99,11 @@ int main(int argc, char** argv) {
       v->delta = 0.15/FLAGS_num_vertices;
       v->pr = 0;
       // v->pr = 1.;
-    })->SetName("construct vertex");
+    })
+  ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
+    for (int value : msg2) msg1->push_back(value); 
+  })
+  ->SetName("construct vertex");
 
   Context::sort_each_partition(vertex);
 
@@ -122,6 +134,10 @@ int main(int argc, char** argv) {
     ->SetIter(FLAGS_num_iters)
     ->SetStaleness(FLAGS_staleness)
     ->SetName("pagerank main logic");
+  
+  Context::write(vertex, "/tmp/tmp/yz/pr/", [](const Vertex& v, std::stringstream& ss) {
+    ss << v.vertex << " " << v.pr << "\n";
+  });
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
   Context::mapjoin(vertex, topk,

@@ -58,16 +58,28 @@ int main(int argc, char** argv) {
 
   auto vertex = Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
 
-  auto p1 = Context::mapjoin(loaded_dataset, vertex,
-    [](const Vertex& v) {
-      return std::pair<int, std::vector<int>> (v.vertex, v.outlinks);
+  Context::mappartjoin(loaded_dataset, vertex, 
+    [](TypedPartition<Vertex>* p,
+      AbstractMapProgressTracker* t) {
+      std::vector<std::pair<int, std::vector<int>>> all;
+      for (auto& v: *p) {
+        all.push_back({v.vertex, v.outlinks});
+        for (auto outlink: v.outlinks) {
+          all.push_back({outlink, std::vector<int>()});
+        }
+      }
+      return all;
     },
     [](Vertex* v, std::vector<int> outlinks) {
       for (auto outlink : outlinks) {
         v->outlinks.push_back(outlink);
       }
       v->pr = 0.15;
-    })->SetName("construct vertex");
+    })
+  ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
+    for (int value : msg2) msg1->push_back(value); 
+  })
+  ->SetName("construct vertex");
 
   Context::sort_each_partition(vertex);
 
@@ -99,6 +111,6 @@ int main(int argc, char** argv) {
 #endif
     ->SetName("pagerank main logic");
 
-  // Context::count(loaded_dataset);
+  // Context::count(vertex);
   Runner::Run();
 }
