@@ -114,8 +114,17 @@ class Context {
   static auto* load(std::string url, Parse parse, int max_line_per_part = -1, std::string name = "") {
     using D = decltype(parse(*(std::string*)nullptr));
     auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
-    auto* p = plans_.make<Load<D>>(c->Id(), url, parse, max_line_per_part);
+    auto* p = plans_.make<Load<D>>(c->Id(), url, parse, max_line_per_part, false);
     p->name = name+"::load";
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
+    return c;
+  }
+  template<typename Parse>
+  static auto* load_wholefiles(std::string url, Parse parse, int max_line_per_part = -1, std::string name = "") {
+    using D = decltype(parse(*(std::string*)nullptr));
+    auto* c = collections_.make<Collection<D, SeqPartition<D>>>();
+    auto* p = plans_.make<Load<D>>(c->Id(), url, parse, max_line_per_part, true);
+    p->name = name+"::load_wholefiles";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }
@@ -125,8 +134,15 @@ class Context {
    */
   static auto* load_block_meta(std::string url, std::string name = "") {
     auto* c = collections_.make<Collection<std::string, SeqPartition<std::string>>>();
-    auto* p = plans_.make<Load<std::string>>(c->Id(), url);
+    auto* p = plans_.make<Load<std::string>>(c->Id(), url, false);
     p->name = name+"::load_block_meta";
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
+    return c;
+  }
+  static auto* load_wholefiles_meta(std::string url, std::string name = "") {
+    auto* c = collections_.make<Collection<std::string, SeqPartition<std::string>>>();
+    auto* p = plans_.make<Load<std::string>>(c->Id(), url, true);
+    p->name = name+"::load_wholefiles_meta";
     dag_.AddDagNode(p->plan_id, {}, {c->Id()});
     return c;
   }

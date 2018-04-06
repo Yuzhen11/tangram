@@ -8,18 +8,20 @@ namespace xyz {
 template<typename T>
 struct Load : public PlanBase {
   Load(int _plan_id, int _collection_id, std::string _url, 
-          std::function<T(std::string)> f, int l)
+          std::function<T(std::string)> f, int l, bool _is_whole_file)
       : PlanBase(_plan_id), collection_id(_collection_id), url(_url), 
-        parse_line(f), max_line_per_part(l), is_load_meta(false) {}
+        parse_line(f), max_line_per_part(l), is_load_meta(false),
+        is_whole_file(_is_whole_file) {}
 
-  Load(int _plan_id, int _collection_id, std::string _url)
-    : PlanBase(_plan_id), collection_id(_collection_id), url(_url), is_load_meta(true) {
+  Load(int _plan_id, int _collection_id, std::string _url, bool _is_whole_file)
+    : PlanBase(_plan_id), collection_id(_collection_id), url(_url), 
+    is_load_meta(true), is_whole_file(_is_whole_file) {
   }
 
   virtual SpecWrapper GetSpec() override {
     SpecWrapper w;
     w.SetSpec<LoadSpec>(plan_id, SpecWrapper::Type::kLoad, 
-            collection_id, url, is_load_meta);
+            collection_id, url, is_load_meta, is_whole_file);
     w.name = name;
     return w;
   }
@@ -71,6 +73,7 @@ struct Load : public PlanBase {
 
   int max_line_per_part;
   bool is_load_meta;  // load meta only, instead of the real block.
+  bool is_whole_file;
 };
 
 } // namespace xyz

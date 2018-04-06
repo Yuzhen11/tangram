@@ -25,6 +25,7 @@ struct AssignedBlock {
   int id;
   int collection_id;
   bool is_load_meta;
+  bool is_whole_file;
 
   std::string DebugString() const {
     std::stringstream ss;
@@ -33,17 +34,18 @@ struct AssignedBlock {
     ss << ", id: " << id;
     ss << ", collection_id: " << collection_id;
     ss << ", is_load_meta: " << is_load_meta;
+    ss << ", is_whole_file: " << is_whole_file;
     return ss.str();
   }
 
   friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
                                      const AssignedBlock &b) {
-    stream << b.url << b.offset << b.id << b.collection_id << b.is_load_meta;
+    stream << b.url << b.offset << b.id << b.collection_id << b.is_load_meta << b.is_whole_file;
     return stream;
   }
   friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
                                      AssignedBlock &b) {
-    stream >> b.url >> b.offset >> b.id >> b.collection_id >> b.is_load_meta;
+    stream >> b.url >> b.offset >> b.id >> b.collection_id >> b.is_load_meta >> b.is_whole_file;
     return stream;
   }
 };

@@ -44,33 +44,16 @@ class Term {
     explicit Term(const KeyT& term) : termid(term) {}
     KeyT termid;
     int idf;
-    std::vector<std::string> titles;
-    std::vector<int> indexs;
     const KeyT& id() const { return termid; }
     KeyT Key() const { return termid; }
     friend SArrayBinStream &operator<<(SArrayBinStream& stream, const Term& t) {
-        stream << t.termid << t.idf << t.titles << t.indexs;
+        stream << t.termid << t.idf;
         return stream;
     }
     friend SArrayBinStream &operator>>(SArrayBinStream& stream, Term& t) {
-        stream >> t.termid >> t.idf >> t.titles >> t.indexs;
+        stream >> t.termid >> t.idf;
         return stream;
     }
-};
-
-
-struct Msg {
-  int index; 
-  std::string title;
-
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Msg& m) {
-    stream << m.index << m.title;
-    return stream;
-  }
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Msg& m) {
-    stream >> m.index >> m.title; 
-    return stream;
-  }
 };
 
 
@@ -123,8 +106,11 @@ int main(int argc, char **argv) {
       return doc;
   });
 
-  auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
-  auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
+  // no need indexed_docs using pull model.
+  // auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
+  auto terms_key_part_mapper = std::make_shared<HashKeyToPartMapper<std::string>>(FLAGS_num_term_partition);
+  auto terms = Context::placeholder<Term>(FLAGS_num_term_partition, terms_key_part_mapper);
+  /*
   Context::mappartjoin(
       loaded_docs, indexed_docs,
       [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
@@ -138,46 +124,91 @@ int main(int argc, char **argv) {
         *p_doc = std::move(doc);
       })
       ->SetName("build indexed_docs from loaded_docs");
+  */
 
-  Context::sort_each_partition(indexed_docs);
+  // Context::sort_each_partition(indexed_docs);
+  Context::sort_each_partition(terms);
 
   Context::mappartjoin(
-      indexed_docs, terms,
+      loaded_docs, terms,
       [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
-        std::vector<std::pair<std::string, Msg>> ret;
+        std::vector<std::pair<std::string, int>> ret;
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
-            Msg msg;
-            msg.index = i;
-            msg.title = doc.id();
-            ret.push_back({doc.words[i],msg});
+            ret.push_back({doc.words[i],1});
           }
         }
         return ret;
       },
-      [](Term *term, Msg msg) { 
-          term->titles.push_back(msg.title);
-          term->indexs.push_back(msg.index);
-          term->idf += 1;
+      [](Term *term, int n) { 
+        term->idf += n;
 
+      })
+      ->SetCombine([](int *a, int b){
+        *a += b;
       })
       ->SetName("Out all the doc");
 
   // Context::count(terms);
+  auto dummy_collection = Context::placeholder<CountObjT>(1);
+  Context::mappartwithjoin(
+      loaded_docs, terms, dummy_collection,
+      [terms_key_part_mapper](TypedPartition<Document>* p, TypedCache<Term> *typed_cache, AbstractMapProgressTracker* t) {
+        
+        std::vector<std::pair<int, int>> ret;
+        std::vector<IndexedSeqPartition<Term>*> with_parts(FLAGS_num_term_partition);
+        std::map<std::string, int> terms_map;
+        int start_idx = rand()%FLAGS_num_term_partition;  // random start_idx to avoid overload on one point
+        for (int i = 0; i < FLAGS_num_term_partition; i++) {
+          int idx = (start_idx + i) % FLAGS_num_term_partition;
+          auto start_time = std::chrono::system_clock::now();
+          auto part = typed_cache->GetPartition(idx);
+          auto end_time = std::chrono::system_clock::now();
+          std::chrono::duration<double> duration = end_time - start_time;
+          // if (FLAGS_node_id == 0) {
+          //   LOG(INFO) << GREEN("fetch time for " + std::to_string(idx) << " : " + std::to_string(duration.count()));
+          // }
+          auto *with_p = static_cast<IndexedSeqPartition<Term>*>(part.get());
+          with_parts[idx] = with_p;
+        }
+        // LOG(INFO) << "fetch done";
+        // method1: copy and find
+        
+        /*
+        for (auto with_p : with_parts) { 
+          for (auto& term : *with_p) {
+            terms_map[term.id()] = term.idf;
+          }   
+        }
 
-  Context::mappartjoin(
-      terms, indexed_docs,
-      [](TypedPartition<Term>* p, AbstractMapProgressTracker* t) {
-        std::vector<std::pair<std::string, std::pair<int, int> >> ret;
-        for (auto& term : *p) {
-          for(int i = 0; i < term.indexs.size(); i++) {
-            ret.push_back({term.titles[i], std::make_pair(term.indexs[i], term.idf)});
+        LOG(INFO) << "building local terms_map";
+        for (auto& doc : *p) {
+          for(int i = 0; i < doc.words.size(); i++){
+            std::string term  = doc.words[i];
+            int count = terms_map[term];
+            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
           }
+        }
+        */
+
+        // method2
+        for (auto& doc : *p) {
+          for(int i = 0; i < doc.words.size(); i++){
+            std::string term  = doc.words[i];
+            auto* with_p = with_parts[terms_key_part_mapper->Get(term)];
+            auto* t = with_p->Find(term);
+            CHECK_NOTNULL(t);
+            int count = t->idf;
+            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
+          }
+        }
+
+        for (int i = 0; i < FLAGS_num_term_partition; i++) {
+          typed_cache->ReleasePart(i);
         }
         return ret;
       },
-      [](Document *doc, std::pair<int, int> m) { 
-        doc->tf_idf[m.first] = std::log(FLAGS_num_of_docs / float(m.second));
+      [](CountObjT* t, int) { 
       })
       ->SetName("Send idf back to doc");
   Runner::Run();

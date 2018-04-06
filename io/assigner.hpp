@@ -28,7 +28,7 @@ public:
   int Load(int collection_id, std::string url,
            std::vector<std::pair<std::string, int>> slaves, 
            std::vector<int> num_local_threads,
-           bool is_load_meta = false);
+           bool is_load_meta = false, bool is_whole_file = false);
 
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
@@ -67,6 +67,7 @@ private:
   int num_assigned_ = 0;
   int expected_num_finished_ = 0;
   bool is_load_meta_ = false;
+  bool is_whole_file_ = false;
 };
 
 } // namespace xyz

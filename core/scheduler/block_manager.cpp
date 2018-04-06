@@ -24,7 +24,7 @@ void BlockManager::Load(SpecWrapper spec_wrapper) {
   CHECK(assigner);
   int num_blocks =
       assigner->Load(spec->collection_id, spec->url, assigned_nodes, num_local_threads,
-          spec->is_load_meta);
+          spec->is_load_meta, spec->is_whole_file);
   cid_pid_[spec->collection_id] = plan_id;
 }
 

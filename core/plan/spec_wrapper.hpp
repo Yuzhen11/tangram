@@ -120,14 +120,15 @@ struct LoadSpec : public Spec {
   int collection_id;
   std::string url;
   bool is_load_meta;
+  bool is_whole_file;
   LoadSpec() = default;
-  LoadSpec(int cid, std::string _url, bool _is_load_meta)
-    :collection_id(cid), url(_url), is_load_meta(_is_load_meta) {}
+  LoadSpec(int cid, std::string _url, bool _is_load_meta, bool _is_whole_file)
+    :collection_id(cid), url(_url), is_load_meta(_is_load_meta), is_whole_file(_is_whole_file) {}
   virtual void ToBin(SArrayBinStream& bin) override {
-    bin << collection_id << url << is_load_meta;
+    bin << collection_id << url << is_load_meta << is_whole_file;
   }
   virtual void FromBin(SArrayBinStream& bin) override {
-    bin >> collection_id >> url >> is_load_meta;
+    bin >> collection_id >> url >> is_load_meta >> is_whole_file;
   }
   virtual ReadWriteVector GetReadWrite() const {
     return {{}, {collection_id}};
@@ -137,6 +138,7 @@ struct LoadSpec : public Spec {
     ss << "collection_id: " << collection_id;
     ss << ", url: " << url;
     ss << ", is_load_meta: " << is_load_meta;
+    ss << ", is_whole_file: " << is_whole_file;
     return ss.str();
   }
 };

@@ -7,6 +7,7 @@
 #include "core/plan/spec_wrapper.hpp"
 
 #include "core/partition/block_partition.hpp"
+#include "core/partition/file_partition.hpp"
 
 namespace xyz {
 
@@ -99,8 +100,13 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
 
   if (block.is_load_meta) {
-    auto p = std::make_shared<BlockPartition>(block, block_reader_getter_);
-    engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(p));
+    if (block.is_whole_file) {
+      auto p = std::make_shared<FilePartition>(block, io_wrapper_->GetReaderGetter());
+      engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(p));
+    } else {
+      auto p = std::make_shared<BlockPartition>(block, block_reader_getter_);
+      engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(p));
+    }
 
     SArrayBinStream reply_bin;
     FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
@@ -109,55 +115,49 @@ void Worker::LoadBlock(SArrayBinStream bin) {
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
   } else {
-    engine_elem_.executor->Add([this, block]() {
-      // read
-      CHECK(block_reader_getter_);
-      auto block_reader = block_reader_getter_();
-      block_reader->Init(block.url, block.offset);
-      auto read_func = engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id); 
-      auto part = read_func(block_reader);
-      engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+    if (block.is_whole_file) {
+      engine_elem_.executor->Add([this, block]() {
+        auto reader = io_wrapper_->GetReader();
+        CHECK_EQ(block.offset, 0);
+        reader->Init(block.url);
+        size_t file_size = reader->GetFileSize();
+        CHECK_GT(file_size, 0);
 
-      // 2. reply
-      SArrayBinStream reply_bin;
-      FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
-                      block.collection_id};
-      reply_bin << b;
-      VLOG(1) << "Finish block: " << b.DebugString();
-      SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
-    });
+        std::string str;
+        str.resize(file_size);
+        reader->Read(&str[0], file_size);
+
+        auto func = engine_elem_.function_store->GetCreatePartFromString(block.collection_id);
+        auto part = func(std::move(str));
+        engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+
+        SArrayBinStream reply_bin;
+        FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
+                        block.collection_id};
+        reply_bin << b;
+        VLOG(1) << "Finish block: " << b.DebugString();
+        SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
+      });
+    } else {
+      engine_elem_.executor->Add([this, block]() {
+        // read
+        CHECK(block_reader_getter_);
+        auto block_reader = block_reader_getter_();
+        block_reader->Init(block.url, block.offset);
+        auto read_func = engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id); 
+        auto part = read_func(block_reader);
+        engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+
+        // 2. reply
+        SArrayBinStream reply_bin;
+        FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
+                        block.collection_id};
+        reply_bin << b;
+        VLOG(1) << "Finish block: " << b.DebugString();
+        SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
+      });
+    }
   }
-
-  // TODO: enable this only for tfidf (parse file)
-  /*
-  engine_elem_.executor->Add([this, block]() {
-    auto reader = io_wrapper_->GetReader();
-    CHECK_EQ(block.offset, 0);
-    reader->Init(block.url);
-    size_t file_size = reader->GetFileSize();
-    CHECK_GT(file_size, 0);
-
-    // char *data = new char[file_size];
-    // reader->Read(data, file_size);
-    // std::string str(data);  // TODO: remove the copy
-
-    std::string str;
-    str.resize(file_size);
-    reader->Read(&str[0], file_size);
-
-    auto func = engine_elem_.function_store->GetCreatePartFromString(block.collection_id);
-    auto part = func(std::move(str));
-    engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
-    // delete data;
-
-    SArrayBinStream reply_bin;
-    FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
-                    block.collection_id};
-    reply_bin << b;
-    VLOG(1) << "Finish block: " << b.DebugString();
-    SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
-  });
-  */
 }
 
 void Worker::Distribute(SArrayBinStream bin) {

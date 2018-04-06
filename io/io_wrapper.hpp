@@ -21,6 +21,13 @@ public:
     CHECK(writer_getter_);
     return writer_getter_();
   }
+
+  std::function<std::shared_ptr<AbstractReader>()> GetReaderGetter() {
+    return reader_getter_;
+  }
+  std::function<std::shared_ptr<AbstractWriter>()> GetWriterGetter() {
+    return writer_getter_;
+  }
 private:
   std::function<std::shared_ptr<AbstractReader>()> reader_getter_;
   std::function<std::shared_ptr<AbstractWriter>()> writer_getter_;

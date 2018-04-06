@@ -47,8 +47,9 @@ int Assigner::GetNumBlocks() {
 int Assigner::Load(int collection_id, std::string url,
                    std::vector<std::pair<std::string, int>> slaves,
                    std::vector<int> num_local_threads,
-                   bool is_load_meta) {
+                   bool is_load_meta, bool is_whole_file) {
   is_load_meta_ = is_load_meta;
+  is_whole_file_ = is_whole_file;
   CHECK_EQ(slaves.size(), num_local_threads.size());
   InitBlocks(url);
   num_finished_ = 0;
@@ -101,6 +102,7 @@ bool Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   assigned_block.id = block_id_++;
   assigned_block.collection_id = collection_id;
   assigned_block.is_load_meta = is_load_meta_;
+  assigned_block.is_whole_file = is_whole_file_;
   bin << assigned_block;
   Message msg;
   msg.meta.sender = 0;
