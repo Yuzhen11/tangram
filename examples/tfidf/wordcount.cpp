@@ -43,7 +43,8 @@ int main(int argc, char **argv) {
     [](TypedPartition<std::string>* p, AbstractMapProgressTracker* t) {
       std::vector<std::pair<std::string, int>> kvs;
       for (auto& elem : *p) {
-        boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
+        // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
+        boost::char_separator<char> sep(" \t\n");
         boost::tokenizer<boost::char_separator<char>> tok(elem, sep);
         for (auto& w : tok) {
           kvs.push_back({w, 1});
@@ -57,6 +58,8 @@ int main(int argc, char **argv) {
   ->SetCombine(
       [](int* a, int b) { return *a += b; }, 
       combine_timeout);
+
+  Context::count(wordcount);
 
   Runner::Run();
 }
