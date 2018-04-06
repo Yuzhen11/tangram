@@ -10,17 +10,25 @@ struct Load : public PlanBase {
   Load(int _plan_id, int _collection_id, std::string _url, 
           std::function<T(std::string)> f, int l)
       : PlanBase(_plan_id), collection_id(_collection_id), url(_url), 
-        parse_line(f), max_line_per_part(l) {}
+        parse_line(f), max_line_per_part(l), is_load_meta(false) {}
+
+  Load(int _plan_id, int _collection_id, std::string _url)
+    : PlanBase(_plan_id), collection_id(_collection_id), url(_url), is_load_meta(true) {
+  }
 
   virtual SpecWrapper GetSpec() override {
     SpecWrapper w;
     w.SetSpec<LoadSpec>(plan_id, SpecWrapper::Type::kLoad, 
-            collection_id, url);
+            collection_id, url, is_load_meta);
     w.name = name;
     return w;
   }
 
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
+    if (is_load_meta) {
+      return;
+    }
+    CHECK(parse_line);
     function_store->AddCreatePartFromBlockReaderFunc(collection_id, [this](std::shared_ptr<AbstractBlockReader> reader) {
       auto part = std::make_shared<SeqPartition<T>>();
       int count = 0;
@@ -56,11 +64,13 @@ struct Load : public PlanBase {
     });
   }
 
+ private:
   std::function<T(std::string)> parse_line;
   std::string url;
   int collection_id;
 
   int max_line_per_part;
+  bool is_load_meta;  // load meta only, instead of the real block.
 };
 
 } // namespace xyz

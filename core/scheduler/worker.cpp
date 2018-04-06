@@ -6,6 +6,8 @@
 
 #include "core/plan/spec_wrapper.hpp"
 
+#include "core/partition/block_partition.hpp"
+
 namespace xyz {
 
 void Worker::Wait() {
@@ -96,23 +98,35 @@ void Worker::LoadBlock(SArrayBinStream bin) {
   bin >> block;
   LOG(INFO) << WorkerId() << "LoadBlock: " << block.DebugString();
 
-  engine_elem_.executor->Add([this, block]() {
-    // read
-    CHECK(block_reader_getter_);
-    auto block_reader = block_reader_getter_();
-    block_reader->Init(block.url, block.offset);
-    auto read_func = engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id); 
-    auto part = read_func(block_reader);
-    engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+  if (block.is_load_meta) {
+    auto p = std::make_shared<BlockPartition>(block, block_reader_getter_);
+    engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(p));
 
-    // 2. reply
     SArrayBinStream reply_bin;
     FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
                     block.collection_id};
     reply_bin << b;
     VLOG(1) << "Finish block: " << b.DebugString();
     SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
-  });
+  } else {
+    engine_elem_.executor->Add([this, block]() {
+      // read
+      CHECK(block_reader_getter_);
+      auto block_reader = block_reader_getter_();
+      block_reader->Init(block.url, block.offset);
+      auto read_func = engine_elem_.function_store->GetCreatePartFromBlockReader(block.collection_id); 
+      auto part = read_func(block_reader);
+      engine_elem_.partition_manager->Insert(block.collection_id, block.id, std::move(part));
+
+      // 2. reply
+      SArrayBinStream reply_bin;
+      FinishedBlock b{block.id, engine_elem_.node.id, Qid(), engine_elem_.node.hostname,
+                      block.collection_id};
+      reply_bin << b;
+      VLOG(1) << "Finish block: " << b.DebugString();
+      SendMsgToScheduler(ScheduleFlag::kFinishBlock, reply_bin);
+    });
+  }
 
   // TODO: enable this only for tfidf (parse file)
   /*

@@ -120,6 +120,17 @@ class Context {
     return c;
   }
 
+  /*
+   * return a collection that need to be accessed in special way, see wordcount.cpp
+   */
+  static auto* load_block_meta(std::string url, std::string name = "") {
+    auto* c = collections_.make<Collection<std::string, SeqPartition<std::string>>>();
+    auto* p = plans_.make<Load<std::string>>(c->Id(), url);
+    p->name = name+"::load_block_meta";
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
+    return c;
+  }
+
   template<typename C, typename F>
   static void write(C* c, std::string url, F write, std::string name = "") {
     auto* p = plans_.make<Write<typename C::ObjT>>(c->Id(), url, write);

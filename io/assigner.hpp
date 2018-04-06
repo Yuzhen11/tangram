@@ -27,7 +27,8 @@ public:
   // non threadsafe
   int Load(int collection_id, std::string url,
            std::vector<std::pair<std::string, int>> slaves, 
-           std::vector<int> num_local_threads);
+           std::vector<int> num_local_threads,
+           bool is_load_meta = false);
 
   // return true if all blocks finish
   bool FinishBlock(FinishedBlock block);
@@ -65,6 +66,7 @@ private:
   int num_finished_ = 0;
   int num_assigned_ = 0;
   int expected_num_finished_ = 0;
+  bool is_load_meta_ = false;
 };
 
 } // namespace xyz

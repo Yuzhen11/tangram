@@ -1,5 +1,7 @@
 #include "core/plan/runner.hpp"
 
+#include "core/partition/block_partition.hpp"
+
 #include "boost/tokenizer.hpp"
 
 DEFINE_string(url, "", "The url for hdfs file");
@@ -35,6 +37,7 @@ int main(int argc, char **argv) {
     LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
   }
 
+  /*
   auto lines = Context::load(FLAGS_url, [](std::string content) {
     return content;
   });
@@ -46,6 +49,34 @@ int main(int argc, char **argv) {
         // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
         boost::char_separator<char> sep(" \t\n");
         boost::tokenizer<boost::char_separator<char>> tok(elem, sep);
+        for (auto& w : tok) {
+          kvs.push_back({w, 1});
+        }
+      }
+      return kvs;
+    },
+    [](WC* wc, int c) {
+      wc->count += c;
+    })
+  ->SetCombine(
+      [](int* a, int b) { return *a += b; }, 
+      combine_timeout);
+  */
+
+  // use load_block_meta, read the block in mappartjoin
+  auto lines = Context::load_block_meta(FLAGS_url);
+  auto wordcount = Context::placeholder<WC>(FLAGS_num_parts);
+  Context::mappartjoin(lines, wordcount, 
+    [](TypedPartition<std::string>* p, AbstractMapProgressTracker* t) {
+      auto* bp = dynamic_cast<BlockPartition*>(p);
+      CHECK_NOTNULL(bp);
+      std::vector<std::pair<std::string, int>> kvs;
+      auto reader = bp->GetReader();
+      while (reader->HasLine()) {
+        auto line = reader->GetLine();
+        // LOG(INFO) << "line: " << line;
+        boost::char_separator<char> sep(" \t\n");
+        boost::tokenizer<boost::char_separator<char>> tok(line, sep);
         for (auto& w : tok) {
           kvs.push_back({w, 1});
         }
