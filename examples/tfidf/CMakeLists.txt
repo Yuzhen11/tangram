@@ -15,4 +15,12 @@ target_link_libraries(TFIDF2 xyz)
 target_link_libraries(TFIDF2 ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TFIDF2 PROPERTY CXX_STANDARD 14)
 add_dependencies(TFIDF2 ${external_project_dependencies})
-add_dependencies(TFIDF2 ${external_project_dependencies})
+
+# WordCount
+add_executable(WordCount wordcount.cpp)
+target_link_libraries(WordCount xyz)
+target_link_libraries(WordCount ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET WordCount PROPERTY CXX_STANDARD 14)
+add_dependencies(WordCount ${external_project_dependencies})
+add_dependencies(WordCount ${external_project_dependencies})
+add_dependencies(WordCount ${external_project_dependencies})
