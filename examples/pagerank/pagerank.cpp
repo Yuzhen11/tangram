@@ -3,7 +3,7 @@
 #include "glog/logging.h"
 #include "boost/tokenizer.hpp"
 
-// #define ENABLE_CP
+#define ENABLE_CP
 
 DEFINE_int32(num_parts, 100, "# num of partitions");
 DEFINE_string(url, "", "The url for hdfs file");
@@ -41,7 +41,7 @@ int main(int argc, char** argv) {
     LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
   }
 
-  auto loaded_dataset = Context::load(FLAGS_url, [](std::string& s) {
+  auto loaded_dataset = Context::load(FLAGS_url, [](std::string s) {
     Vertex v;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);

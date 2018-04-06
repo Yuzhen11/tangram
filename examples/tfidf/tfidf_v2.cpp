@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
 
   // load and generate two collections
-  auto loaded_docs = Context::load(FLAGS_url, [](std::string &content) {
+  auto loaded_docs = Context::load(FLAGS_url, [](std::string content) {
 
       //parse extract title
       std::regex rgx(".*?title=\"(.*?)\".*?");

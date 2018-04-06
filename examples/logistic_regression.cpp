@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
 
   // load and generate two collections
-  auto dataset = Context::load(FLAGS_url, [](std::string &s) {
+  auto dataset = Context::load(FLAGS_url, [](std::string s) {
     Point point;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);

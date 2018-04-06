@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
   auto c1 = Context::distribute(std::vector<std::string>{"b", "a", "n", "a", "n", "a"}, 1);
 
   // std::string s;
-  // auto c3 = Context::load(s, [](const std::string&) { return ObjT(); });
+  // auto c3 = Context::load(s, [](const std::string) { return ObjT(); });
 
   auto c2 = Context::placeholder<ObjT>(10);
 

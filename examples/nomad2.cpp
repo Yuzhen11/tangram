@@ -177,7 +177,7 @@ int main(int argc, char** argv) {
   CHECK_NE(FLAGS_alpha, double(-1));
   CHECK_NE(FLAGS_beta, double(-1));
 
-  auto load_collection = Context::load(FLAGS_url, [](std::string& s) {
+  auto load_collection = Context::load(FLAGS_url, [](std::string s) {
     Record r;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);

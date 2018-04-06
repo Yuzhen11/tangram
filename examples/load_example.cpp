@@ -27,7 +27,7 @@ struct ObjT {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  auto c1 = Context::load(FLAGS_url, [](std::string& s) { return s; });
+  auto c1 = Context::load(FLAGS_url, [](std::string s) { return s; });
   auto c2 = Context::placeholder<ObjT>(1);
 
   auto p = Context::mapjoin(c1, c2, 

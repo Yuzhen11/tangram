@@ -8,7 +8,7 @@ namespace xyz {
 template<typename T>
 struct Load : public PlanBase {
   Load(int _plan_id, int _collection_id, std::string _url, 
-          std::function<T(std::string&)> f, int l)
+          std::function<T(std::string)> f, int l)
       : PlanBase(_plan_id), collection_id(_collection_id), url(_url), 
         parse_line(f), max_line_per_part(l) {}
 
@@ -26,7 +26,7 @@ struct Load : public PlanBase {
       int count = 0;
       while (reader->HasLine()) {
         auto s = reader->GetLine();
-        part->Add(parse_line(s));
+        part->Add(parse_line(std::move(s)));
         count += 1;
         if (count == max_line_per_part) {
           break;
@@ -56,7 +56,7 @@ struct Load : public PlanBase {
     });
   }
 
-  std::function<T(std::string&)> parse_line;
+  std::function<T(std::string)> parse_line;
   std::string url;
   int collection_id;
 

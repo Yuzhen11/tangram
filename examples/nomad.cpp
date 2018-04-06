@@ -161,7 +161,7 @@ struct RMSE {
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
 
-  auto load_collection = Context::load(FLAGS_url, [](std::string& s) {
+  auto load_collection = Context::load(FLAGS_url, [](std::string s) {
     Record r;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);

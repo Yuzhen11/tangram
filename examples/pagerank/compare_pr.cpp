@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
   CHECK(FLAGS_url1.size());
   CHECK(FLAGS_url2.size());
 
-  auto load = [](std::string& s) {
+  auto load = [](std::string s) {
     std::pair<int, float> p;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);

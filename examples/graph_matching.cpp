@@ -144,7 +144,7 @@ int main(int argc, char** argv) {
   int iteration = pattern.GetDepth();
 
   // dataset from file
-  auto dataset = Context::load(FLAGS_url, [](std::string& s) {
+  auto dataset = Context::load(FLAGS_url, [](std::string s) {
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);
     boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
