@@ -181,6 +181,7 @@ void Fetcher::FetchPartReplyRemote(Message msg) {
   auto& func = function_store_->GetCreatePart(meta.collection_id);
   auto p = func();
   p->FromBin(bin);
+  // LOG(INFO) << "debug, partition: " << meta.partition_id << ", size: " << p->GetSize();
   std::unique_lock<std::mutex> lk(m_);
   partition_versions_[meta.collection_id][meta.partition_id] = meta.version;
   partition_cache_[meta.collection_id][meta.partition_id] = p;
@@ -275,7 +276,9 @@ void Fetcher::Process(Message msg) {
   } else if (ctrl == FetcherFlag::kFetchPartRequest){
     FetchPartRequest(msg);
   } else if (ctrl == FetcherFlag::kFetchPartReplyRemote){
-    FetchPartReplyRemote(msg);
+    executor_->Add([this, msg]() {
+      FetchPartReplyRemote(msg);
+    });
   } else if (ctrl == FetcherFlag::kFetchPartReplyLocal){
     FetchPartReplyLocal(msg);
   } else {

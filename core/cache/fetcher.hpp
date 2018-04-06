@@ -16,6 +16,8 @@
 #include "core/scheduler/control.hpp"
 #include "core/plan/function_store.hpp"
 
+#include "core/executor/executor.hpp"
+
 namespace xyz {
 
 class Fetcher : public Actor, public AbstractFetcher {
@@ -28,6 +30,7 @@ class Fetcher : public Actor, public AbstractFetcher {
     partition_manager_(partition_manager),
     collection_map_(collection_map),
     sender_(sender) {
+    executor_ = std::make_shared<Executor>(5); // TODO: hard code executor size
     Start();
   }
   virtual ~Fetcher() {
@@ -82,6 +85,8 @@ class Fetcher : public Actor, public AbstractFetcher {
   // for local mode
   // collection_id, part_id -> count
   std::map<std::pair<int, int>, int> local_access_count_;
+
+  std::shared_ptr<Executor> executor_;
 };
 
 }  // namespace xyz

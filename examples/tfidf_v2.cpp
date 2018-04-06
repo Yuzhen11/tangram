@@ -154,12 +154,20 @@ int main(int argc, char **argv) {
       [terms_key_part_mapper](TypedPartition<Document>* p, TypedCache<Term> *typed_cache, AbstractMapProgressTracker* t) {
         
         std::vector<std::pair<int, int>> ret;
-        std::vector<IndexedSeqPartition<Term>*> with_parts;
+        std::vector<IndexedSeqPartition<Term>*> with_parts(FLAGS_num_term_partition);
         std::map<std::string, int> terms_map;
+        int start_idx = rand()%FLAGS_num_term_partition;  // random start_idx to avoid overload on one point
         for (int i = 0; i < FLAGS_num_term_partition; i++) {
-          auto part = typed_cache->GetPartition(i);
+          int idx = (start_idx + i) % FLAGS_num_term_partition;
+          auto start_time = std::chrono::system_clock::now();
+          auto part = typed_cache->GetPartition(idx);
+          auto end_time = std::chrono::system_clock::now();
+          std::chrono::duration<double> duration = end_time - start_time;
+          // if (FLAGS_node_id == 0) {
+          //   LOG(INFO) << GREEN("fetch time for " + std::to_string(idx) << " : " + std::to_string(duration.count()));
+          // }
           auto *with_p = static_cast<IndexedSeqPartition<Term>*>(part.get());
-          with_parts.push_back(with_p);
+          with_parts[idx] = with_p;
         }
         // LOG(INFO) << "fetch done";
         // method1: copy and find
