@@ -54,6 +54,7 @@ class TypedPartition : public AbstractPartition {
     virtual ObjT* Ref() = 0; 
     virtual void SubAdvance() = 0;
     virtual bool SubUnequal(const std::unique_ptr<Iterator>& other) = 0;
+    virtual ~Iterator() {}
   };
   struct IterWrapper {
     std::unique_ptr<Iterator> iter;

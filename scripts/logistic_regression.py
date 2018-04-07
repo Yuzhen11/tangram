@@ -4,8 +4,8 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/5nodes"
-progfile = "debug/LRExample"
-schedulerfile = "debug/SchedulerMain"
+progfile = "release/DenseLRExample"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj10",
@@ -15,15 +15,21 @@ common_params = {
 }
 
 program_params = {
-    "url" : "/datasets/classification/a9",
+    #"url" : "/jasper/avazu-app",
+    "url" : "/jasper/a9",
     "num_local_threads" : 20,
+    "num_parts" : 5,
+    #"num_params" : 1000000,
     "num_params" : 123,
-    "num_data" : 32561,
+    "batch_size" : 800,
     "alpha" : 0.005,
-    "num_iter" : 500,
-    "staleness" : 2,
-    "is_sparse" : False,
+    "num_iter" : 50,
+    "staleness" : 0,
+    "is_sparse" : True,
 }
+
+if program_params["is_sparse"]:
+  progfile = "release/SparseLRExample"
 
 scheduler_params = {
     "dag_runner_type" : "sequential",
