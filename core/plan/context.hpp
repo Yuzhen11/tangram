@@ -253,7 +253,9 @@ class Context {
       }, 
       [](CountObjT* a, int b) {
         a->b += b;
-      })->SetName(prefix+"::mapjoin");
+      })
+    ->SetCombine([](int* a, int b) { *a += b; })
+    ->SetName(prefix+"::mapjoin");
     foreach(count_collection, [](const CountObjT& obj) {
       LOG(INFO) << "********** count: " << obj.b << " *********";
     });
