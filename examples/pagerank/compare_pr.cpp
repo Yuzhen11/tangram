@@ -9,8 +9,8 @@ using namespace xyz;
 
 struct PRpair {
   int id;
-  float pr1;
-  float pr2;
+  double pr1;
+  double pr2;
 
   using KeyT = int;
   PRpair() = default;
@@ -20,7 +20,7 @@ struct PRpair {
 
 struct Diff {
   int id;
-  float diff;
+  double diff;
 
   using KeyT = int;
   Diff() = default;
@@ -34,7 +34,7 @@ int main(int argc, char** argv) {
   CHECK(FLAGS_url2.size());
 
   auto load = [](std::string s) {
-    std::pair<int, float> p;
+    std::pair<int, double> p;
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);
     boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
@@ -48,18 +48,18 @@ int main(int argc, char** argv) {
   auto pr_pair = Context::placeholder<PRpair>(5);
 
   Context::mapjoin(pr1, pr_pair, 
-    [](std::pair<int, float> p) {
+    [](std::pair<int, double> p) {
       return p;
     },
-    [](PRpair* p, float a) {
+    [](PRpair* p, double a) {
       p->pr1 = a;
     });
 
   Context::mapjoin(pr2, pr_pair, 
-    [](std::pair<int, float> p) {
+    [](std::pair<int, double> p) {
       return p;
     },
-    [](PRpair* p, float a) {
+    [](PRpair* p, double a) {
       p->pr2 = a;
     });
 
@@ -68,12 +68,12 @@ int main(int argc, char** argv) {
     [](PRpair p) {
       // LOG(INFO) << "pr1, pr2, diff: " 
       //   << p.pr1 << " " << p.pr2 << " " << fabs(p.pr2 - p.pr1);
-      return std::make_pair(0, float(fabs(p.pr2 - p.pr1)));
+      return std::make_pair(0, fabs(p.pr2 - p.pr1));
     },
-    [](Diff* d, float a) {
+    [](Diff* d, double a) {
       d->diff += a;
     })
-  ->SetCombine([](float* a, float b) { *a += b; });
+  ->SetCombine([](double* a, double b) { *a += b; });
 
   Context::foreach(diff, [](Diff d) {
     LOG(INFO) << RED("The difference is: " + std::to_string(d.diff));

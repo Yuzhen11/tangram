@@ -10,20 +10,20 @@ sys.path.append(proj_dir+"/scripts/")
 
 from launcher import Launcher
 
-hostfile = "machinefiles/5nodes"
+hostfile = "machinefiles/20nodes"
 progfile = "release/ComparePR"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
-    "scheduler" : "proj10",
+    "scheduler" : "proj99",
     "scheduler_port" : "33227",
-    "hdfs_namenode" : "proj10",
+    "hdfs_namenode" : "proj99",
     "hdfs_port" : 9000,
 }
 
 program_params = {
-    "url1": "/tmp/tmp/yz/pr",
-    "url2": "/tmp/tmp/yz/pr",
+    "url1": "/tmp/tmp/yz/tmp/6/pr-10",
+    "url2": "/tmp/tmp/yz/tmp/100/pr-10",
 }
 
 scheduler_params = {
@@ -37,7 +37,8 @@ env_params = (
   # this is to enable hdfs short-circuit read (disable the warning info)
   # change this path accordingly when we use other cluster
   # the current setting is for proj5-10
-  "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
+  # "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
+  "LIBHDFS3_CONF=/data/opt/hadoop-2.6.0/etc/hadoop/hdfs-site.xml"
   )
 
 dump_core = False

@@ -6,6 +6,8 @@
 DEFINE_int32(num_parts, 100, "# num of partitions");
 DEFINE_string(url, "", "The url for hdfs file");
 DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
+DEFINE_string(pr_url, "/tmp/tmp/yz/tmp/pr", "");
+DEFINE_string(topk_url, "/tmp/tmp/yz/tmp/topk", "");
 
 DEFINE_int32(num_vertices, 1, "# num of vertex");
 DEFINE_int32(num_iters, 10, "# num of iters");
@@ -23,8 +25,8 @@ struct Vertex
 
   KeyT vertex;
   std::vector<int> outlinks;
-  float pr = 0.;
-  float delta = 0.;
+  double pr = 0.;
+  double delta = 0.;
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Vertex& vertex) {
     stream << vertex.vertex << vertex.outlinks << vertex.pr << vertex.delta;
@@ -42,7 +44,7 @@ struct TopK {
   TopK(KeyT id) : id(id) {}
   KeyT Key()  const { return id; }
   KeyT id;
-  std::vector<std::pair<int, float>> vertices;
+  std::vector<std::pair<int, double>> vertices;
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const TopK& topk) {
     stream << topk.id;
@@ -95,10 +97,9 @@ int main(int argc, char** argv) {
       for (auto outlink : outlinks) {
         v->outlinks.push_back(outlink);
       }
-      // v->pr = 1./FLAGS_num_vertices;
-      v->delta = 0.15/FLAGS_num_vertices;
+      // v->delta = 0.15/FLAGS_num_vertices;
+      v->delta = 0.15;
       v->pr = 0;
-      // v->pr = 1.;
     })
   ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
     for (int value : msg2) msg1->push_back(value); 
@@ -112,42 +113,39 @@ int main(int argc, char** argv) {
   auto p2 = Context::mappartjoin(vertex, vertex,
     [](TypedPartition<Vertex>* p,
       AbstractMapProgressTracker* t) {
-      std::vector<std::pair<int, float>> contribs;
+      std::vector<std::pair<int, double>> contribs;
       for (auto& v: *p) {
-        // v.pr = v.pr + 0.15/FLAGS_num_vertices;  // Fuck!
         v.pr += v.delta;
-        // v.pr += 0.15/FLAGS_num_vertices;
-        // v.pr = v.pr + 0.15;
         for (auto outlink : v.outlinks) {
-          contribs.push_back(std::pair<int, float>(outlink, v.delta/v.outlinks.size()));
+          contribs.push_back(std::pair<int, double>(outlink, v.delta/v.outlinks.size()));
         }
         v.delta = 0;
       }
       return contribs;
     },
-    [](Vertex* v, float contrib) {
+    [](Vertex* v, double contrib) {
       v->delta += 0.85 * contrib;
     })
-    ->SetCombine([](float* a, float b) {
+    ->SetCombine([](double* a, double b) {
       *a = *a + b;
     }, combine_timeout)
     ->SetIter(FLAGS_num_iters)
     ->SetStaleness(FLAGS_staleness)
     ->SetName("pagerank main logic");
   
-  Context::write(vertex, "/tmp/tmp/yz/pr/", [](const Vertex& v, std::stringstream& ss) {
+  Context::write(vertex, FLAGS_pr_url, [](const Vertex& v, std::stringstream& ss) {
     ss << v.vertex << " " << v.pr << "\n";
   });
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
   Context::mapjoin(vertex, topk,
       [](const Vertex& vertex){
-        std::vector<std::pair<int, float>> vertices;
+        std::vector<std::pair<int, double>> vertices;
         vertices.push_back({vertex.vertex, vertex.pr});
         return std::make_pair(0, vertices);
       },
-      [](TopK* topk, const std::vector<std::pair<int, float>>& vertices){
-        std::vector<std::pair<int, float>> v;
+      [](TopK* topk, const std::vector<std::pair<int, double>>& vertices){
+        std::vector<std::pair<int, double>> v;
         int k1 = 0;
         int k2 = 0;
         for (int i = 0; i < 10; i++) { // top 10
@@ -160,8 +158,8 @@ int main(int argc, char** argv) {
         }
         topk->vertices = v;
       })
-    ->SetCombine([](std::vector<std::pair<int, float>>* v1, const std::vector<std::pair<int, float>>& v2){
-        std::vector<std::pair<int, float>> v;
+    ->SetCombine([](std::vector<std::pair<int, double>>* v1, const std::vector<std::pair<int, double>>& v2){
+        std::vector<std::pair<int, double>> v;
         int k1 = 0;
         int k2 = 0;
         for (int i = 0; i < 10; i++) { // top 10
@@ -188,6 +186,15 @@ int main(int argc, char** argv) {
       [](TopK* topk, int){}
       )
   ->SetName("print topk");
+
+  Context::write(topk, FLAGS_topk_url, [](const TopK& topk, std::stringstream& ss) {
+    CHECK_EQ(topk.vertices.size(), 10);
+    for (int i = 0; i < 10; i ++) {
+      ss << topk.vertices.at(i).first << "  " << topk.vertices.at(i).second << "\n";
+    }
+  });
+  // Context::count(loaded_dataset);
+  // Context::count(vertex);
 
   // Context::count(vertex);
   Runner::Run();
