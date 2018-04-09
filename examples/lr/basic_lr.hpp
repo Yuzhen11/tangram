@@ -13,6 +13,7 @@ DEFINE_double(alpha, 0.1, "The learning rate of the model");
 DEFINE_int32(num_iter, 1, "The number of iterations");
 DEFINE_int32(staleness, 0, "Staleness for the SSP");
 DEFINE_bool(is_sparse, false, "Is the dataset sparse or not");
+DEFINE_bool(is_sgd, false, "Full gradient descent or mini-batch SGD");
 
 using namespace xyz;
 
@@ -78,5 +79,5 @@ static auto* load_data() {
     }
 
     return point;
-  });
+  })->SetName("dataset");
 }

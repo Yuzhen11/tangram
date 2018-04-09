@@ -2,6 +2,7 @@
 
 #include "core/queue_node_map.hpp"
 #include "core/scheduler/control.hpp"
+#include "base/color.hpp"
 
 #include <numeric>
 
@@ -59,8 +60,8 @@ int Assigner::Load(int collection_id, std::string url,
 
   LOG(INFO) << "Loading: " << url
             << ", as collection: " << collection_id
-            << ", assigning " << blocks_.size() 
-            << " parititions to " << slaves.size() << " slaves";
+            << ", assigning " << RED(std::to_string(blocks_.size()))
+            << " parititions to " << RED(std::to_string(slaves.size())) << " slaves";
   // TODO: use more scheduling sophisticatic algorithm
   int index = 0;
   int num_total_slots = std::accumulate(num_local_threads.begin(), num_local_threads.end(), 0);

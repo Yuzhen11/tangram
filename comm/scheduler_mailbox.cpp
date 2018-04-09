@@ -200,6 +200,9 @@ std::set<int> SchedulerMailbox::GetDeadNodes(int timeout) {
 
 void SchedulerMailbox::CheckHeartbeat(int time_out) {
   while (ready_.load() && kHeartbeatCheckInterval > 0) {
+    // For experiences
+    break;
+    
     std::this_thread::sleep_for(std::chrono::seconds(kHeartbeatCheckInterval));
     if (!ready_.load())
       break;
