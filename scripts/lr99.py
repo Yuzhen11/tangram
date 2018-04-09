@@ -15,12 +15,14 @@ common_params = {
 }
 
 program_params = {
-    #"url" : "/jasper/avazu-app",
-    "url" : "/ml/webspam",
+    # "url" : "/jasper/a9",
+    "url" : "/jasper/avazu-app",
+    # "url" : "/ml/webspam",
     "num_local_threads" : 20,
     "num_parts" : 5,
-    #"num_params" : 1000000,
-    "num_params" : 16609143,
+    # "num_params" : 123,
+    "num_params" : 1000000,
+    # "num_params" : 16609143,
     "batch_size" : 800,
     "alpha" : 0.005,
     "num_iter" : 10,

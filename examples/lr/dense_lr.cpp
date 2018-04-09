@@ -1,4 +1,7 @@
 #include "examples/lr/basic_lr.hpp"
+
+#include "core/index/range_key_to_part_mapper.hpp"
+
 #include <ctime>
 
 int main(int argc, char **argv) {
@@ -15,7 +18,23 @@ int main(int argc, char **argv) {
   int num_parts = FLAGS_num_parts;
   int batch_size = FLAGS_batch_size;
 
-  auto params = Context::placeholder<Param>(num_parts);
+  std::vector<third_party::Range> ranges;
+  CHECK_GT(num_parts, 0);
+  if (num_params % num_parts != 0) {
+    int params_per_part = num_params/num_parts+1;
+    for (int i = 0; i < num_parts-1; ++ i) {
+      ranges.push_back(third_party::Range(i*params_per_part, (i+1)*params_per_part));
+    }
+    ranges.push_back(third_party::Range((num_parts-1)*params_per_part, num_params));
+  } else {
+    int params_per_part = num_params/num_parts;
+    for (int i = 0; i < num_parts; ++ i) {
+      ranges.push_back(third_party::Range(i*params_per_part, (i+1)*params_per_part));
+    }
+  }
+  CHECK_EQ(ranges.size(), num_parts);
+  auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
+  auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
   auto p =
       Context::mappartwithjoin(
           dataset, params, params,
@@ -100,11 +119,13 @@ int main(int argc, char **argv) {
             for (int j = 0; j < num_params; j++) {
               kvs.push_back({j, step_sum[j]});
             }
-            /* LOG(INFO) << RED("Correct: " + std::to_string(correct_count) +
+            /*
+            LOG(INFO) << RED("Correct: " + std::to_string(correct_count) +
                              ", Batch size: " + std::to_string(batch_size_) +
                              ", Accuracy: " +
                              std::to_string(correct_count /
-               float(batch_size_))); */
+               float(batch_size_)));
+               */
             return kvs;
           },
           [](Param *param, float val) { param->val += val; })

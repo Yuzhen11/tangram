@@ -200,6 +200,17 @@ class Context {
     return c;
   }
 
+  // range placeholder
+  template<typename D, typename KeyToPartT>
+  static auto* range_placeholder(std::shared_ptr<KeyToPartT> key_to_part_mapper, std::string name = "") {
+    auto* c = collections_.make<Collection<D, RangeIndexedSeqPartition<D>>>(key_to_part_mapper->GetNumRanges());
+    c->SetMapper(key_to_part_mapper);
+    auto* p = plans_.make<RangeDistribute<D, KeyToPartT>>(c->Id(), key_to_part_mapper);
+    p->name = name+"::range_placeholder";
+    dag_.AddDagNode(p->plan_id, {}, {c->Id()});
+    return c;
+  }
+
   template<typename D>
   static auto* placeholder(std::vector<third_party::Range> ranges, std::string name = "") {
     auto* c = collections_.make<Collection<D>>(ranges.size());

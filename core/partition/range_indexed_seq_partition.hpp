@@ -11,12 +11,14 @@ namespace xyz {
 template <typename ObjT>
 class RangeIndexedSeqPartition : public SeqPartition<ObjT>, public Indexable<ObjT> {
  public:
+  RangeIndexedSeqPartition() = default;
   RangeIndexedSeqPartition(const third_party::Range& range): range_(range) {
     this->storage_.resize(range.size());
   }
   
   virtual void TypedAdd(ObjT obj) override {
-    this->storage_[obj.Key()] = std::move(obj);
+    CHECK(false);
+    // this->storage_[obj.Key()] = std::move(obj);
   }
 
   virtual ObjT Get(typename ObjT::KeyT key) override {
@@ -26,6 +28,9 @@ class RangeIndexedSeqPartition : public SeqPartition<ObjT>, public Indexable<Obj
   }
 
   virtual ObjT* FindOrCreate(typename ObjT::KeyT key) override {
+    // LOG(INFO) << "FindOrCreate: " << key;
+    return Find(key);
+    /*
     ObjT* obj = Find(key);
     if (obj) {
       return obj;
@@ -34,12 +39,13 @@ class RangeIndexedSeqPartition : public SeqPartition<ObjT>, public Indexable<Obj
     ObjT new_obj(key);  // Assume the constructor is low cost.
     TypedAdd(std::move(new_obj));
     return &this->storage_[key];
+    */
   }
 
   virtual ObjT* Find(typename ObjT::KeyT key) {
-    if ( key = std::clamp(key, range_.begin(), range_.end()) )
-        return &this->storage[key];
-    return nullptr;
+    CHECK_GE(key, range_.begin());
+    CHECK_LT(key, range_.end());
+    return &this->storage_[key - range_.begin()];
   }
 
   virtual void FromBin(SArrayBinStream& bin) override {
