@@ -97,9 +97,7 @@ int main(int argc, char** argv) {
       for (auto outlink : outlinks) {
         v->outlinks.push_back(outlink);
       }
-      // v->delta = 0.15/FLAGS_num_vertices;
-      v->delta = 0.15;
-      v->pr = 0;
+      v->pr = 0.85;
     })
   ->SetCombine([](std::vector<int>* msg1, std::vector<int> msg2){
     for (int value : msg2) msg1->push_back(value); 
@@ -110,35 +108,47 @@ int main(int argc, char** argv) {
 
   // Context::count(vertex);
 
-  auto p2 = Context::mappartjoin(vertex, vertex,
+  for (int i = 0; i < 10; ++ i) {
+    Context::mappartjoin(vertex, vertex,
+      [](TypedPartition<Vertex>* p,
+        AbstractMapProgressTracker* t) {
+        std::vector<std::pair<int, double>> contribs;
+        for (auto& v: *p) {
+          v.pr = v.pr + 0.15;
+          for (auto outlink : v.outlinks) {
+            contribs.push_back(std::pair<int, double>(outlink, v.pr/v.outlinks.size()));
+          }
+          v.pr = 0;
+        }
+        return contribs;
+      },
+      [](Vertex* v, double contrib) {
+        v->pr += 0.85 * contrib;
+      })
+      ->SetCombine([](double* a, double b) {
+        *a = *a + b;
+      }, combine_timeout)
+      ->SetIter(FLAGS_num_iters)  // TODO: this is iter is the write iterval
+      ->SetStaleness(FLAGS_staleness)
+      ->SetName("pagerank main logic");
+    
+    const std::string write_url = FLAGS_pr_url+std::to_string(i);
+    Context::write(vertex, write_url, [](const Vertex& v, std::stringstream& ss) {
+      ss << v.vertex << " " << v.pr+0.15 << "\n";
+    });
+  }
+
+  Context::mappartjoin(vertex, vertex,
     [](TypedPartition<Vertex>* p,
       AbstractMapProgressTracker* t) {
       std::vector<std::pair<int, double>> contribs;
       for (auto& v: *p) {
-        v.pr += v.delta;
-        // if (v.delta == 0) {
-        //   continue;
-        // }
-        for (auto outlink : v.outlinks) {
-          contribs.push_back(std::pair<int, double>(outlink, v.delta/v.outlinks.size()));
-        }
-        v.delta = 0;
+        v.pr = v.pr + 0.15;
       }
       return contribs;
     },
     [](Vertex* v, double contrib) {
-      v->delta += 0.85 * contrib;
-    })
-    ->SetCombine([](double* a, double b) {
-      *a = *a + b;
-    }, combine_timeout)
-    ->SetIter(FLAGS_num_iters)
-    ->SetStaleness(FLAGS_staleness)
-    ->SetName("pagerank main logic");
-  
-  Context::write(vertex, FLAGS_pr_url, [](const Vertex& v, std::stringstream& ss) {
-    ss << v.vertex << " " << v.pr << "\n";
-  });
+    });
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
   Context::mapjoin(vertex, topk,
@@ -196,9 +206,6 @@ int main(int argc, char** argv) {
       ss << topk.vertices.at(i).first << "  " << topk.vertices.at(i).second << "\n";
     }
   });
-  // Context::count(loaded_dataset);
-  // Context::count(vertex);
 
-  // Context::count(vertex);
   Runner::Run();
 }

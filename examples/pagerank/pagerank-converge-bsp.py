@@ -9,7 +9,7 @@ sys.path.append(proj_dir+"/scripts/")
 from launcher import Launcher
 
 hostfile = "machinefiles/20nodes"
-progfile = "release/PageRankConverge"
+progfile = "release/PageRankBsp"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
@@ -27,12 +27,12 @@ program_params = {
 
     "num_local_threads" : 20,
 
-    "num_parts" : 400,
-    "combine_type" : "kDirectCombine",
-    "num_iters" : 50,
-    "staleness" : 1,
-    "pr_url" : "/tmp/tmp/yz/tmp/0409/50-10-2/pr",
-    "topk_url" : "/tmp/tmp/yz/tmp/0409/50-10-2/topk",
+    "num_parts" : 1000,
+    "combine_type" : "kShuffleCombine",
+    "num_iters" : 10,  # write every num_iters
+    "staleness" : 0,
+    "pr_url" : "/tmp/tmp/yz/tmp/0408/pr/",
+    "topk_url" : "/tmp/tmp/yz/tmp/0408/tmp2/topk-10",
 }
 
 scheduler_params = {
@@ -56,13 +56,3 @@ l = Launcher(schedulerfile, progfile, hostfile,
              dump_core)
 
 l.Launch(sys.argv)
-
-# for i in reversed(xrange(10)):
-#     program_params["pr_url"] = "/tmp/tmp/yz/tmp/0408/pr3/"+str(i)
-#     program_params["topk_url"] = "/tmp/tmp/yz/tmp/0408/topk3/"+str(i)
-#     program_params["num_iters"] = 10+i*10
-#     l = Launcher(schedulerfile, progfile, hostfile,
-#                  common_params, scheduler_params, program_params, env_params,
-#                  dump_core)
-#
-#     l.Launch(sys.argv)

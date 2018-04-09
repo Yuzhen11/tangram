@@ -11,7 +11,7 @@ sys.path.append(proj_dir+"/scripts/")
 from launcher import Launcher
 
 hostfile = "machinefiles/20nodes"
-progfile = "release/ComparePR"
+progfile = "release/Sum"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
@@ -22,8 +22,7 @@ common_params = {
 }
 
 program_params = {
-    "url1": "/tmp/tmp/yz/tmp/0408/pr/9",
-    "url2": "/tmp/tmp/yz/tmp/0409/50-10/pr",
+    "url": "/tmp/tmp/yz/tmp/0409/50-10/pr",
 }
 
 scheduler_params = {
@@ -49,7 +48,7 @@ l = Launcher(schedulerfile, progfile, hostfile,
 l.Launch(sys.argv)
 
 # for i in xrange(10):
-#     program_params["url2"] = "/tmp/tmp/yz/tmp/0408/pr3/"+str(i)
+#     program_params["url"] = "/tmp/tmp/yz/tmp/0408/pr3/"+str(i)
 #     l = Launcher(schedulerfile, progfile, hostfile,
 #                  common_params, scheduler_params, program_params, env_params,
 #                  dump_core)
