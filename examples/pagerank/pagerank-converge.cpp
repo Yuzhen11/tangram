@@ -116,9 +116,9 @@ int main(int argc, char** argv) {
       std::vector<std::pair<int, double>> contribs;
       for (auto& v: *p) {
         v.pr += v.delta;
-        // if (v.delta == 0) {
-        //   continue;
-        // }
+        if (v.delta == 0) {
+          continue;
+        }
         for (auto outlink : v.outlinks) {
           contribs.push_back(std::pair<int, double>(outlink, v.delta/v.outlinks.size()));
         }

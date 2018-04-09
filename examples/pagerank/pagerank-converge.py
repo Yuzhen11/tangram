@@ -29,10 +29,10 @@ program_params = {
 
     "num_parts" : 400,
     "combine_type" : "kDirectCombine",
-    "num_iters" : 50,
-    "staleness" : 1,
-    "pr_url" : "/tmp/tmp/yz/tmp/0409/50-10-2/pr",
-    "topk_url" : "/tmp/tmp/yz/tmp/0409/50-10-2/topk",
+    "num_iters" : 10,
+    "staleness" : 0,
+    "pr_url" : "/tmp/tmp/yz/tmp/0409/1930/",
+    "topk_url" : "/tmp/tmp/yz/tmp/tmp/10-1/topk",
 }
 
 scheduler_params = {
@@ -57,9 +57,9 @@ l = Launcher(schedulerfile, progfile, hostfile,
 
 l.Launch(sys.argv)
 
-# for i in reversed(xrange(10)):
-#     program_params["pr_url"] = "/tmp/tmp/yz/tmp/0408/pr3/"+str(i)
-#     program_params["topk_url"] = "/tmp/tmp/yz/tmp/0408/topk3/"+str(i)
+# for i in reversed(xrange(5)):
+#     program_params["pr_url"] = "/tmp/tmp/yz/tmp/0409/1930/"+str(i)
+#     program_params["topk_url"] = "/tmp/tmp/yz/tmp/0409/topk3/"+str(i)
 #     program_params["num_iters"] = 10+i*10
 #     l = Launcher(schedulerfile, progfile, hostfile,
 #                  common_params, scheduler_params, program_params, env_params,
