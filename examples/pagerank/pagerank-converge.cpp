@@ -25,8 +25,8 @@ struct Vertex
 
   KeyT vertex;
   std::vector<int> outlinks;
-  double pr = 0.;
-  double delta = 0.;
+  float pr = 0.;
+  float delta = 0.;
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Vertex& vertex) {
     stream << vertex.vertex << vertex.outlinks << vertex.pr << vertex.delta;
@@ -44,7 +44,7 @@ struct TopK {
   TopK(KeyT id) : id(id) {}
   KeyT Key()  const { return id; }
   KeyT id;
-  std::vector<std::pair<int, double>> vertices;
+  std::vector<std::pair<int, float>> vertices;
 
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const TopK& topk) {
     stream << topk.id;
@@ -113,23 +113,23 @@ int main(int argc, char** argv) {
   auto p2 = Context::mappartjoin(vertex, vertex,
     [](TypedPartition<Vertex>* p,
       AbstractMapProgressTracker* t) {
-      std::vector<std::pair<int, double>> contribs;
+      std::vector<std::pair<int, float>> contribs;
       for (auto& v: *p) {
         v.pr += v.delta;
         if (v.delta == 0) {
           continue;
         }
         for (auto outlink : v.outlinks) {
-          contribs.push_back(std::pair<int, double>(outlink, v.delta/v.outlinks.size()));
+          contribs.push_back(std::pair<int, float>(outlink, v.delta/v.outlinks.size()));
         }
         v.delta = 0;
       }
       return contribs;
     },
-    [](Vertex* v, double contrib) {
+    [](Vertex* v, float contrib) {
       v->delta += 0.85 * contrib;
     })
-    ->SetCombine([](double* a, double b) {
+    ->SetCombine([](float* a, float b) {
       *a = *a + b;
     }, combine_timeout)
     ->SetIter(FLAGS_num_iters)
@@ -143,12 +143,12 @@ int main(int argc, char** argv) {
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
   Context::mapjoin(vertex, topk,
       [](const Vertex& vertex){
-        std::vector<std::pair<int, double>> vertices;
+        std::vector<std::pair<int, float>> vertices;
         vertices.push_back({vertex.vertex, vertex.pr});
         return std::make_pair(0, vertices);
       },
-      [](TopK* topk, const std::vector<std::pair<int, double>>& vertices){
-        std::vector<std::pair<int, double>> v;
+      [](TopK* topk, const std::vector<std::pair<int, float>>& vertices){
+        std::vector<std::pair<int, float>> v;
         int k1 = 0;
         int k2 = 0;
         for (int i = 0; i < 10; i++) { // top 10
@@ -161,8 +161,8 @@ int main(int argc, char** argv) {
         }
         topk->vertices = v;
       })
-    ->SetCombine([](std::vector<std::pair<int, double>>* v1, const std::vector<std::pair<int, double>>& v2){
-        std::vector<std::pair<int, double>> v;
+    ->SetCombine([](std::vector<std::pair<int, float>>* v1, const std::vector<std::pair<int, float>>& v2){
+        std::vector<std::pair<int, float>> v;
         int k1 = 0;
         int k2 = 0;
         for (int i = 0; i < 10; i++) { // top 10
