@@ -55,7 +55,7 @@ struct Item {
   void Init() {
     for (auto& i : latent) {
       // i = ((float)rand())/RAND_MAX*2-1;
-      i = ((float)rand())/RAND_MAX* sqrt(5.)/sqrt(kNumLatent);
+      i = ((float)rand())/RAND_MAX* sqrt(5.)/sqrt(kNumLatent*1.0);
     }
   }
   std::string DebugString() const {
@@ -118,11 +118,11 @@ struct Collector {
   Collector(KeyT _key):key(_key) {}
   KeyT Key() const { return key; }
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const Collector& c) {
-    stream << c.key << c.users << c.items;  // TODO
+    stream << c.key << c.users << c.items << c.version;  // TODO
     return stream;
   }
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, Collector& c) {
-    stream >> c.key >> c.users >> c.items;
+    stream >> c.key >> c.users >> c.items >> c.version;
     return stream;
   }
 };
@@ -301,17 +301,27 @@ int main(int argc, char** argv) {
           int t = std::get<2>(u_r_c);
           // LOG(INFO) << "t: " << t;
           float lr = FLAGS_alpha / (1 + FLAGS_beta*pow(t, 1.5));
-          // LOG(INFO) << "user: " << user.DebugString();
-          float diff = - std::inner_product(user.latent, user.latent+kNumLatent, item.latent, - std::get<1>(u_r_c));
+          float diff = - std::inner_product(user.latent, user.latent+kNumLatent, migrate_item.latent, - std::get<1>(u_r_c));
           if (c < sample && p->id == 0) {
-            LOG(INFO) << "uid, iid: " << user.key << "," << item.key << ", estimated, real: " << std::inner_product(user.latent, user.latent+kNumLatent, item.latent, 0.0) << ", " << std::get<1>(u_r_c);
+            // LOG(INFO) << "user: " << user.DebugString();
+            LOG(INFO) << "uid, iid: " << user.key << "," << item.key << ", estimated, real: " 
+              << std::inner_product(user.latent, user.latent+kNumLatent, migrate_item.latent, 0.0) << ", " << std::get<1>(u_r_c)
+              << ", lr: " << lr << ", t: " << t;
           }
           c += 1;
           std::get<2>(u_r_c) += 1;  // fuck! update map element
           auto& user_update = update_users.dict[user.key];
           for (int i = 0; i < kNumLatent; ++ i) {
-            migrate_item.latent[i] += lr*(user.latent[i]*diff - FLAGS_lambda*item.latent[i]);
-            user_update.latent[i] += lr*(item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
+            migrate_item.latent[i] += lr*(user.latent[i]*diff - FLAGS_lambda*migrate_item.latent[i]);
+            // user_update.latent[i] += lr*(migrate_item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
+          }
+          diff = - std::inner_product(user.latent, user.latent+kNumLatent, migrate_item.latent, - std::get<1>(u_r_c));
+          for (int i = 0; i < kNumLatent; ++ i) {
+            user_update.latent[i] += lr*(migrate_item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
+          }
+          for (int i = 0; i < kNumLatent; ++ i) {
+            user.latent[i] += user_update.latent[i];
+            user_update.latent[i] = 0;
           }
         }
       }
@@ -357,6 +367,7 @@ int main(int argc, char** argv) {
        AbstractMapProgressTracker* t) {
       CHECK_EQ(p->GetSize(), 1);
 
+      // LOG(INFO) << "part id, fetch id: " << p->id;
       auto with_part = typed_cache->GetPartition(p->id);
       CHECK_EQ(with_part->GetSize(), 1);
       auto iter = p->begin();
@@ -375,11 +386,14 @@ int main(int argc, char** argv) {
       }
       // LOG(INFO) << "[Debug] local item size: " << items.size();
 
+      /*
       for (int i = 0; i < FLAGS_kNumPartition; ++ i) {
         if (i == p->id) {
           continue;
         }
         auto with_part = typed_cache->GetPartition(i);
+        // LOG(INFO) << "part id, fetch id: " << p->id << ", " << i 
+        //   << ", size: " << with_part->GetSize();
         CHECK_EQ(with_part->GetSize(), 1);
         auto iter = p->begin();
         auto with_iter = static_cast<TypedPartition<Collector>*>(with_part.get())->begin();
@@ -395,9 +409,12 @@ int main(int argc, char** argv) {
           }
         }
         typed_cache->ReleasePart(i);  // donot forget to call this
+        // LOG(INFO) << "part id, fetch id: " << p->id << ", " << i << ", done";
       }
+      */
 
       typed_cache->ReleasePart(p->id);  // donot forget to call this
+      // LOG(INFO) << "part id, fetch id: " << p->id << ", done";
       
       // LOG(INFO) << "[Debug] local count, rmse: " << count << ", " << local_rmse;
       std::vector<std::pair<int, std::pair<int, float>>> ret;

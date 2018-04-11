@@ -9,7 +9,7 @@ schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj99",
-    "scheduler_port" : "38214",
+    "scheduler_port" : "31893",
     "hdfs_namenode" : "proj99",
     "hdfs_port" : 9000,
 }
@@ -25,8 +25,8 @@ toy_data = {
     "lambda" : 0.05,
     "num_line_per_part": -1,
     "kNumPartition" : 2,
-    "iter": 100, 
-    "staleness": 0,
+    "iter": 10, 
+    "staleness": 10,
 }
 
 netflix_data = {
@@ -34,8 +34,8 @@ netflix_data = {
     "kNumUser" : 480189,
     "kNumItem" : 17770,
 
-    "alpha" : 0.001,
-    "beta" : 0.05,
+    "alpha" : 0.01,
+    "beta" : 0.0,
     "lambda" : 0.05,
     "num_line_per_part": -1,
     "kNumPartition" : 200,
@@ -49,13 +49,13 @@ yahoo_data = {
     "kNumItem" : 136736,
 
     # "alpha" : 0.000075,
-    "alpha" : 0.0003,
-    "beta" : 0.01,
-    "lambda" : 1,
+    "alpha" : 0.01,
+    "beta" : 0.0,
+    "lambda" : 0.05,
     "num_line_per_part": -1,
     "kNumPartition" : 200,
-    "iter": 400, 
-    "staleness": 0,
+    "iter": 100, 
+    "staleness": 100,
 }
 
 dataset_param = yahoo_data 
@@ -65,7 +65,7 @@ dataset_param = yahoo_data
 program_params = {
     "num_local_threads": 20,
     "backoff_time" : 10,
-    "max_sample_item_size_each_round": 500,
+    "max_sample_item_size_each_round": -1,
     "max_retry" : 0,  # may need to set to 0 for bsp
 }
 program_params.update(dataset_param)
@@ -83,7 +83,7 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-dump_core = False 
+dump_core = True
 l = Launcher(schedulerfile, progfile, hostfile,
              common_params, scheduler_params, program_params, env_params,
              dump_core)
