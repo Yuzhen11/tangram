@@ -13,9 +13,12 @@ class RangeIndexedSeqPartition : public SeqPartition<ObjT>, public Indexable<Obj
  public:
   RangeIndexedSeqPartition() = default;
   RangeIndexedSeqPartition(const third_party::Range& range): range_(range) {
-    this->storage_.resize(range.size());
+    CHECK_GE(range_.size(), 0);
+    for (int i = range_.begin(); i < range_.end(); ++ i) {
+      this->storage_.push_back(ObjT(i));
+    }
   }
-  
+
   virtual void TypedAdd(ObjT obj) override {
     CHECK(false);
     // this->storage_[obj.Key()] = std::move(obj);

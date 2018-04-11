@@ -6,6 +6,7 @@
 #include <cmath>
 
 DEFINE_string(url, "", "The url for hdfs file");
+ DEFINE_int32(num_data, -1, "The number of data in the dataset");
 DEFINE_int32(num_params, -1, "The number of parameters in the dataset");
 DEFINE_int32(num_parts, -1, "The number of partitions");
 DEFINE_int32(batch_size, 1, "Batch size of SGD");
@@ -32,6 +33,26 @@ struct Point {
   friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
                                      Point &point) {
     stream >> point.y >> point.x;
+    return stream;
+  }
+};
+
+struct IndexedPoints {
+  using KeyT = int;
+  IndexedPoints() = default;
+  IndexedPoints(KeyT _key) : key(_key) {}
+  KeyT Key() const { return key; }
+  KeyT key;
+  std::vector<Point> points;
+
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const IndexedPoints &indexed_points) {
+    stream << indexed_points.key << indexed_points.points;
+    return stream;
+  }
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
+                                     IndexedPoints &indexed_points) {
+    stream >> indexed_points.key >> indexed_points.points;
     return stream;
   }
 };

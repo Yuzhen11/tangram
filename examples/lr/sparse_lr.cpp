@@ -6,7 +6,7 @@ int main(int argc, char **argv) {
   // load and generate two collections
   auto dataset = load_data();
 
-  int num_params = FLAGS_num_params;
+  int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
   int num_parts = FLAGS_num_parts;
   int batch_size = FLAGS_batch_size;
