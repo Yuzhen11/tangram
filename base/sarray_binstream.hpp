@@ -221,16 +221,35 @@ SArrayBinStream& operator>>(SArrayBinStream& stream, std::pair<FirstT, SecondT>&
     return stream;
 }
 
-template <typename FirstT, typename SecondT, typename ThirdT>
-SArrayBinStream& operator<<(SArrayBinStream& stream, const std::tuple<FirstT, SecondT, ThirdT>& p) {
-    stream << std::get<0>(p) << std::get<1>(p) << std::get<2>(p);
-    return stream;
+template <typename TupleT, size_t N>
+struct TupleIO {
+  static void TupleOut(const TupleT& t, SArrayBinStream& stream) {
+    TupleIO<TupleT, N-1>::TupleOut(t, stream);
+    stream << std::get<N-1>(t);
+  }
+  static void TupleIn(TupleT& t, SArrayBinStream& stream) {
+    TupleIO<TupleT, N-1>::TupleOut(t, stream);
+    stream >> std::get<N-1>(t);
+  }
+};
+template <typename TupleT>
+struct TupleIO<TupleT, 0> {
+  static void TupleOut(const TupleT& t, SArrayBinStream& stream) {
+    return;
+  }
+  static void TupleIn(TupleT& t, SArrayBinStream& stream) {
+    return;
+  }
+};
+template <typename... ObjT>
+SArrayBinStream& operator<<(SArrayBinStream& stream, const std::tuple<ObjT...>& p) {
+  TupleIO<decltype(p), sizeof...(ObjT)>::TupleOut(p, stream);
+  return stream;
 }
-
-template <typename FirstT, typename SecondT, typename ThirdT>
-SArrayBinStream& operator>>(SArrayBinStream& stream, std::tuple<FirstT, SecondT, ThirdT>& p) {
-    stream >> std::get<0>(p) >> std::get<1>(p) >> std::get<2>(p);
-    return stream;
+template <typename... ObjT>
+SArrayBinStream& operator>>(SArrayBinStream& stream, std::tuple<ObjT...>& p) {
+  TupleIO<decltype(p), sizeof...(ObjT)>::TupleIn(p, stream);
+  return stream;
 }
 
 SArrayBinStream& operator<<(SArrayBinStream& stream, const SArrayBinStream& bin);

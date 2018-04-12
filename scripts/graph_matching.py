@@ -3,20 +3,26 @@
 import sys
 from launcher import Launcher
 
-hostfile = "machinefiles/5nodes"
-progfile = "debug/GraphMatching"
-schedulerfile = "debug/SchedulerMain"
+hostfile = "machinefiles/20nodes"
+progfile = "release/GraphMatching"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
     "scheduler" : "proj99",
-    "scheduler_port" : "33224",
+    "scheduler_port" : "33225",
     "hdfs_namenode" : "proj99",
     "hdfs_port" : 9000,
 }
 
 program_params = {
-    "url" : "/datasets/graph/youtube_label/part_0",
+    "url" : "/datasets/graph/label_skitter_8m.adj",
+    #"url" : "/datasets/graph/label_skitter.adj",
+    #"url" : "/datasets/graph/label_orkut.adj",
+    #"url" : "/tmp/xuan/toy2.graph",
+    #"url" : "/tmp/xuan/pattern.graph",
     "num_local_threads" : 20,
+    "num_matcher_parts" : 400,
+    "num_graph_parts" : 20,
 }
 
 scheduler_params = {
