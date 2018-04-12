@@ -8,19 +8,17 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
 
   // load and generate two collections
-  const clock_t begin_time = clock();
   auto dataset = load_data();
-  LOG(INFO) << GREEN("Data loading time: " + 
-      std::to_string(float(clock() - begin_time) / CLOCKS_PER_SEC));
 
   // Repartition the data
-  auto points = Context::placeholder<IndexedPoints>(20)->SetName("points");
+  int num_data_parts = FLAGS_num_data_parts;
+  auto points = Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
   auto p0 = Context::mappartjoin(dataset, points,
-    [](TypedPartition<Point>* p,
+    [num_data_parts](TypedPartition<Point>* p,
       AbstractMapProgressTracker* t) {
       std::vector<std::pair<int,Point>> all;
       for (auto& v: *p) {
-        all.push_back(std::make_pair(rand() % 20, v));
+        all.push_back(std::make_pair(rand() % num_data_parts, v));
       }
       return all;
     },
@@ -29,45 +27,45 @@ int main(int argc, char **argv) {
     })
     ->SetName("construct points from dataset");
 
-
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
-  int num_parts = FLAGS_num_parts;
+  int num_param_parts = FLAGS_num_param_parts;
   bool is_sgd = FLAGS_is_sgd;
 
   std::vector<third_party::Range> ranges;
-  CHECK_GT(num_parts, 0);
-  if (num_params % num_parts != 0) {
-    int params_per_part = num_params / num_parts + 1;
-    for (int i = 0; i < num_parts - 1; ++ i) {
+  CHECK_GT(num_param_parts, 0);
+  if (num_params % num_param_parts != 0) {
+    int params_per_part = num_params / num_param_parts + 1;
+    for (int i = 0; i < num_param_parts - 1; ++ i) {
       ranges.push_back(third_party::Range(i * params_per_part, (i+1) * params_per_part));
     }
-    ranges.push_back(third_party::Range((num_parts-1)*params_per_part, num_params));
+    ranges.push_back(third_party::Range((num_param_parts-1)*params_per_part, num_params));
   } else {
-    int params_per_part = num_params / num_parts;
-    for (int i = 0; i < num_parts; ++ i) {
+    int params_per_part = num_params / num_param_parts;
+    for (int i = 0; i < num_param_parts; ++ i) {
       ranges.push_back(third_party::Range(i * params_per_part, (i+1) * params_per_part));
     }
   }
-  CHECK_EQ(ranges.size(), num_parts);
+  CHECK_EQ(ranges.size(), num_param_parts);
   auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
   auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
   auto p1 =
       Context::mappartwithjoin(
           points, params, params,
           [num_params, alpha, is_sgd,
-           num_parts](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
+           num_param_parts](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
                       AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs;
             std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
-            std::vector<TypedPartition<Param> *> with_parts(num_parts);
+            clock_t begin_time = clock();
+            std::vector<TypedPartition<Param> *> with_parts(num_param_parts);
             int start_idx =
                 rand() %
-                num_parts; // random start_idx to avoid overload on one point
-            for (int i = 0; i < num_parts; i++) {
-              int idx = (start_idx + i) % num_parts;
+                num_param_parts; // random start_idx to avoid overload on one point
+            for (int i = 0; i < num_param_parts; i++) {
+              int idx = (start_idx + i) % num_param_parts;
               auto part = typed_cache->GetPartition(idx);
               auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
               with_parts[idx] = with_p;
@@ -82,7 +80,10 @@ int main(int argc, char **argv) {
                 ++iter1;
               }
             }
+            LOG(INFO) << GREEN("Parameter prepare time: " + 
+                          std::to_string(float(clock() - begin_time) / CLOCKS_PER_SEC));
 
+            begin_time = clock();
             auto iter2 = p->begin();
             int count = 0;
             int sgd_counter = -1;
@@ -118,8 +119,10 @@ int main(int argc, char **argv) {
               }
               ++iter2;
             }
+            LOG(INFO) << GREEN("Computation time: " + 
+                          std::to_string(float(clock() - begin_time) / CLOCKS_PER_SEC));
 
-            for (int i = 0; i < num_parts; i++) {
+            for (int i = 0; i < num_param_parts; i++) {
               typed_cache->ReleasePart(i);
             }
 

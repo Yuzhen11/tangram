@@ -8,14 +8,14 @@ int main(int argc, char **argv) {
 
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
-  int num_parts = FLAGS_num_parts;
+  int num_param_parts = FLAGS_num_param_parts;
   int batch_size = FLAGS_batch_size;
 
-  auto params = Context::placeholder<Param>(num_parts);
+  auto params = Context::placeholder<Param>(num_param_parts);
   auto p =
       Context::mappartwithjoin(
           dataset, params, params,
-          [num_params, alpha, batch_size, num_parts](TypedPartition<Point> *p,
+          [num_params, alpha, batch_size, num_param_parts](TypedPartition<Point> *p,
                                         TypedCache<Param> *typed_cache,
                                         AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs;

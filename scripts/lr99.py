@@ -16,22 +16,23 @@ common_params = {
 
 program_params = {
     #"url" : "/jasper/a9",
-    "url" : "/jasper/avazu-app",
-    #"url" : "/ml/webspam",
+    #"url" : "/jasper/avazu-app",
+    "url" : "/ml/webspam",
     "num_local_threads" : 20,
-    "num_parts" : 5,
+    "num_param_parts" : 20,
+    "num_data_parts" : 20,
     #"num_data" : 32561,
-    "num_data" : 40428967,
-    #"num_data" : 350000,
+    #"num_data" : 40428967,
+    "num_data" : 350000,
     #"num_params" : 123,
-    "num_params" : 1000000,
-    #"num_params" : 16609143,
+    #"num_params" : 1000000,
+    "num_params" : 16609143,
     "batch_size" : 800,
     "alpha" : 0.001,
     "num_iter" : 5,
-    "staleness" : 5,
+    "staleness" : 0,
     "is_sparse" : False,
-    "is_sgd" : True,
+    "is_sgd" : False,
 }
 
 if program_params["is_sparse"]:

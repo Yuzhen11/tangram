@@ -8,7 +8,8 @@
 DEFINE_string(url, "", "The url for hdfs file");
  DEFINE_int32(num_data, -1, "The number of data in the dataset");
 DEFINE_int32(num_params, -1, "The number of parameters in the dataset");
-DEFINE_int32(num_parts, -1, "The number of partitions");
+DEFINE_int32(num_data_parts, -1, "The number of partitions for dataset");
+DEFINE_int32(num_param_parts, -1, "The number of partitions for parameters");
 DEFINE_int32(batch_size, 1, "Batch size of SGD");
 DEFINE_double(alpha, 0.1, "The learning rate of the model");
 DEFINE_int32(num_iter, 1, "The number of iterations");
