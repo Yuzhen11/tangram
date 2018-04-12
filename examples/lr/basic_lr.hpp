@@ -6,16 +6,17 @@
 #include <cmath>
 
 DEFINE_string(url, "", "The url for hdfs file");
- DEFINE_int32(num_data, -1, "The number of data in the dataset");
+DEFINE_int32(num_data, -1, "The number of data in the dataset");
 DEFINE_int32(num_params, -1, "The number of parameters in the dataset");
 DEFINE_int32(num_data_parts, -1, "The number of partitions for dataset");
-DEFINE_int32(num_param_parts, -1, "The number of partitions for parameters");
+DEFINE_int32(num_param_per_part, -1, "The number of parameters per partition");
 DEFINE_int32(batch_size, 1, "Batch size of SGD");
 DEFINE_double(alpha, 0.1, "The learning rate of the model");
 DEFINE_int32(num_iter, 1, "The number of iterations");
 DEFINE_int32(staleness, 0, "Staleness for the SSP");
 DEFINE_bool(is_sparse, false, "Is the dataset sparse or not");
 DEFINE_bool(is_sgd, false, "Full gradient descent or mini-batch SGD");
+DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
 
 using namespace xyz;
 
@@ -80,7 +81,8 @@ struct Param {
 
 static auto* load_data() {
   return Context::load(FLAGS_url, [](std::string s) {
-    Point point;
+	  Point point;
+    /*
     boost::char_separator<char> sep(" \t");
     boost::tokenizer<boost::char_separator<char>> tok(s, sep);
     boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
@@ -99,6 +101,27 @@ static auto* load_data() {
       float val = std::stof(fea_val[1]);
       point.x.push_back(std::make_pair(fea, val));
     }
+    */
+	  char* pos;
+	  char* tok = strtok_r(&s[0], " \t:", &pos);
+	  int i = -1;
+	  int idx;
+	  float val;
+	  while (tok != NULL) {
+	    if (i == 0) {
+	        idx = std::atoi(tok) - 1;
+	        i = 1;
+	    } else if (i == 1) {
+	        val = std::atof(tok);
+	        point.x.push_back(std::make_pair(idx, val));
+	        i = 0;
+	    } else {
+	        point.y = std::atof(tok);
+	        i = 0;
+	    }
+	    // Next key/value pair
+	    tok = strtok_r(NULL, " \t:", &pos);
+	  }
 
     return point;
   })->SetName("dataset");

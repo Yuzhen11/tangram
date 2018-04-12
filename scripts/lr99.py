@@ -14,26 +14,46 @@ common_params = {
     "hdfs_port" : 9000,
 }
 
-program_params = {
-    #"url" : "/jasper/a9",
-    #"url" : "/jasper/avazu-app",
+# for webspam
+webspam_params = {
     "url" : "/ml/webspam",
-    "num_local_threads" : 20,
-    "num_param_parts" : 20,
-    "num_data_parts" : 20,
-    #"num_data" : 32561,
-    #"num_data" : 40428967,
     "num_data" : 350000,
-    #"num_params" : 123,
-    #"num_params" : 1000000,
     "num_params" : 16609143,
+    "num_param_per_part" : 16609,
+}
+
+# for a9
+a9_params = {
+    "url" : "/jasper/a9",
+    "num_data" : 32561,
+    "num_params" : 123,
+    "num_param_per_part" : 10,
+}
+
+# for avazu
+avazu_params = {
+    "url" : "/jasper/avazu-app",
+    "num_data" : 40428967,
+    "num_params" : 1000000,
+    "num_param_per_part" : 100000,
+}
+
+program_params = {
+    "num_local_threads" : 20,
+    "num_data_parts" : 400,
     "batch_size" : 800,
     "alpha" : 0.001,
     "num_iter" : 5,
     "staleness" : 0,
     "is_sparse" : False,
     "is_sgd" : False,
+    "combine_type" : "kShuffleCombine",
 }
+
+# choose one of them
+program_params.update(webspam_params)
+# program_params.update(a9_params)
+# program_params.update(avazu_params)
 
 if program_params["is_sparse"]:
   progfile = "release/SparseLRExample"
@@ -49,7 +69,8 @@ env_params = (
   # this is to enable hdfs short-circuit read (disable the warning info)
   # change this path accordingly when we use other cluster
   # the current setting is for proj5-10
-  "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
+  # "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
+  "LIBHDFS3_CONF=/data/opt/hadoop-2.6.0/etc/hadoop/hdfs-site.xml"
   )
 
 dump_core = False

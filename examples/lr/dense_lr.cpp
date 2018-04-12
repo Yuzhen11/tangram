@@ -6,6 +6,10 @@
 
 int main(int argc, char **argv) {
   Runner::Init(argc, argv);
+  const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
+  }
 
   // load and generate two collections
   auto dataset = load_data();
@@ -29,46 +33,46 @@ int main(int argc, char **argv) {
 
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
-  int num_param_parts = FLAGS_num_param_parts;
+  const int num_param_per_part = FLAGS_num_param_per_part;
   bool is_sgd = FLAGS_is_sgd;
 
   std::vector<third_party::Range> ranges;
-  CHECK_GT(num_param_parts, 0);
-  if (num_params % num_param_parts != 0) {
-    int params_per_part = num_params / num_param_parts + 1;
-    for (int i = 0; i < num_param_parts - 1; ++ i) {
-      ranges.push_back(third_party::Range(i * params_per_part, (i+1) * params_per_part));
-    }
-    ranges.push_back(third_party::Range((num_param_parts-1)*params_per_part, num_params));
-  } else {
-    int params_per_part = num_params / num_param_parts;
-    for (int i = 0; i < num_param_parts; ++ i) {
-      ranges.push_back(third_party::Range(i * params_per_part, (i+1) * params_per_part));
-    }
+  int num_param_parts = num_params / num_param_per_part;
+  for (int i = 0; i < num_param_parts; ++ i) {
+    ranges.push_back(third_party::Range(i*num_param_per_part, (i+1)*num_param_per_part));
+  }
+  if (num_params % num_param_per_part != 0) {
+    ranges.push_back(third_party::Range(num_param_parts*num_param_per_part, num_params));
+    num_param_parts += 1;
   }
   CHECK_EQ(ranges.size(), num_param_parts);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "num_param_parts: " << num_param_parts;
+    for (auto range: ranges) {
+      LOG(INFO) << "range: " << range.begin() << ", " << range.end();
+    }
+  }
   auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
   auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
   auto p1 =
       Context::mappartwithjoin(
           points, params, params,
           [num_params, alpha, is_sgd,
-           num_param_parts](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
+           num_param_parts, range_key_to_part_mapper](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
                       AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs;
             std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
-            clock_t begin_time = clock();
-            std::vector<TypedPartition<Param> *> with_parts(num_param_parts);
+            auto begin_time = std::chrono::steady_clock::now();
+            std::vector<std::shared_ptr<TypedPartition<Param>>> with_parts(num_param_parts);
             int start_idx =
                 rand() %
                 num_param_parts; // random start_idx to avoid overload on one point
             for (int i = 0; i < num_param_parts; i++) {
               int idx = (start_idx + i) % num_param_parts;
               auto part = typed_cache->GetPartition(idx);
-              auto *with_p = static_cast<TypedPartition<Param> *>(part.get());
-              with_parts[idx] = with_p;
+              with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<Param>>(part);
             }
 
             std::vector<float> old_params(num_params);
@@ -80,10 +84,14 @@ int main(int argc, char **argv) {
                 ++iter1;
               }
             }
-            LOG(INFO) << GREEN("Parameter prepare time: " + 
-                          std::to_string(float(clock() - begin_time) / CLOCKS_PER_SEC));
+            auto end_time = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            // LOG(INFO) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
 
-            begin_time = clock();
+            begin_time = std::chrono::steady_clock::now();
             auto iter2 = p->begin();
             int count = 0;
             int sgd_counter = -1;
@@ -119,8 +127,11 @@ int main(int argc, char **argv) {
               }
               ++iter2;
             }
-            LOG(INFO) << GREEN("Computation time: " + 
-                          std::to_string(float(clock() - begin_time) / CLOCKS_PER_SEC));
+            end_time = std::chrono::steady_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            LOG_IF(INFO, p->id == 0) << GREEN("Computation time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
 
             for (int i = 0; i < num_param_parts; i++) {
               typed_cache->ReleasePart(i);
@@ -133,18 +144,18 @@ int main(int argc, char **argv) {
               kvs.push_back({j, step_sum[j]});
             }
             
-            LOG(INFO) << RED("Correct: " + std::to_string(correct_count) +
+            LOG_IF(INFO, p->id == 0) << RED("Correct: " + std::to_string(correct_count) +
                              ", Batch size: " + std::to_string(count) +
                              ", Accuracy: " +
-                             std::to_string(correct_count /
-               float(count)));
+                             std::to_string(correct_count / float(count))
+                          + " on part 0");
                
             return kvs;
           },
           [](Param *param, float val) { param->val += val; })
           ->SetIter(FLAGS_num_iter)
           ->SetStaleness(FLAGS_staleness)
-          ->SetCombine([](float *a, float b) { *a = *a + b; });
+          ->SetCombine([](float *a, float b) { *a = *a + b; }, combine_timeout);
 
   Context::count(params);
   Context::count(points);
