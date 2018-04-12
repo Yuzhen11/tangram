@@ -161,12 +161,13 @@ struct RMSE {
   KeyT Key() const { return key; }
   KeyT key;
   std::pair<int, float> p;  // count, rmse
+  int update_count = 0;
   friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const RMSE& r) {
-    stream << r.key << r.p;
+    stream << r.key << r.p << r.update_count;
     return stream;
   }
   friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, RMSE& r) {
-    stream >> r.key >> r.p;
+    stream >> r.key >> r.p >> r.update_count;
     return stream;
   }
 };
@@ -375,6 +376,7 @@ int main(int argc, char** argv) {
 
       int count = 0;
       float local_rmse = 0;
+      int update_count = 0;
       auto& items = my_with_iter->items;
       for (auto& item : items) {
         for (auto& u_r_c: iter->points[item.key]) {
@@ -382,6 +384,7 @@ int main(int argc, char** argv) {
           float r = std::inner_product(user.latent, user.latent+kNumLatent, item.latent, 0.0);
           local_rmse += pow(fabs(r-std::get<1>(u_r_c)), 2);
           count += 1;
+          update_count += std::get<2>(u_r_c);
         }
       }
       // LOG(INFO) << "[Debug] local item size: " << items.size();
@@ -417,19 +420,21 @@ int main(int argc, char** argv) {
       // LOG(INFO) << "part id, fetch id: " << p->id << ", done";
       
       // LOG(INFO) << "[Debug] local count, rmse: " << count << ", " << local_rmse;
-      std::vector<std::pair<int, std::pair<int, float>>> ret;
-      ret.emplace_back(0, std::make_pair(count, local_rmse));
+      std::vector<std::pair<int, std::tuple<int, float, int>>> ret;
+      ret.emplace_back(0, std::make_tuple(count, local_rmse, update_count));
       return ret;
     },
-    [](RMSE* rmse, std::pair<int, float> m) {
+    [](RMSE* rmse, std::tuple<int, float, int> m) {
       // LOG(INFO) << "join rmse: " << m.first << " " << m.second;
-      rmse->p.first += m.first;
-      rmse->p.second += m.second;
+      rmse->p.first += std::get<0>(m);
+      rmse->p.second += std::get<1>(m);
+      rmse->update_count += std::get<2>(m);
     })->SetName("rmse");
   Context::foreach(rmse, [](RMSE r) {
     CHECK_GT(r.p.first, 0);
     std::stringstream ss;
-    ss << "num samples: " << r.p.first << " mse: " << r.p.second/r.p.first;
+    ss << "num samples: " << r.p.first << " rmse: " << sqrt(r.p.second/r.p.first) << ", " 
+    << "update_count: " << r.update_count;
     LOG(INFO) << BLUE(ss.str());
   });
 

@@ -39,8 +39,8 @@ netflix_data = {
     "lambda" : 0.05,
     "num_line_per_part": -1,
     "kNumPartition" : 200,
-    "iter": 100, 
-    "staleness": 100,
+    "iter": 200, 
+    "staleness": 200,
 }
 
 yahoo_data = {
@@ -53,13 +53,13 @@ yahoo_data = {
     "beta" : 0.0,
     "lambda" : 0.05,
     "num_line_per_part": -1,
-    "kNumPartition" : 200,
-    "iter": 100, 
-    "staleness": 100,
+    "kNumPartition" : 100,
+    "iter": 500, 
+    "staleness": 1,
 }
 
-dataset_param = yahoo_data 
-# dataset_param = netflix_data 
+# dataset_param = yahoo_data 
+dataset_param = netflix_data 
 # dataset_param = toy_data 
 
 program_params = {
@@ -83,9 +83,18 @@ env_params = (
   "LIBHDFS3_CONF=/data/opt/course/hadoop/etc/hadoop/hdfs-site.xml"
   )
 
-dump_core = True
+dump_core = False
 l = Launcher(schedulerfile, progfile, hostfile,
              common_params, scheduler_params, program_params, env_params,
              dump_core)
 
 l.Launch(sys.argv)
+
+# for i in xrange(0, 5):
+#     program_params["iter"] = 100+i*100;
+#     # program_params["staleness"] = 100+i*100;
+#     l = Launcher(schedulerfile, progfile, hostfile,
+#                  common_params, scheduler_params, program_params, env_params,
+#                  dump_core)
+#
+#     l.Launch(sys.argv)
