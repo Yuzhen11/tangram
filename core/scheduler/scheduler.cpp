@@ -81,10 +81,6 @@ void Scheduler::Process(Message msg) {
     Recovery(bin);
     break;
   }
-  case ScheduleFlag::kFinishRecovery: {
-    FinishRecovery();
-    break;
-  }
   default:
     CHECK(false) << ScheduleFlagName[static_cast<int>(flag)];
   }
@@ -191,6 +187,22 @@ void Scheduler::FinishRecovery() {
   }
 }
 
+bool Scheduler::LostWriteCollection(const std::set<int>& dead_nodes) {
+  auto writes = collection_status_->GetWrites();
+  for (auto w : writes) {
+    const auto& collection_view = elem_->collection_map->Get(w);
+    const auto& part_to_node = collection_view.mapper.Get();
+    for (int i = 0; i < part_to_node.size(); ++ i) {
+      int node_id = part_to_node[i];
+      if (dead_nodes.find(node_id) != dead_nodes.end()) {
+        // the node_id is in deadnodes
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 void Scheduler::Recovery(SArrayBinStream bin) {
   // remove dead_nodes
   std::set<int> dead_nodes;
@@ -201,20 +213,32 @@ void Scheduler::Recovery(SArrayBinStream bin) {
   // terminate plan
   auto cur_plans = collection_status_->GetCurrentPlans();
   CHECK_EQ(cur_plans.size(), 1);  // TODO
-  for (auto pid: cur_plans) {
-    auto spec_wrapper = program_.specs[pid];
-    CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
-         || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
-    // SArrayBinStream dummy_bin;
-    // SendToAllControllers(elem_, ControllerFlag::kTerminatePlan, pid, dummy_bin);
-    control_manager_->AbortPlan(pid, [this, dead_nodes]() {
+
+  int plan_id = cur_plans[0];
+  auto spec_wrapper = program_.specs[plan_id];
+  CHECK(spec_wrapper.type == SpecWrapper::Type::kMapJoin
+       || spec_wrapper.type == SpecWrapper::Type::kMapWithJoin);
+  
+  if (LostWriteCollection(dead_nodes)) {
+    LOG(INFO) << RED("Some write partitions lost, aborting plan");
+    control_manager_->AbortPlan(plan_id, [this, dead_nodes]() {
       // TODO: only work for 1 running plan
       // To support more plan, use a counter to record the aborted plans.
       // recover the collections and update collection map
-      recover_manager_->Recover(dead_nodes);
+      auto reads = collection_status_->GetReadsAndCP();
+      auto writes = collection_status_->GetWritesAndCP();
+      recover_manager_->Recover(dead_nodes, writes, reads, [this]() {
+        FinishRecovery();
+      });
+    });
+  } else {
+    LOG(INFO) << RED("No write partition lost.");
+    auto reads = collection_status_->GetReadsAndCP();
+    recover_manager_->Recover(dead_nodes, {}, reads, [this, plan_id, reads]() {
+      CHECK_EQ(reads.size(), 1) << "only support 1 map collection";
+      control_manager_->ReassignMap(plan_id, reads.begin()->first);
     });
   }
-
 }
 
 void Scheduler::Exit() {

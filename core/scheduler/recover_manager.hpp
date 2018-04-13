@@ -13,10 +13,15 @@ namespace xyz {
 class RecoverManager {
  public:
   RecoverManager(std::shared_ptr<SchedulerElem> elem, std::shared_ptr<CollectionManager> collection_manager,
-    std::shared_ptr<CheckpointLoader> checkpoint_loader, std::shared_ptr<CollectionStatus> collection_status)
-      : elem_(elem), collection_manager_(collection_manager), checkpoint_loader_(checkpoint_loader), collection_status_(collection_status) {}
+    std::shared_ptr<CheckpointLoader> checkpoint_loader)
+      : elem_(elem), collection_manager_(collection_manager), checkpoint_loader_(checkpoint_loader) {}
 
-  void Recover(std::set<int> dead_nodes);
+  // <int, std::string>: <collection_id, checkpoint>
+  void Recover(std::set<int> dead_nodes,
+      std::vector<std::pair<int, std::string>> writes, 
+      std::vector<std::pair<int, std::string>> reads,
+      std::function<void()> callback);
+
   std::vector<int> ReplaceDeadnodesAndReturnUpdated(
           int cid, std::set<int> dead_nodes);
 
@@ -28,13 +33,13 @@ class RecoverManager {
   std::shared_ptr<SchedulerElem> elem_;
   std::shared_ptr<CollectionManager> collection_manager_;
   std::shared_ptr<CheckpointLoader> checkpoint_loader_;
-  std::shared_ptr<CollectionStatus> collection_status_;
 
   std::set<int> recovering_collections_;
   std::set<int> updating_collections_;
 
   std::chrono::system_clock::time_point start_time_;
   bool started_ = false;
+  std::function<void()> callback_;
 };
 
 } // namespace xyz

@@ -228,7 +228,7 @@ struct TupleIO {
     stream << std::get<N-1>(t);
   }
   static void TupleIn(TupleT& t, SArrayBinStream& stream) {
-    TupleIO<TupleT, N-1>::TupleOut(t, stream);
+    TupleIO<TupleT, N-1>::TupleIn(t, stream);
     stream >> std::get<N-1>(t);
   }
 };

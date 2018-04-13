@@ -494,6 +494,45 @@ void ControlManager::RunPlan(SpecWrapper spec, std::function<void()> f) {
   SendToAllControllers(elem_, ControllerFlag::kSetup, plan_id, bin);
 }
 
+void ControlManager::ReassignMap(int plan_id, int collection_id) {
+  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  CHECK_EQ(collection_id, mapjoin_spec->map_collection_id) << "only support map now (no with)";
+  // 1. identify the updated parts
+  std::vector<std::tuple<int, int, int>> reassignments;  // part_id, from_id, to_id
+  auto& cached_part_to_node = cached_part_to_node_[plan_id][collection_id];
+  const auto& collection_view = elem_->collection_map->Get(collection_id);
+  const auto& new_part_to_node = collection_view.mapper.Get();
+  CHECK_EQ(cached_part_to_node.size(), new_part_to_node.size());
+  for (int i = 0; i < new_part_to_node.size(); ++ i) {
+    if (new_part_to_node[i] != cached_part_to_node[i]) {
+      reassignments.push_back(std::make_tuple(i, cached_part_to_node[i], new_part_to_node[i]));
+      cached_part_to_node[i] = new_part_to_node[i];
+    }
+  }
+  // 2. update map_node_count_ and map_node_versions_
+  // to_id, part_id, version
+  std::vector<std::tuple<int,int,int>> t_p_v;
+  for (auto t : reassignments) {
+    int part_id = std::get<0>(t);
+    int from_id = std::get<1>(t);
+    int to_id = std::get<2>(t);
+    // update the to_id
+    if (map_part_versions_[plan_id][part_id].first < map_node_versions_[plan_id][to_id].first) {
+      map_node_count_[plan_id][to_id] = 1;
+      map_node_versions_[plan_id][to_id].first = map_part_versions_[plan_id][part_id].first;
+    } else if (map_part_versions_[plan_id][part_id].first == map_node_versions_[plan_id][to_id].first) {
+      map_node_count_[plan_id][part_id] += 1;
+    }
+    t_p_v.push_back(std::make_tuple(to_id, part_id, map_part_versions_[plan_id][part_id].first));
+    LOG(INFO) << "reassigning: <to_id, part_id, version>: " 
+      << to_id << ", " << part_id << ", " << map_part_versions_[plan_id][part_id].first;
+  }
+  // 3. send to plan_controller and trigger RunMap
+  SArrayBinStream bin;
+  bin << t_p_v;
+  SendToAllControllers(elem_, ControllerFlag::kReassignMap, plan_id, bin);
+}
+
 void ControlManager::Init(int plan_id) {
   start_time_ = std::chrono::system_clock::now();
   for (auto& node : elem_->nodes) {
@@ -522,6 +561,8 @@ void ControlManager::Init(int plan_id) {
     join_part_versions_[plan_id][i].first = 0;
     join_part_versions_[plan_id][i].second = start_time_;
   }
+  // set the cached_part_to_node_
+  cached_part_to_node_[plan_id][mapjoin_spec->map_collection_id] = map_part_to_node_map;
 }
 
 int ControlManager::GetCurVersion(int plan_id) {

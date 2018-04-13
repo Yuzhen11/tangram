@@ -23,16 +23,20 @@ struct ObjT {
 
 void mj() {
   std::vector<int> seed;
+  // 2 map parts and 1 join part
+  //
+  // 1. kill the first machine to simulate losing join partitions
+  // 2. kill the second machine to simulate not losing join partitions
   const int num_map_part = 2;
-  const int num_join_part = num_map_part;
+  const int num_join_part = 1;
   for (int i = 0; i < num_map_part; ++ i) {
     seed.push_back(i);
   }
   auto c1 = Context::distribute(seed, num_map_part);
   auto c2 = Context::placeholder<ObjT>(num_join_part);
 
-  Context::checkpoint(c1, "/tmp/tmp/jasper/c0");
-  Context::checkpoint(c2, "/tmp/tmp/jasper/c1");
+  Context::checkpoint(c1, "/tmp/tmp/yuzhen/c0");
+  Context::checkpoint(c2, "/tmp/tmp/yuzhen/c1");
 
   // mapjoin
   Context::mapjoin(c1, c2, 
@@ -44,7 +48,7 @@ void mj() {
     [](ObjT* obj, int m) {
       obj->b += m;
       LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(2);
+    })->SetIter(10)->SetStaleness(0)->SetCheckpointInterval(2, "/tmp/yuzhen/tmp/");
 }
 
 void mpj() {

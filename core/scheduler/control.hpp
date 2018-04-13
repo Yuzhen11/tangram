@@ -24,7 +24,6 @@ enum class ScheduleFlag : char {
   kUpdateCollection,
   kUpdateCollectionReply,
   kRecovery,
-  kFinishRecovery,
 };
 
 static const char *ScheduleFlagName[] = {
@@ -100,6 +99,7 @@ enum class ControllerFlag : char {
   kMigratePartition,
   kTerminatePlan,
   kFinishLoadWith,
+  kReassignMap,  // no partition lost during machine failure, reassign the map partitions
 };
 
 static const char *ControllerFlagName[] = {
@@ -115,6 +115,7 @@ static const char *ControllerFlagName[] = {
   "kMigratePartition",
   "kTerminatePlan",
   "kFinishLoadWith",
+  "kReassignMap",
 };
 
 struct FetchMeta {

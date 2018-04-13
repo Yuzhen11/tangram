@@ -14,7 +14,7 @@ class CollectionStatus {
  public:
   using ReadWriteVector = std::pair<std::vector<int>, std::vector<int>>;
 
-  std::string GetLastCP(int collection_id);
+  std::string GetLastCP(int collection_id) const;
 
   void AddCP(int collection_id, std::string url);
   void AddPlan(int id, const ReadWriteVector& p);
@@ -23,6 +23,9 @@ class CollectionStatus {
   std::string DebugString() const;
   std::vector<int> GetReads() const;
   std::vector<int> GetWrites() const;
+
+  std::vector<std::pair<int, std::string>> GetReadsAndCP() const;
+  std::vector<std::pair<int, std::string>> GetWritesAndCP() const;
  private:
   std::map<int, ReadWriteVector> cur_plans_;
   std::map<int, std::chrono::system_clock::time_point> plan_time_;

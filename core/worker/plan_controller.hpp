@@ -85,6 +85,7 @@ class PlanController : public AbstractPlanController {
   virtual void DisplayTime() override;
 
   virtual void MigratePartition(Message msg) override;
+  virtual void ReassignMap(SArrayBinStream bin) override;
 
   void TryRunSomeMaps();
 

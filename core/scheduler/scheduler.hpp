@@ -58,7 +58,7 @@ public:
     distribute_manager_ = std::make_shared<DistributeManager>(elem_, collection_manager_);
     write_manager_ = std::make_shared<WriteManager>(elem_);
     checkpoint_manager_ = std::make_shared<CheckpointManager>(elem_, checkpoint_loader_, collection_status_);
-    recover_manager_ = std::make_shared<RecoverManager>(elem_, collection_manager_, checkpoint_loader_, collection_status_);
+    recover_manager_ = std::make_shared<RecoverManager>(elem_, collection_manager_, checkpoint_loader_);
   }
   virtual ~Scheduler() override {
     if (start_) {
@@ -94,6 +94,7 @@ public:
   void Recovery(SArrayBinStream bin);
   void FinishRecovery();
 
+  bool LostWriteCollection(const std::set<int>& dead_nodes);
 private:
   std::shared_ptr<SchedulerElem> elem_;
 

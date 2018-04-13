@@ -5,9 +5,10 @@ namespace xyz {
 // TODO: decide when to remove the cp. E.g., remove a checkpoint
 // after a plan finishes. 
 
-std::string CollectionStatus::GetLastCP(int collection_id) {
-  CHECK(last_cp_.find(collection_id) != last_cp_.end());
-  return last_cp_[collection_id];
+std::string CollectionStatus::GetLastCP(int collection_id) const {
+  CHECK(last_cp_.find(collection_id) != last_cp_.end()) 
+    << "checkpoint for collection " << collection_id << " does not exit";
+  return last_cp_.find(collection_id)->second;
 }
 
 void CollectionStatus::AddCP(int collection_id, std::string url) {
@@ -94,6 +95,22 @@ std::vector<int> CollectionStatus::GetWrites() const {
   std::vector<int> ret;
   for (auto& w : write_ids_) {
     ret.push_back(w.first);
+  }
+  return ret;
+}
+
+std::vector<std::pair<int, std::string>> CollectionStatus::GetReadsAndCP() const {
+  std::vector<std::pair<int, std::string>> ret;
+  for (auto r : read_ids_) {
+    ret.push_back(std::make_pair(r.first, GetLastCP(r.first)));
+  }
+  return ret;
+}
+
+std::vector<std::pair<int, std::string>> CollectionStatus::GetWritesAndCP() const {
+  std::vector<std::pair<int, std::string>> ret;
+  for (auto w : write_ids_) {
+    ret.push_back(std::make_pair(w.first, GetLastCP(w.first)));
   }
   return ret;
 }

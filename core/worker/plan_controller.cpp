@@ -1033,6 +1033,27 @@ void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_met
   LOG(INFO) << "[Migrate] migrating: " << migrate_meta.DebugString();
 }
 
+void PlanController::ReassignMap(SArrayBinStream bin) {
+  // to_id, part_id, version_id
+  std::vector<std::tuple<int,int,int>> reassignments;
+  bin >> reassignments;
+  for (auto t : reassignments) {
+    // LOG(INFO) << "A: " << std::get<0>(t) << ", " << std::get<1>(t)
+    //   << ", " << std::get<2>(t);
+    int to_id = std::get<0>(t);
+    if (to_id == controller_->engine_elem_.node.id) {
+      int part_id = std::get<1>(t);
+      int version = std::get<2>(t);
+      CHECK(controller_->engine_elem_.partition_manager->Has(map_collection_id_, part_id));
+      CHECK(map_versions_.find(part_id) == map_versions_.end());
+      map_versions_[part_id] = version;
+      num_local_map_part_ += 1;
+    }
+  }
+  CHECK_EQ(num_local_map_part_, controller_->engine_elem_.partition_manager->GetNumLocalParts(map_collection_id_));
+  TryRunSomeMaps();
+}
+
 void PlanController::MigratePartitionReceiveMapOnly(Message msg) {
   CHECK_EQ(msg.data.size(), 5);
   SArrayBinStream ctrl2_bin, bin1, bin2;

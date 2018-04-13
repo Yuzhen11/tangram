@@ -26,6 +26,7 @@ class ControlManager {
   void AbortPlan(int id, std::function<void()> f);
   //void ToScheduler(ScheduleFlag flag, SArrayBinStream bin);
   int GetCurVersion(int plan_id);
+  void ReassignMap(int plan_id, int collection_id);
   
   void Migrate(int plan_id);
   void TrySpeculativeMap(int plan_id);
@@ -79,6 +80,11 @@ class ControlManager {
   bool migrate_control = true;
 
   std::map<int, std::function<void()>> callbacks_;
+  
+  // plan_id -> collection_id -> part_to_node
+  // TODO: this is only used for map-only recovery 
+  // (no join partition partitions lost when a machine fails)
+  std::map<int, std::map<int, std::vector<int>>> cached_part_to_node_;
 };
 
 

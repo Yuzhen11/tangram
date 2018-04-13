@@ -80,6 +80,10 @@ void Controller::Process(Message msg) {
     plan_controllers_[plan_id]->FinishLoadWith(bin);
     break;                                      
   }
+  case ControllerFlag::kReassignMap: {
+    plan_controllers_[plan_id]->ReassignMap(bin);
+    break;                                      
+  }
   default: CHECK(false);
   }
 }

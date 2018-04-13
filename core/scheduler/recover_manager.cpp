@@ -4,59 +4,72 @@
 #include "base/color.hpp"
 
 namespace xyz {
-void RecoverManager::Recover(std::set<int> dead_nodes) {
+void RecoverManager::Recover(std::set<int> dead_nodes,
+      std::vector<std::pair<int, std::string>> writes, 
+      std::vector<std::pair<int, std::string>> reads,
+      std::function<void()> callback) {
+
   CHECK_EQ(started_, false);
   started_ = true;
+  callback_ = callback;
   start_time_ = std::chrono::system_clock::now();
 
   recovering_collections_.clear();
   updating_collections_.clear();
 
+  std::stringstream ss;
+  ss << "Recovering " << writes.size() << " writes collections: ";
+  for (auto& w : writes) {
+    ss << w.first << ", ";
+  }
+  ss << "and " << reads.size() << " read collections: ";
+  for (auto& r : reads) {
+    ss << r.first << ", ";
+  }
+  LOG(INFO) << RED(ss.str());
   // recover the writes
-  auto writes = collection_status_->GetWrites();
   for (auto w : writes) {
-    recovering_collections_.insert(w);
-    ReplaceDeadnodesAndReturnUpdated(w, dead_nodes);
-    std::string url = collection_status_->GetLastCP(w);
+    recovering_collections_.insert(w.first);
+    ReplaceDeadnodesAndReturnUpdated(w.first, dead_nodes);
+    const std::string url = w.second;
     std::stringstream ss;
-    ss << "Recovering write checkpoint (full) for plan: " << w << ", from: " << url;
+    ss << "Recovering write checkpoint (full) for plan: " << w.first << ", from: " << url;
     LOG(INFO) << RED(ss.str());
-    checkpoint_loader_->LoadCheckpoint(w, url, [this, w]() {
-      RecoverDoneForACollection(w, Type::LoadCheckpoint);
+    checkpoint_loader_->LoadCheckpoint(w.first, url, [this, w]() {
+      RecoverDoneForACollection(w.first, Type::LoadCheckpoint);
     });
   }
 
   // recover the reads
-  auto reads = collection_status_->GetReads();
   for (auto r : reads) {
-    recovering_collections_.insert(r);
-    auto updates = ReplaceDeadnodesAndReturnUpdated(r, dead_nodes);
-    std::string url = collection_status_->GetLastCP(r);
+    recovering_collections_.insert(r.first);
+    auto updates = ReplaceDeadnodesAndReturnUpdated(r.first, dead_nodes);
+    const std::string url = r.second;
 
     std::stringstream ss;
-    ss << "Recovering read checkpoint (partial) for plan: " << r << ", from: " << url;
+    ss << "Recovering read checkpoint (partial) for plan: " << r.first << ", from: " << url;
     ss << ", recovering partial partitions: ";
     for (auto update: updates) {
       ss << update << " ";
     }
     LOG(INFO) << RED(ss.str());
     // only load the lost pasts.
-    checkpoint_loader_->LoadCheckpointPartial(r, url, updates, [this, r]() {
-      RecoverDoneForACollection(r, Type::LoadCheckpoint);
+    checkpoint_loader_->LoadCheckpointPartial(r.first, url, updates, [this, r]() {
+      RecoverDoneForACollection(r.first, Type::LoadCheckpoint);
     });
   }
   
   // update collection map
   for (auto w : writes) {
-    updating_collections_.insert(w);
-    collection_manager_->Update(w, [this, w]() {
-      RecoverDoneForACollection(w, Type::UpdateCollectionMap);
+    updating_collections_.insert(w.first);
+    collection_manager_->Update(w.first, [this, w]() {
+      RecoverDoneForACollection(w.first, Type::UpdateCollectionMap);
     });
   }
   for (auto r : reads) {
-    updating_collections_.insert(r);
-    collection_manager_->Update(r, [this, r]() {
-      RecoverDoneForACollection(r, Type::UpdateCollectionMap);
+    updating_collections_.insert(r.first);
+    collection_manager_->Update(r.first, [this, r]() {
+      RecoverDoneForACollection(r.first, Type::UpdateCollectionMap);
     });
   }
 }
@@ -80,8 +93,9 @@ void RecoverManager::RecoverDoneForACollection(int cid, RecoverManager::Type typ
     std::chrono::duration<double> duration = current_time - start_time_;
     LOG(INFO) << RED("All collections recovered! Recovery time: " + std::to_string(duration.count()) + " ms");
     started_ = false;
-    SArrayBinStream reply_bin;
-    ToScheduler(elem_, ScheduleFlag::kFinishRecovery, reply_bin);
+    CHECK_NOTNULL(callback_);
+    callback_();  // invoke the callback
+    callback_ = nullptr;
   }
 }
 
