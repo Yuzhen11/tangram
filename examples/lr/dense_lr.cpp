@@ -2,7 +2,7 @@
 
 #include "core/index/range_key_to_part_mapper.hpp"
 
-#include <ctime>
+#define ENABLE_CP
 
 int main(int argc, char **argv) {
   Runner::Init(argc, argv);
@@ -54,6 +54,12 @@ int main(int argc, char **argv) {
   }
   auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
   auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
+
+#ifdef ENABLE_CP
+  Context::checkpoint(params, "/tmp/tmp/yz");
+  Context::checkpoint(points, "/tmp/tmp/yz");
+#endif
+
   auto p1 =
       Context::mappartwithjoin(
           points, params, params,
@@ -75,6 +81,19 @@ int main(int argc, char **argv) {
               with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<Param>>(part);
             }
 
+            // TOOD:FT for fetching map is not supported yet!
+            // so make sure to kill after fetching
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("sleeping");
+            // std::this_thread::sleep_for(std::chrono::seconds(1));
+
+            auto end_time = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
+
+            begin_time = std::chrono::steady_clock::now();
             std::vector<float> old_params(num_params);
             for (auto with_p : with_parts) {
               auto iter1 = with_p->begin();
@@ -84,10 +103,11 @@ int main(int argc, char **argv) {
                 ++iter1;
               }
             }
-            auto end_time = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
-            // LOG(INFO) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
-            LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
+
+            end_time = std::chrono::steady_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter copy time: " + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter copy time: " + 
                           std::to_string(duration.count())
                           + "ms on part 0");
 
@@ -155,6 +175,9 @@ int main(int argc, char **argv) {
           [](Param *param, float val) { param->val += val; })
           ->SetIter(FLAGS_num_iter)
           ->SetStaleness(FLAGS_staleness)
+#ifdef ENABLE_CP
+          ->SetCheckpointInterval(5, "/tmp/tmp/yz")
+#endif
           ->SetCombine([](float *a, float b) { *a = *a + b; }, combine_timeout);
 
   Context::count(params);

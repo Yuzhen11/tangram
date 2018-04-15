@@ -80,6 +80,7 @@ void ControlManager::Control(SArrayBinStream bin) {
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kFinish) {
     is_finished_[ctrl.plan_id].insert(ctrl.node_id);
+    // LOG(INFO) << "finish: " << is_finished_[ctrl.plan_id].size() << ", " << elem_->nodes.size();
     if (is_finished_[ctrl.plan_id].size() == elem_->nodes.size()) {
       if (versions_[ctrl.plan_id] == expected_versions_[ctrl.plan_id]) {
       } else {
@@ -517,6 +518,10 @@ void ControlManager::ReassignMap(int plan_id, int collection_id) {
     int from_id = std::get<1>(t);
     int to_id = std::get<2>(t);
     // update the to_id
+    if (map_part_versions_[plan_id][part_id].first != versions_[plan_id]) {
+      // adjust the map_part_versions_ to min versions_
+      map_part_versions_[plan_id][part_id].first = versions_[plan_id];
+    }
     if (map_part_versions_[plan_id][part_id].first < map_node_versions_[plan_id][to_id].first) {
       map_node_count_[plan_id][to_id] = 1;
       map_node_versions_[plan_id][to_id].first = map_part_versions_[plan_id][part_id].first;

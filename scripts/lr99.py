@@ -35,7 +35,7 @@ avazu_params = {
     "url" : "/jasper/avazu-app",
     "num_data" : 40428967,
     "num_params" : 1000000,
-    "num_param_per_part" : 100000,
+    "num_param_per_part" : 1000000,
 }
 
 program_params = {
@@ -43,17 +43,20 @@ program_params = {
     "num_data_parts" : 400,
     "batch_size" : 800,
     "alpha" : 0.001,
-    "num_iter" : 5,
+    "num_iter" : 10,
     "staleness" : 0,
     "is_sparse" : False,
     "is_sgd" : False,
-    "combine_type" : "kShuffleCombine",
+    # to make FT work, do not use kShuffleCombine,
+    # to make it fast, use kShuffleCombine 
+    "combine_type" : "kDirectCombine",
+    "max_lines_per_part" : -1,
 }
 
 # choose one of them
-program_params.update(webspam_params)
+# program_params.update(webspam_params)
 # program_params.update(a9_params)
-# program_params.update(avazu_params)
+program_params.update(avazu_params)
 
 if program_params["is_sparse"]:
   progfile = "release/SparseLRExample"

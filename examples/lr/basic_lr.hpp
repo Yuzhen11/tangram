@@ -17,6 +17,7 @@ DEFINE_int32(staleness, 0, "Staleness for the SSP");
 DEFINE_bool(is_sparse, false, "Is the dataset sparse or not");
 DEFINE_bool(is_sgd, false, "Full gradient descent or mini-batch SGD");
 DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
+DEFINE_int32(max_lines_per_part, -1, "max lines per part, for debug");
 
 using namespace xyz;
 
@@ -124,5 +125,5 @@ static auto* load_data() {
 	  }
 
     return point;
-  })->SetName("dataset");
+  }, FLAGS_max_lines_per_part)->SetName("dataset");
 }

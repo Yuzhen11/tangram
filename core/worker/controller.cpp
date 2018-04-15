@@ -107,6 +107,7 @@ void Controller::TerminatePlan(int plan_id) {
   LOG(INFO) << "[Controller] Terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
   plan_controllers_[plan_id]->DisplayTime();
   plan_controllers_.erase(plan_id);
+  LOG(INFO) << "[Controller] Done terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
   /*
   while (engine_elem_.executor->GetNumPendingTask()) {
     LOG(INFO) << "[Controller] sleep, executor size: " << engine_elem_.executor->GetNumPendingTask();
