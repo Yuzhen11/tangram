@@ -156,7 +156,7 @@ int main(int argc, char **argv) {
       [terms_key_part_mapper](TypedPartition<Document>* p, TypedCache<Term> *typed_cache, AbstractMapProgressTracker* t) {
         
         std::vector<std::pair<int, int>> ret;
-        std::vector<IndexedSeqPartition<Term>*> with_parts(FLAGS_num_term_partition);
+        std::vector<std::shared_ptr<IndexedSeqPartition<Term>>> with_parts(FLAGS_num_term_partition);
         std::map<std::string, int> terms_map;
         int start_idx = rand()%FLAGS_num_term_partition;  // random start_idx to avoid overload on one point
         for (int i = 0; i < FLAGS_num_term_partition; i++) {
@@ -168,8 +168,7 @@ int main(int argc, char **argv) {
           // if (FLAGS_node_id == 0) {
           //   LOG(INFO) << GREEN("fetch time for " + std::to_string(idx) << " : " + std::to_string(duration.count()));
           // }
-          auto *with_p = static_cast<IndexedSeqPartition<Term>*>(part.get());
-          with_parts[idx] = with_p;
+          with_parts[idx] = std::dynamic_pointer_cast<IndexedSeqPartition<Term>>(part);
         }
         // LOG(INFO) << "fetch done";
         // method1: copy and find
@@ -195,7 +194,7 @@ int main(int argc, char **argv) {
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
             std::string term  = doc.words[i];
-            auto* with_p = with_parts[terms_key_part_mapper->Get(term)];
+            auto& with_p = with_parts[terms_key_part_mapper->Get(term)];
             auto* t = with_p->Find(term);
             CHECK_NOTNULL(t);
             int count = t->idf;
