@@ -6,6 +6,8 @@
 
 #include <limits>
 #include <stdlib.h>
+//core/scheduler/control_manager.cpp; core/worker/plan_controller.cpp
+#define BGCP false
 //#define CPULIMIT
 
 namespace xyz {
@@ -255,7 +257,7 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 
     bool runcp = TryCheckpoint(part_id);
     if (runcp) {
-      // if runcp, ReportFinishPart after checkpoint
+      // if runcp, whether BGCP or not, ReportFinishPart after checkpoint
       return;
     } else {
       ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
@@ -281,17 +283,32 @@ bool PlanController::TryCheckpoint(int part_id) {
     running_joins_.insert({part_id, -1});
     // TODO: is it ok to use the fetch_executor? can it be block due to other operations?
     fetch_executor_->Add([this, part_id, dest_url]() {
-      auto writer = controller_->io_wrapper_->GetWriter();
       CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, part_id));
       auto part = controller_->engine_elem_.partition_manager->Get(join_collection_id_, part_id);
 
       SArrayBinStream bin;
       part->ToBin(bin);
-      bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
-      CHECK_EQ(rc, 0);
-      LOG(INFO) << "write checkpoint to " << dest_url;
-
-      // Send finish checkpoint
+	  if (!BGCP) { //No Backgroud CP
+        auto writer = controller_->io_wrapper_->GetWriter();
+        bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
+        CHECK_EQ(rc, 0);
+        LOG(INFO) << "write checkpoint to " << dest_url;
+   	  } else {
+	    std::thread cp_write([this, bin, dest_url, part_id]() {
+	      boost::shared_lock<boost::shared_mutex> lk(controller_->erase_mu_);
+		  if (controller_->erased[plan_id_]) {
+		    LOG(INFO) << BLUE("Plan " + std::to_string(plan_id_) + " has been erased, stop cp write");
+		    return;
+		  }
+          auto writer = controller_->io_wrapper_->GetWriter();
+          bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
+          CHECK_EQ(rc, 0);
+          LOG(INFO) << "BGCP: writing checkpoint to " << dest_url << ", node: " << controller_->engine_elem_.node.id;
+  	      ReportFinishPart(ControllerMsg::Flag::kFinishCP, part_id, join_versions_[part_id]);
+		});
+		cp_write.detach();
+	  }
+	  // Send finish checkpoint
       Message msg;
       msg.meta.sender = 0;
       msg.meta.recver = 0;
@@ -318,9 +335,7 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   LOG(INFO) << "finish checkpoint: " << part_id;
   CHECK(running_joins_.find(part_id) != running_joins_.end());
   running_joins_.erase(part_id);
-
   ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
-
   TryRunWaitingJoins(part_id);
   TryRunSomeMaps();
 }

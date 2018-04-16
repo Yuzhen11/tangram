@@ -12,6 +12,7 @@
 
 DEFINE_int32(num_matcher_parts, 400, "# num of matcher partitions");
 DEFINE_int32(num_graph_parts, 400, "# num of graph partitions");
+DEFINE_int64(num_vertices, 0, "# num of graph partitions");
 DEFINE_string(url, "", "The url for hdfs file");
 
 using namespace xyz;
@@ -205,6 +206,8 @@ struct Matcher {
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
+  int num_graph_parts = FLAGS_num_graph_parts;
+  int num_matcher_parts = FLAGS_num_matcher_parts;
 
   // define pattern to match
   // TODO: only one sibling in pattern now
@@ -240,10 +243,9 @@ int main(int argc, char** argv) {
     return obj;
   })->SetName("dataset");
 
-  int num_matcher_parts = FLAGS_num_matcher_parts;
-  int num_graph_parts = FLAGS_num_graph_parts;
   auto graph_key_part_mapper = std::make_shared<HashKeyToPartMapper<int>>(num_graph_parts);
   auto graph = Context::placeholder<Vertex>(num_graph_parts, graph_key_part_mapper);
+
   Context::mapjoin(dataset, graph,
     [](const Vertex& vertex){
       using MsgT = std::pair<int, std::pair<std::string, std::vector<Vertex>>>;
@@ -267,7 +269,6 @@ int main(int argc, char** argv) {
     for (Vertex& vertex : msg2.second) msg1->second.push_back(std::move(vertex));
   })
   ->SetName("graph");
-
   Context::sort_each_partition(graph);
 
   auto matcher = Context::placeholder<Matcher>(num_matcher_parts);
@@ -293,13 +294,12 @@ int main(int argc, char** argv) {
       AbstractMapProgressTracker* t){
       std::vector<MsgT> kvs;
    
-      std::map<int, IndexedSeqPartition<Vertex>*> with_parts;
+      std::map<int, std::shared_ptr<IndexedSeqPartition<Vertex>>> with_parts;
 	  int start_idx = rand()%num_graph_parts;
       for (int i = 0; i < num_graph_parts; i++) {
         int idx = (start_idx + i) % num_graph_parts;
         auto part = typed_cache->GetPartition(idx);
-        auto* with_p = static_cast<IndexedSeqPartition<Vertex>*>(part.get());
-        with_parts[idx] = (with_p); 
+        with_parts[idx] = std::dynamic_pointer_cast<IndexedSeqPartition<Vertex>>(part);
       }
 
       for (auto matcher : *p) {
@@ -309,7 +309,7 @@ int main(int argc, char** argv) {
         MSG.first = matcher.id;
         
         if (matcher.matched_round == -1) {
-          auto* with_p = with_parts[graph_key_part_mapper->Get(matcher.id)];
+          auto with_p = with_parts[graph_key_part_mapper->Get(matcher.id)];
           Vertex* root = with_p->Find(matcher.id);
           CHECK(root != nullptr);
           if (root->label != pattern.label) {
@@ -331,10 +331,10 @@ int main(int argc, char** argv) {
           Pattern vertex_pattern = pattern_round.at(round_pos);
           if (round_pos != 0) next_round_pos_start += pattern_round.at(round_pos-1).outlinks.size();
           for (auto vertex_matcher : vertices_matcher) {
-            auto* with_p = with_parts[graph_key_part_mapper->Get(vertex_matcher.first)];
+            auto with_p = with_parts[graph_key_part_mapper->Get(vertex_matcher.first)];
             Vertex* vertex_matcher_vertex = with_p->Find(vertex_matcher.first); 
             for (const Vertex& outlink : vertex_matcher_vertex->outlinks) {
-              auto* with_p = with_parts[graph_key_part_mapper->Get(outlink.id)];
+              auto with_p = with_parts[graph_key_part_mapper->Get(outlink.id)];
               Vertex* vertex_to_add = with_p->Find(outlink.id); 
 
               for (int pos = 0; pos < vertex_pattern.outlinks.size(); pos++) {

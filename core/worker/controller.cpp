@@ -104,6 +104,9 @@ void Controller::Setup(SArrayBinStream bin) {
 // The only possible remaining task is map (with fetch).
 void Controller::TerminatePlan(int plan_id) {
   CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());
+  // CANNOT erase if BGCPing
+  boost::unique_lock<boost::shared_mutex> lk(erase_mu_);
+  erased[plan_id] = true;
   LOG(INFO) << "[Controller] Terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
   plan_controllers_[plan_id]->DisplayTime();
   plan_controllers_.erase(plan_id);

@@ -22,7 +22,8 @@ program_params = {
     #"url" : "/tmp/xuan/pattern.graph",
     "num_local_threads" : 20,
     "num_matcher_parts" : 400,
-    "num_graph_parts" : 20,
+    "num_graph_parts" : 400,
+    "num_vertices" : 1696415,
 }
 
 scheduler_params = {

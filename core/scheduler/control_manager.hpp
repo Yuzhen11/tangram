@@ -42,6 +42,7 @@ class ControlManager {
   void BatchMigrate(int plan_id, std::vector<std::tuple<int, int, int>> meta);
   void MigrateMapOnly(int plan_id, int from_id, int to_id, int part_id);
   void TryMigrate(int plan_id);
+  void ReceiveFinishCP(int plan_id, int part_id, int version);
  private:
   std::shared_ptr<SchedulerElem> elem_;
   std::shared_ptr<CollectionManager> collection_manager_;
@@ -72,6 +73,8 @@ class ControlManager {
   std::map<int, std::map<int, std::pair<int, Timepoint>>> join_node_versions_;
   // plan_id -> node_id -> # min_version part
   std::map<int, std::map<int, int>> join_node_count_;
+  // plan_id -> version -> part ids
+  std::map<int, std::map<int, std::set<int>>> cp_count_;
 
   std::string DebugVersions(int plan_id);
 

@@ -5,6 +5,9 @@
 #include "core/engine_elem.hpp"
 #include "io/io_wrapper.hpp"
 
+#include <boost/thread/locks.hpp>
+#include <boost/thread/shared_mutex.hpp>
+
 namespace xyz {
 
 class Controller : public Actor {
@@ -28,6 +31,8 @@ class Controller : public Actor {
   std::shared_ptr<IOWrapper> io_wrapper_;
   EngineElem engine_elem_;
   std::map<int, std::shared_ptr<AbstractPlanController>> plan_controllers_;
+  std::map<int, bool> erased;
+  boost::shared_mutex erase_mu_;
 };
 
 }  // namespace xyz

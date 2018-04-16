@@ -8,6 +8,9 @@
 //#define WITH_LB
 //#define WITH_LB_JOIN
 
+//core/scheduler/control_manager.cpp; core/worker/plan_controller.cpp
+#define BGCP false
+
 namespace xyz {
 
 void ControlManager::Control(SArrayBinStream bin) {
@@ -102,8 +105,30 @@ void ControlManager::Control(SArrayBinStream bin) {
     std::chrono::duration<double> duration = migrate_time[ctrl.part_id].second - migrate_time[ctrl.part_id].first;
     LOG(INFO) << "[ControlManager] migrate part " << ctrl.part_id << " done, migrate time: "
       << duration.count();
+  } else if (ctrl.flag == ControllerMsg::Flag::kFinishCP) {
+	ReceiveFinishCP(ctrl.plan_id, ctrl.part_id, ctrl.version);
   } else {
     CHECK(false) << ctrl.DebugString();
+  }
+}
+
+void ControlManager::ReceiveFinishCP(int plan_id, int part_id, int version) {
+  if (versions_[plan_id] == expected_versions_[plan_id]) {
+	return;
+  }
+  cp_count_[plan_id][version].insert(part_id);
+  auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
+  int collection_id = mapjoin_spec->join_collection_id;
+  if (cp_count_[plan_id][version].size() == elem_->collection_map->Get(mapjoin_spec->map_collection_id).num_partition) {
+    if (mapjoin_spec->checkpoint_interval != 0) {
+      int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
+      CHECK(mapjoin_spec->checkpoint_path.size());
+      std::string checkpoint_path = mapjoin_spec->checkpoint_path;
+      checkpoint_path = checkpoint_path + "/cp-" + std::to_string(cp_iter);
+      collection_status_->AddCP(mapjoin_spec->join_collection_id, checkpoint_path);
+      LOG(INFO) << RED("[ControlManager::UpdateVersion] BGCP: checkpoint added for collection: "
+              + std::to_string(mapjoin_spec->join_collection_id) + ", path: " + checkpoint_path);
+    }
   }
 }
 
@@ -439,7 +464,7 @@ void ControlManager::UpdateVersion(int plan_id) {
   auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
   versions_[plan_id] ++;
 
-  if (mapjoin_spec->checkpoint_interval != 0 
+  if (!BGCP && mapjoin_spec->checkpoint_interval != 0 
           && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
     int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
     CHECK(mapjoin_spec->checkpoint_path.size());
