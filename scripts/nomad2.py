@@ -54,18 +54,18 @@ yahoo_data = {
     "lambda" : 0.05,
     "num_line_per_part": -1,
     "kNumPartition" : 100,
-    "iter": 500, 
-    "staleness": 1,
+    "iter": 400, 
+    "staleness": 5,
 }
 
-# dataset_param = yahoo_data 
-dataset_param = netflix_data 
+dataset_param = yahoo_data 
+# dataset_param = netflix_data 
 # dataset_param = toy_data 
 
 program_params = {
     "num_local_threads": 20,
-    "backoff_time" : 10,
-    "max_sample_item_size_each_round": -1,
+    "backoff_time" : 0,
+    "max_sample_item_size_each_round": 1000,
     "max_retry" : 0,  # may need to set to 0 for bsp
 }
 program_params.update(dataset_param)
@@ -90,8 +90,8 @@ l = Launcher(schedulerfile, progfile, hostfile,
 
 l.Launch(sys.argv)
 
-# for i in xrange(0, 5):
-#     program_params["iter"] = 100+i*100;
+# for i in xrange(0, 4):
+#     program_params["iter"] = 50+i*50;
 #     # program_params["staleness"] = 100+i*100;
 #     l = Launcher(schedulerfile, progfile, hostfile,
 #                  common_params, scheduler_params, program_params, env_params,

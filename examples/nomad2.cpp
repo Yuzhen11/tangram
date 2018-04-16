@@ -299,10 +299,12 @@ int main(int argc, char** argv) {
         auto& migrate_item = migrate_items.dict[item.key];
         for (auto& u_r_c: iter->points[item.key]) {
           auto& user = with_iter->users[std::get<0>(u_r_c)];
-          int t = std::get<2>(u_r_c);
+          // int t = std::get<2>(u_r_c);
           // LOG(INFO) << "t: " << t;
-          float lr = FLAGS_alpha / (1 + FLAGS_beta*pow(t, 1.5));
+          // float lr = FLAGS_alpha / (1 + FLAGS_beta*pow(t, 1.5));
+          float lr = FLAGS_alpha ;
           float diff = - std::inner_product(user.latent, user.latent+kNumLatent, migrate_item.latent, - std::get<1>(u_r_c));
+          /*
           if (c < sample && p->id == 0) {
             // LOG(INFO) << "user: " << user.DebugString();
             LOG(INFO) << "uid, iid: " << user.key << "," << item.key << ", estimated, real: " 
@@ -310,12 +312,14 @@ int main(int argc, char** argv) {
               << ", lr: " << lr << ", t: " << t;
           }
           c += 1;
-          std::get<2>(u_r_c) += 1;  // fuck! update map element
-          auto& user_update = update_users.dict[user.key];
+          */
+          // std::get<2>(u_r_c) += 1;  // fuck! update map element
+          // auto& user_update = update_users.dict[user.key];
           for (int i = 0; i < kNumLatent; ++ i) {
             migrate_item.latent[i] += lr*(user.latent[i]*diff - FLAGS_lambda*migrate_item.latent[i]);
-            // user_update.latent[i] += lr*(migrate_item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
+            user.latent[i] += lr*(migrate_item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
           }
+          /*
           diff = - std::inner_product(user.latent, user.latent+kNumLatent, migrate_item.latent, - std::get<1>(u_r_c));
           for (int i = 0; i < kNumLatent; ++ i) {
             user_update.latent[i] += lr*(migrate_item.latent[i]*diff - FLAGS_lambda*user.latent[i]);
@@ -324,6 +328,7 @@ int main(int argc, char** argv) {
             user.latent[i] += user_update.latent[i];
             user_update.latent[i] = 0;
           }
+          */
         }
       }
       typed_cache->ReleasePart(p->id);  // donot forget to call this
@@ -345,6 +350,7 @@ int main(int argc, char** argv) {
         }
       } else {  // update users
         collector->version = msg.version;
+        /*
         for (auto& kv : msg.dict) {
           auto& user = collector->users[kv.first].latent;
           auto& update = kv.second.latent;
@@ -352,6 +358,7 @@ int main(int argc, char** argv) {
             user[i] += update[i];
           }
         }
+        */
         // remove the first num_item_processed.
         for (int i = 0; i < msg.num_item_processed; ++ i) {
           collector->items.pop_front();
