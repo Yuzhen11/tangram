@@ -29,6 +29,15 @@ class MapOutputStream : public AbstractMapOutputStream {
 
   virtual SArrayBinStream Serialize() override {
     return SerializeOneBuffer(buffer_);
+    
+    // hash combine
+    /*
+    SArrayBinStream ret;
+    for (auto& kv: hash_combine_buffer_) {
+      ret << kv;
+    }
+    return ret;
+    */
   }
 
   virtual void Append(std::shared_ptr<AbstractMapOutputStream> other) override {
@@ -80,6 +89,19 @@ class MapOutputStream : public AbstractMapOutputStream {
       [](const std::pair<KeyT, MsgT>& p1, const std::pair<KeyT, MsgT>& p2) { return p1.first < p2.first; });
     // 2. combine
     CombineOneBuffer(buffer_, combine_func_);
+
+    /*
+    // TODO: hash combine
+    for (auto& b: buffer_) {
+
+      auto it = hash_combine_buffer_.find(b.first);
+      if (it == hash_combine_buffer_.end()) {
+        hash_combine_buffer_.insert(std::move(b));
+      } else {
+        combine_func_(&(it->second), b.second);
+      }
+    }
+    */
   };
 
   // For test use only.
@@ -90,6 +112,8 @@ class MapOutputStream : public AbstractMapOutputStream {
   std::vector<std::pair<KeyT, MsgT>> buffer_;
 
   CombineFuncT combine_func_;  // optional
+
+  // std::unordered_map<KeyT, MsgT> hash_combine_buffer_;
 };
 
 }  // namespace xyz
