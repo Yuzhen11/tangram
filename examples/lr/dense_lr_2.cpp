@@ -2,6 +2,10 @@
 
 #include "core/index/range_key_to_part_mapper.hpp"
 
+/*
+ * Only pull the partitions that are needed
+ */
+
 // #define ENABLE_CP
 
 int main(int argc, char **argv) {
@@ -70,6 +74,31 @@ int main(int argc, char **argv) {
             std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
+            // 0. Pull only the needed parts
+            auto sp1 = std::chrono::steady_clock::now();
+            std::vector<bool> should_pull(num_param_parts, false); 
+            auto data_iter = p->begin();
+            auto end_iter = p->end();
+            while (data_iter != end_iter) {
+              for (auto& point : data_iter->points) {
+                auto &x = point.x;
+                for (auto field : x) {
+                  should_pull[field.first/FLAGS_num_param_per_part] = true;
+                }
+              }
+              ++ data_iter;
+            }
+            int c = 0;
+            for (int i = 0; i < should_pull.size(); ++ i) {
+              if (should_pull[i]) {
+                c += 1;
+              }
+            }
+            auto sp2 = std::chrono::steady_clock::now();
+            auto d_sp = std::chrono::duration_cast<std::chrono::milliseconds>(sp2 - sp1);
+            LOG_IF(INFO, p->id == 0)  << "should prepare time: " << d_sp.count() << " ms, " 
+              << c << "/" << should_pull.size();
+
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
             std::vector<std::shared_ptr<TypedPartition<Param>>> with_parts(num_param_parts);
@@ -78,6 +107,9 @@ int main(int argc, char **argv) {
                 num_param_parts; // random start_idx to avoid overload on one point
             for (int i = 0; i < num_param_parts; i++) {
               int idx = (start_idx + i) % num_param_parts;
+              if (!should_pull[idx]) {
+                continue;
+              }
               auto part = typed_cache->GetPartition(idx);
               with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<Param>>(part);
             }
@@ -97,9 +129,13 @@ int main(int argc, char **argv) {
             // 2. copy params
             begin_time = std::chrono::steady_clock::now();
             std::vector<float> old_params(num_params);
-            for (auto with_p : with_parts) {
-              auto iter1 = with_p->begin();
-              auto end_iter = with_p->end();
+            for (int i = 0; i < with_parts.size(); ++ i) {
+              if (!should_pull[i]) {
+                continue;
+              }
+              CHECK_NOTNULL(with_parts[i]);
+              auto iter1 = with_parts[i]->begin();
+              auto end_iter = with_parts[i]->end();
               while (iter1 != end_iter) {
                 CHECK_LT(iter1->fea, num_params);
                 old_params[iter1->fea] = iter1->val;
@@ -116,10 +152,10 @@ int main(int argc, char **argv) {
 
             // 3. calculate
             begin_time = std::chrono::steady_clock::now();
-            auto data_iter = p->begin();
+            data_iter = p->begin();
             int count = 0;
             int sgd_counter = -1;
-            auto end_iter = p->end();
+            end_iter = p->end();
             while (data_iter != end_iter) {
               for (auto& point : data_iter->points) {
                 // sgd: pick 1 point out of 10
@@ -171,6 +207,10 @@ int main(int argc, char **argv) {
                           + "ms on part 0");
 
             for (int i = 0; i < num_param_parts; i++) {
+              if (!should_pull[i]) {
+                continue;
+              }
+              CHECK_NOTNULL(with_parts[i]);
               typed_cache->ReleasePart(i);
             }
                

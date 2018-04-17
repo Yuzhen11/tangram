@@ -43,20 +43,20 @@ program_params = {
     "num_data_parts" : 400,
     "batch_size" : 800,
     "alpha" : 0.001,
-    "num_iter" : 10,
+    "num_iter" : 5,
     "staleness" : 0,
     "is_sparse" : False,
     "is_sgd" : False,
     # to make FT work, do not use kShuffleCombine,
     # to make it fast, use kShuffleCombine 
-    "combine_type" : "kDirectCombine",
+    "combine_type" : "kShuffleCombine",
     "max_lines_per_part" : -1,
 }
 
 # choose one of them
-# program_params.update(webspam_params)
+program_params.update(webspam_params)
 # program_params.update(a9_params)
-program_params.update(avazu_params)
+# program_params.update(avazu_params)
 
 if program_params["is_sparse"]:
   progfile = "release/SparseLRExample"
