@@ -5,6 +5,7 @@
 #include <string>
 #include <cmath>
 #include <regex>
+#include <boost/algorithm/string.hpp>    
 
 DEFINE_int32(num_of_docs, 1, "# number of docs");
 DEFINE_int32(num_doc_partition, 10, "");
@@ -23,7 +24,7 @@ class Document {
     KeyT title;
     std::vector<float> tf;
     std::vector<float> tf_idf;
-    std::vector<std::string> words;
+    std::vector<size_t> words;
     int total_words = 0;
     const KeyT& id() const { return title; }
     KeyT Key() const { return title; }
@@ -39,7 +40,7 @@ class Document {
 
 class Term {
    public:
-    using KeyT = std::string;
+    using KeyT = std::size_t;
     Term() = default;
     explicit Term(const KeyT& term) : termid(term) {}
     KeyT termid;
@@ -80,15 +81,15 @@ int main(int argc, char **argv) {
         boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
         boost::tokenizer<boost::char_separator<char>> tok(content, sep);
         for (auto& w : tok) {
-            doc.words.push_back(w);
-            std::transform(doc.words.back().begin(), doc.words.back().end(), doc.words.back().begin(), ::tolower);
+            doc.words.push_back(std::hash<std::string>{}(w));
+            //std::transform(doc.words.back().begin(), doc.words.back().end(), doc.words.back().begin(), ::tolower);
         }
         doc.total_words = doc.words.size();
         std::sort(doc.words.begin(), doc.words.end());
         int n = 0;
         for (int i = 0, j = 0; i < doc.words.size(); i = j) {
             for (j = i + 1; j < doc.words.size(); j++) {
-                if (doc.words.at(i).compare(doc.words.at(j)) != 0)
+                if (doc.words.at(i) != doc.words.at(j))
                     break;
             }
             count.push_back(j - i);
@@ -108,7 +109,7 @@ int main(int argc, char **argv) {
 
   // no need indexed_docs using pull model.
   // auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
-  auto terms_key_part_mapper = std::make_shared<HashKeyToPartMapper<std::string>>(FLAGS_num_term_partition);
+  auto terms_key_part_mapper = std::make_shared<HashKeyToPartMapper<size_t>>(FLAGS_num_term_partition);
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition, terms_key_part_mapper);
   /*
   Context::mappartjoin(
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
   Context::mappartjoin(
       loaded_docs, terms,
       [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
-        std::vector<std::pair<std::string, int>> ret;
+        std::vector<std::pair<size_t, int>> ret;
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
             ret.push_back({doc.words[i],1});
@@ -193,8 +194,8 @@ int main(int argc, char **argv) {
         // method2
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
-            std::string term  = doc.words[i];
-            auto& with_p = with_parts[terms_key_part_mapper->Get(term)];
+            size_t term  = doc.words[i];
+            auto* with_p = with_parts[terms_key_part_mapper->Get(term)];
             auto* t = with_p->Find(term);
             CHECK_NOTNULL(t);
             int count = t->idf;
