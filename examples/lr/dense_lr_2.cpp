@@ -190,7 +190,7 @@ int main(int argc, char **argv) {
             }
 
             for (int i = 0; i < num_params; i++) {
-              step_sum[i] /= num_params;
+              step_sum[i] /= count;
               kvs[i] = std::make_pair(i, step_sum[i]);
             }
             

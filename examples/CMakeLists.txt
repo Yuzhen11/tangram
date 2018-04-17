@@ -3,6 +3,7 @@ include_directories(${PROJECT_SOURCE_DIR} ${HUSKY_EXTERNAL_INCLUDE})
 add_subdirectory(pagerank)
 add_subdirectory(tfidf)
 add_subdirectory(lr)
+add_subdirectory(kmeans)
 
 # SchedulerExample
 add_executable(SchedulerExample scheduler_example.cpp)

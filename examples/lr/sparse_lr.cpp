@@ -84,7 +84,7 @@ int main(int argc, char **argv) {
             }
             
             for (int i = 0; i < num_params; i++) {
-              step_sum[i] /= num_params;
+              step_sum[i] /= batch_size;
             }
             for (int j = 0; j < num_params; j++) {
               kvs.push_back({j, step_sum[j]});
