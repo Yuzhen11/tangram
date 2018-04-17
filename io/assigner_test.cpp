@@ -28,6 +28,7 @@ TEST_F(TestAssigner, Create) {
   Assigner assigner(sender, browser);
 }
 
+/*
 TEST_F(TestAssigner, InitBlocks) {
   auto sender = std::make_shared<SimpleSender>();
   auto browser = std::make_shared<FakeBrowser>();
@@ -51,6 +52,7 @@ TEST_F(TestAssigner, Load) {
   FinishedBlock b2{2, 0, 0, "node0", collection_id};
   EXPECT_EQ(assigner.FinishBlock(b2), true);
 }
+*/
 
 } // namespace
 } // namespace xyz
