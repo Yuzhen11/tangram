@@ -113,12 +113,23 @@ void DelayedCombiner::PrepareMsgAndSend(int part_id, int version,
   auto bin = stream->Serialize();
 
   std::lock_guard<std::mutex> lk(plan_controller_->migrate_mu_);
+  // the below comment is to test whether the unnecessary serialization for
+  // local_mode affects performance. 
+  // 1. remove the lock (no LB), 2. serialize only for remote
+  // std::lock_guard<std::mutex> lk(plan_controller_->migrate_mu_);
   Message msg;
   msg.meta.sender = plan_controller_->controller_->Qid();
   CHECK(plan_controller_->controller_->engine_elem_.collection_map);
   msg.meta.recver = GetControllerActorQid(plan_controller_->controller_->engine_elem_.
           collection_map->Lookup(plan_controller_->join_collection_id_, part_id));
   msg.meta.flag = Flag::kOthers;
+
+  // SArrayBinStream bin;
+  // if (plan_controller_->local_map_mode_ && msg.meta.recver == msg.meta.sender) {
+  // } else {
+  //   bin = stream->Serialize();
+  // }
+
 
   PlanController::VersionedShuffleMeta meta;
   meta.plan_id = plan_controller_->plan_id_;

@@ -55,7 +55,7 @@ yahoo_data = {
     "num_line_per_part": -1,
     "kNumPartition" : 100,
     "iter": 400, 
-    "staleness": 5,
+    "staleness": 3,
 }
 
 dataset_param = yahoo_data 
@@ -90,8 +90,8 @@ l = Launcher(schedulerfile, progfile, hostfile,
 
 l.Launch(sys.argv)
 
-# for i in xrange(0, 4):
-#     program_params["iter"] = 50+i*50;
+# for i in [50, 100, 150, 200, 300, 400, 600]:
+#     program_params["iter"] = i
 #     # program_params["staleness"] = 100+i*100;
 #     l = Launcher(schedulerfile, progfile, hostfile,
 #                  common_params, scheduler_params, program_params, env_params,
