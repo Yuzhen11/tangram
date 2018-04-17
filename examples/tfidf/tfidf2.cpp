@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
         for (auto& doc : *p) {
           for(int i = 0; i < doc.words.size(); i++){
             size_t term  = doc.words[i];
-            auto* with_p = with_parts[terms_key_part_mapper->Get(term)];
+            auto& with_p = with_parts[terms_key_part_mapper->Get(term)];
             auto* t = with_p->Find(term);
             CHECK_NOTNULL(t);
             int count = t->idf;
