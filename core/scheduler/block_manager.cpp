@@ -47,6 +47,7 @@ void BlockManager::FinishBlock(SArrayBinStream bin) {
     cv.collection_id = block.collection_id;
     cv.mapper = SimplePartToNodeMapper(part_to_node);
     cv.num_partition = cv.mapper.GetNumParts();
+    // LOG(INFO) << "!!!!\n" << cv.DebugString();
     elem_->collection_map->Insert(cv);
 
     // trigger update collection

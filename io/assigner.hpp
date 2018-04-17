@@ -68,6 +68,9 @@ private:
   int expected_num_finished_ = 0;
   bool is_load_meta_ = false;
   bool is_whole_file_ = false;
+
+  // <has_locality, no_locality>
+  std::pair<int, int> locality_count_{0, 0};
 };
 
 } // namespace xyz

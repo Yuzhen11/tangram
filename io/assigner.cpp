@@ -4,6 +4,8 @@
 #include "core/scheduler/control.hpp"
 #include "base/color.hpp"
 
+#include "base/get_ip.hpp"
+
 #include <numeric>
 
 namespace xyz {
@@ -18,6 +20,8 @@ bool Assigner::FinishBlock(FinishedBlock block) {
   num_finished_ += 1;
 
   if (num_finished_ == expected_num_finished_) {
+    LOG(INFO) << "Assigner: locality information: <has_locality, no_locality>: " 
+      << locality_count_.first << ", " << locality_count_.second;
     return true;
   } else {
     std::pair<std::string, int> slave{block.hostname, block.node_id};
@@ -31,8 +35,9 @@ bool Assigner::Done() { return num_finished_ == expected_num_finished_; }
 void Assigner::InitBlocks(std::string url) {
   CHECK_NOTNULL(browser_);
   auto blocks = browser_->Browse(url);
-  for (auto block : blocks) {
+  for (auto& block : blocks) {
     std::pair<std::string, size_t> p{block.filename, block.offset};
+    block.hostname = GetIP(block.hostname);
     locality_map_[block.hostname].insert(p);
     blocks_[p].push_back(block.hostname);
   }
@@ -63,6 +68,11 @@ int Assigner::Load(int collection_id, std::string url,
             << ", assigning " << RED(std::to_string(blocks_.size()))
             << " parititions to " << RED(std::to_string(slaves.size())) << " slaves";
   // TODO: use more scheduling sophisticatic algorithm
+  /*
+  // this algo didn't work well when locality are considered and 
+  // the data blocks in machines are skew, as one machine with lots
+  // of blocks will have read more blocks than others which will incur
+  // skew computation latter.
   int index = 0;
   int num_total_slots = std::accumulate(num_local_threads.begin(), num_local_threads.end(), 0);
   int to_assign = std::min(int(blocks_.size()), num_total_slots);
@@ -73,6 +83,18 @@ int Assigner::Load(int collection_id, std::string url,
       num_local_threads[index] -= 1;
       to_assign --;
     }
+    index += 1;
+    index %= num_local_threads.size();
+  }
+  */
+
+  // this algo only considers balance machine power.
+  int index = 0;
+  int to_assign = int(blocks_.size());
+  while (to_assign) {
+    bool suc = Assign(collection_id, slaves[index]);
+    CHECK_EQ(suc, true);
+    to_assign --;
     index += 1;
     index %= num_local_threads.size();
   }
@@ -89,8 +111,12 @@ bool Assigner::Assign(int collection_id, std::pair<std::string, int> slave) {
   if (locality_map_.find(slave.first) != locality_map_.end() &&
       !locality_map_[slave.first].empty()) {
     block = *locality_map_[slave.first].begin();
+    // LOG(INFO) << "has locality";
+    locality_count_.first += 1;
   } else {
     block = blocks_.begin()->first;
+    // LOG(INFO) << "no locality";
+    locality_count_.second += 1;
   }
 
   // send
