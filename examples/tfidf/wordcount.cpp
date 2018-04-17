@@ -81,6 +81,7 @@ int main(int argc, char **argv) {
           kvs.push_back({w, 1});
         }
       }
+      LOG(INFO) << p->id << " map done";
       return kvs;
     },
     [](WC* wc, int c) {

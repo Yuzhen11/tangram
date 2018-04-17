@@ -23,11 +23,15 @@ common_params = {
 program_params = {
     # "url" : "/datasets/corpus/enwiki-21g/wiki_0",
     # "url" : "/datasets/corpus/enwiki",
-    "url" : "/datasets/corpus/enwiki-21g",  # proj99
+    # "url" : "/datasets/corpus/enwiki-21g",
+    # "url" : "/datasets/corpus/enwiki10/1",
+    "url" : "/datasets/corpus/enwiki100g",
     "num_local_threads" : 20,
 
-    "num_parts" : 1000,
+    "num_parts" : 100,
     "combine_type": "kDirectCombine",
+    # "combine_type": "kNoCombine",
+    # "combine_type": "100",
     # "combine_type": "kShuffleCombine",
 }
 
@@ -52,3 +56,11 @@ l = Launcher(schedulerfile, progfile, hostfile,
              dump_core)
 
 l.Launch(sys.argv)
+
+# for i in [1000, 2000, 4000, 8000]:
+#     program_params["combine_type"] = i
+#     l = Launcher(schedulerfile, progfile, hostfile,
+#                  common_params, scheduler_params, program_params, env_params,
+#                  dump_core)
+#
+#     l.Launch(sys.argv)
