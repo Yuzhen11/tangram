@@ -144,6 +144,7 @@ int main(int argc, char **argv) {
             std::vector<float> step_sum(num_params, 0);
             // int correct_count = 0;
 
+            // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
             std::vector<std::shared_ptr<TypedPartition<Param>>> with_parts(num_param_parts);
             int start_idx =
@@ -167,11 +168,13 @@ int main(int argc, char **argv) {
                           std::to_string(duration.count())
                           + "ms on part 0");
 
+            // 2. copy params
             begin_time = std::chrono::steady_clock::now();
             std::vector<float> old_params(num_params);
             for (auto with_p : with_parts) {
               auto iter1 = with_p->begin();
-              while (iter1 != with_p->end()) {
+              auto end_iter = with_p->end();
+              while (iter1 != end_iter) {
                 CHECK_LT(iter1->fea, num_params);
                 old_params[iter1->fea] = iter1->val;
                 ++iter1;
@@ -185,6 +188,7 @@ int main(int argc, char **argv) {
                           std::to_string(duration.count())
                           + "ms on part 0");
 
+            // 3. calculate
             begin_time = std::chrono::steady_clock::now();
             int count = 0;
             int sgd_counter = -1;
@@ -194,41 +198,45 @@ int main(int argc, char **argv) {
             float mse = 0;  // mean sum of square error
             std::vector<int> cluster(K); // # of points in each cluster, use to tune alpha
             std::vector<float> deltas = old_params;
-            auto iter2 = p->begin();
 
-            while (iter2 != p->end()) {
-              for (auto point : iter2->points) {
-                // sgd: pick 1 point out of 10
-                if (is_sgd) {
-                  sgd_counter++;
-                  if (sgd_counter % 40 != 0)
-                    continue;
+            // run FLAGS_replicate_factor time
+            for (int replicate = 0; replicate < FLAGS_replicate_factor; ++ replicate) {
+              auto iter2 = p->begin();
+              auto end_iter = p->end();
+              while (iter2 != end_iter) {
+                for (auto& point : iter2->points) {
+                  // sgd: pick 1 point out of 10
+                  if (is_sgd) {
+                    sgd_counter++;
+                    if (sgd_counter % 40 != 0)
+                      continue;
+                  }
+
+                  // kmeans update logic
+                  auto &x = point.x;
+                  auto id_dist = get_nearest_center(x, K, deltas, num_dims);
+                  id_nearest_center = id_dist.first;
+
+                  cluster[id_nearest_center]++;
+                  mse += id_dist.second;
+
+                  // learning_rate = alpha / ++deltas[FLAGS_K][id_nearest_center];
+                  learning_rate = alpha / ++deltas[id_nearest_center + K * num_dims];
+
+                  // The params of the id_nearest_center-th cluster point
+                  std::vector<float>::const_iterator first = deltas.begin() + id_nearest_center * num_dims;
+                  std::vector<float>::const_iterator last = deltas.begin() + (id_nearest_center + 1) * num_dims;
+                  std::vector<float> distance(first, last);
+                  for (auto field : x)
+                    distance[field.first] -= field.second;  // first:fea, second:val
+
+                  for (int j = 0; j < num_dims; j++)
+                    deltas[id_nearest_center * num_dims + j] -= learning_rate * distance[j];
+
+                  count++;
                 }
-
-                // kmeans update logic
-                auto &x = point.x;
-                auto id_dist = get_nearest_center(x, K, deltas, num_dims);
-                id_nearest_center = id_dist.first;
-
-                cluster[id_nearest_center]++;
-                mse += id_dist.second;
-
-                // learning_rate = alpha / ++deltas[FLAGS_K][id_nearest_center];
-                learning_rate = alpha / ++deltas[id_nearest_center + K * num_dims];
-
-                // The params of the id_nearest_center-th cluster point
-                std::vector<float>::const_iterator first = deltas.begin() + id_nearest_center * num_dims;
-                std::vector<float>::const_iterator last = deltas.begin() + (id_nearest_center + 1) * num_dims;
-                std::vector<float> distance(first, last);
-                for (auto field : x)
-                  distance[field.first] -= field.second;  // first:fea, second:val
-
-                for (int j = 0; j < num_dims; j++)
-                  deltas[id_nearest_center * num_dims + j] -= learning_rate * distance[j];
-
-                count++;
+                ++iter2;
               }
-              ++iter2;
             }
             end_time = std::chrono::steady_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
@@ -264,7 +272,7 @@ int main(int argc, char **argv) {
 #endif
           ->SetCombine([](float *a, float b) { *a = *a + b; }, combine_timeout);
 
-  Context::count(params);
-  Context::count(points);
+  // Context::count(params);
+  // Context::count(points);
   Runner::Run();
 }

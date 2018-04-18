@@ -19,7 +19,7 @@ svhn_params = {
     "url" : "/jasper/SVHN",
     "num_data" : 73257,
     "num_dims" : 3072,
-    "num_param_per_part" : 300,
+    "num_param_per_part" : 3072,
     "K" :10,
 }
 
@@ -28,7 +28,7 @@ mnist8m_params = {
     "url" : "/jasper/mnist8m",
     "num_data" : 8100000,
     "num_dims" : 784,
-    "num_param_per_part" : 784,
+    "num_param_per_part" : 784*11,
     "K" : 10,
 }
 
@@ -52,26 +52,23 @@ avazu_params = {
 
 program_params = {
     "num_local_threads" : 20,
-    "num_data_parts" : 200,
+    "num_data_parts" : 1000,
     "batch_size" : 1000,
     "alpha" : 0.1,
     "num_iter" : 10,
     "staleness" : 0,
-    "is_sparse" : False,
-    "is_sgd" : True,
+    "is_sgd" : False,
     # to make FT work, do not use kShuffleCombine,
     # to make it fast, use kShuffleCombine
-    "combine_type" : "kShuffleCombine",
+    "combine_type" : "kDirectCombine",
     "max_lines_per_part" : -1,
+    "replicate_factor" : 10,
 }
 
 # choose one of them
 program_params.update(mnist8m_params)
-#program_params.update(a9_params)
-#program_params.update(svhn_params)
-
-if program_params["is_sparse"]:
-  progfile = "release/SparseLRExample"
+# program_params.update(a9_params)
+# program_params.update(svhn_params)
 
 scheduler_params = {
     "dag_runner_type" : "sequential",
