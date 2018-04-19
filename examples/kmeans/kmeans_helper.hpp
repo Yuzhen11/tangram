@@ -117,14 +117,13 @@ std::pair<int, float> get_nearest_center(const std::vector<std::pair<int, float>
 
   for (int i = 0; i < K; i++)  // calculate the dist between point and clusters[i]
   {
-    std::vector<float>::const_iterator first = params.begin() + i * num_dims;
-    std::vector<float>::const_iterator last = params.begin() + (i + 1) * num_dims;
-    std::vector<float> diff(first, last);
+    int begin = i * num_dims;
+    square_dist = 0;
+    for (auto& field : x) {
+      float diff = params[begin + field.first] - field.second;
+      square_dist += diff*diff;
+    }
 
-    for (auto field : x)
-      diff[field.first] -= field.second;  // first:fea, second:val
-
-    square_dist = std::inner_product(diff.begin(), diff.end(), diff.begin(), 0.0);
     if (square_dist < min_square_dist) {
       min_square_dist = square_dist;
       id_cluster_center = i;

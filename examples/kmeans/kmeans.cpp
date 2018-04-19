@@ -223,15 +223,21 @@ int main(int argc, char **argv) {
                   // learning_rate = alpha / ++deltas[FLAGS_K][id_nearest_center];
                   learning_rate = alpha / ++deltas[id_nearest_center + K * num_dims];
 
-                  // The params of the id_nearest_center-th cluster point
-                  std::vector<float>::const_iterator first = deltas.begin() + id_nearest_center * num_dims;
-                  std::vector<float>::const_iterator last = deltas.begin() + (id_nearest_center + 1) * num_dims;
-                  std::vector<float> distance(first, last);
-                  for (auto field : x)
-                    distance[field.first] -= field.second;  // first:fea, second:val
-
-                  for (int j = 0; j < num_dims; j++)
-                    deltas[id_nearest_center * num_dims + j] -= learning_rate * distance[j];
+                  // update delta
+                  int begin = id_nearest_center * num_dims;
+                  int j = 0;
+                  for (auto& field : x) {
+                    while (j < field.first) {
+                      deltas[begin + j] -= learning_rate * (deltas[begin + j]);
+                      j += 1;
+                    }
+                    deltas[begin + j] -= learning_rate * (deltas[begin + j] - field.second);
+                    j += 1;
+                  }
+                  while (j < num_dims) {
+                    deltas[begin + j] -= learning_rate * (deltas[begin + j]);
+                    j += 1;
+                  }
 
                   count++;
                 }
