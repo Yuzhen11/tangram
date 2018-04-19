@@ -4,7 +4,7 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/20nodes"
-progfile = "release/DenseLRExample"
+progfile = "release/DenseLRRowExample"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
@@ -42,8 +42,8 @@ program_params = {
     "num_local_threads" : 20,
     "num_data_parts" : 400,
     "batch_size" : 800,
-    "alpha" : 0.001,
-    "num_iter" : 5,
+    "alpha" : 0.1,
+    "num_iter" : 10,
     "staleness" : 0,
     "is_sparse" : False,
     "is_sgd" : False,

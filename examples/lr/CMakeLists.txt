@@ -23,3 +23,11 @@ target_link_libraries(SparseLRExample ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET SparseLRExample PROPERTY CXX_STANDARD 14)
 add_dependencies(SparseLRExample ${external_project_dependencies})
 add_dependencies(SparseLRExample ${external_project_dependencies})
+
+# DenseLRRowExample
+add_executable(DenseLRRowExample dense_lr_row.cpp)
+target_link_libraries(DenseLRRowExample xyz)
+target_link_libraries(DenseLRRowExample ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET DenseLRRowExample PROPERTY CXX_STANDARD 14)
+add_dependencies(DenseLRRowExample ${external_project_dependencies})
+add_dependencies(DenseLRRowExample ${external_project_dependencies})
