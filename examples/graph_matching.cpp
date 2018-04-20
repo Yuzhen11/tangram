@@ -2,6 +2,7 @@
 #include <chrono>
 #include <mutex>
 #include <stdlib.h>
+#include <cmath>
 
 #include "core/plan/runner.hpp"
 #include "gflags/gflags.h"
@@ -12,7 +13,7 @@
 
 DEFINE_int32(num_matcher_parts, 400, "# num of matcher partitions");
 DEFINE_int32(num_graph_parts, 400, "# num of graph partitions");
-DEFINE_int64(num_vertices, 0, "# num of graph partitions");
+DEFINE_int32(num_matchers, 10, "# num of graph partitions");
 DEFINE_string(url, "", "The url for hdfs file");
 
 using namespace xyz;
@@ -22,6 +23,8 @@ struct CountObj {
   
   KeyT id;
   int64_t count = 0;
+  int64_t total_memory = 0;
+  int64_t matched_memory = 0;
 
   CountObj() { id = 0; };
   CountObj(KeyT id) : id(id) {}
@@ -38,11 +41,11 @@ struct CountObj {
 struct Vertex {
   using KeyT = int;
   KeyT id;
-  std::string label;
+  char label;
   std::vector<Vertex> outlinks;
   Vertex() = default;
   Vertex(KeyT id) : id(id) {}
-  Vertex(KeyT id, std::string label) : id(id), label(label) {}
+  Vertex(KeyT id, char label) : id(id), label(label) {}
   KeyT Key() const { return id; }
 
   std::string DebugString() const {
@@ -64,13 +67,13 @@ struct Vertex {
 struct Pattern {
   using KeyT = int;
   KeyT id;
-  std::string label;
+  char label;
   std::vector<Pattern> outlinks;
   std::vector<Pattern> siblings;
 
   Pattern() = default;
   Pattern(KeyT id) : id(id) {}
-  Pattern(KeyT id, std::string label) : id(id), label(label) {} 
+  Pattern(KeyT id, char label) : id(id), label(label) {} 
   Pattern(Vertex v) : id(v.id), label(v.label) {}
   KeyT Key() const { return id; }
   
@@ -150,25 +153,63 @@ struct Matcher {
 
   KeyT id;
   int matched_round = -1;
-  bool is_match_failed = false;
+  std::set<int> seeds;
 
   //round, pattern pos, vertex id, label, parent ids
-  std::map<int, std::map<int, std::map<int, std::pair<std::string, std::vector<int>>>>> result;
+  std::map<int, std::map<int, std::map<int, std::pair<char, std::vector<int>>>>> result;
   std::map<int, std::set<int>> sibling_result; //vertex id, sibling ids.  
   Matcher() = default;
   Matcher(int id) : id(id) {}
   KeyT Key() const { return id; }
 
-  void CheckRound(Pattern pattern) {
-    CHECK(matched_round >= 0);
-    if (result[matched_round].size() != pattern.GetRound(matched_round).size()){
-      is_match_failed = true;
-      matched_round -= 1;
-      //LOG(INFO) << "matcher " << id << " failed at round " << matched_round;
-      //LOG(INFO) << result[matched_round].size() << " " << pattern.GetRound(matched_round).size();
-    } else {
-      //LOG(INFO) << "matcher " << id << " round " << matched_round; 
-    }
+  void UpdateResult(Pattern pattern) {//TODO
+	std::map<int, std::set<int>> childNum;
+	std::set<int> toRemove;
+	auto patternChildren = pattern.GetRound(matched_round);
+    auto patternParents = pattern.GetRound(matched_round - 1);
+	int patternChildStartPos = 0;
+	for (int parentPos = 0; parentPos < patternParents.size(); parentPos++) {
+	  if (parentPos != 0) patternChildStartPos += patternParents[parentPos-1].outlinks.size();
+      for (int pos = 0; pos < patternParents[parentPos].outlinks.size(); pos++) {
+		int childPos = pos + patternChildStartPos;
+		for (auto tmp : result[matched_round][childPos]) {
+		  for (int tmp2 : tmp.second.second) {
+		    childNum[tmp2].insert(childPos);
+		  }
+		}
+	  }
+	}
+
+	for (auto tmp1 : result[matched_round-1]) {
+	  int patternPos = tmp1.first;
+	  for (auto tmp2 : tmp1.second) {
+		int vertexId = tmp2.first;
+		if (childNum[vertexId].size() < patternParents[patternPos].outlinks.size()) {
+		  toRemove.insert(vertexId);
+		}
+	  }
+	}
+	std::stringstream ss;
+	ss << "Round: " << matched_round << ". Vertices in matcher " << id << " to delete: ";
+	for (int tmp : toRemove) ss << tmp << ", ";
+
+	for (auto tmp1 : result[matched_round-1]) {
+	  for (auto tmp2 : tmp1.second) {
+	    if (toRemove.find(tmp2.first) != toRemove.end()) {
+		  tmp1.second.erase(tmp2.first);
+		}
+	  }
+	}
+
+	for (auto tmp1 : result[matched_round]) {
+	  for (auto tmp2 : tmp1.second) {
+		for (auto iter = tmp2.second.second.begin(); iter != tmp2.second.second.end(); iter++) {
+		  if (toRemove.find(*iter) != toRemove.end()) {
+			tmp2.second.second.erase(iter);
+		  }
+		}
+	  }
+	}
   }
   
   std::string DebugString() const {
@@ -206,18 +247,19 @@ struct Matcher {
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
-  int num_graph_parts = FLAGS_num_graph_parts;
-  int num_matcher_parts = FLAGS_num_matcher_parts;
+  const int num_graph_parts = FLAGS_num_graph_parts;
+  const int num_matcher_parts = FLAGS_num_matcher_parts;
+  const int num_matchers = FLAGS_num_matchers;
 
   // define pattern to match
-  // TODO: only one sibling in pattern now
-  Pattern pattern(0, "a");
-  pattern.AddOutlink(Vertex(1, "b"));
-  pattern.AddOutlink(Vertex(2, "c"));
-  pattern.GetOutlink(1)->AddSibling(Vertex(2, "c"));
-  pattern.GetOutlink(2)->AddSibling(Vertex(1, "b"));
-  pattern.GetOutlink(2)->AddOutlink(Vertex(3, "b"));
-  pattern.GetOutlink(2)->GetOutlink(3)->AddOutlink(Vertex(4, "d"));
+  // only one sibling in pattern now
+  Pattern pattern(0, 'a');
+  pattern.AddOutlink(Vertex(1, 'b'));
+  pattern.AddOutlink(Vertex(2, 'c'));
+  pattern.GetOutlink(1)->AddSibling(Vertex(2, 'c'));
+  pattern.GetOutlink(2)->AddSibling(Vertex(1, 'b'));
+  pattern.GetOutlink(2)->AddOutlink(Vertex(3, 'b'));
+  pattern.GetOutlink(2)->GetOutlink(3)->AddOutlink(Vertex(4, 'd'));
   LOG(INFO) << pattern.DebugString();
   int iteration = pattern.GetDepth();
   CHECK_EQ(iteration, 4);
@@ -233,11 +275,13 @@ int main(int argc, char** argv) {
     boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
 
     int id = std::stoi(*(it++));
-    std::string label = *(it++);
+    char label = *(it->begin());
+	it++;
     Vertex obj(id, label);
     while (it != tok.end()) {
       id = std::stoi(*(it++));
-      label = *(it++);
+      label = *(it->begin());
+	  it++;
       obj.outlinks.push_back(Vertex(id, label));  
     }
     return obj;
@@ -248,7 +292,7 @@ int main(int argc, char** argv) {
 
   Context::mapjoin(dataset, graph,
     [](const Vertex& vertex){
-      using MsgT = std::pair<int, std::pair<std::string, std::vector<Vertex>>>;
+      using MsgT = std::pair<int, std::pair<char, std::vector<Vertex>>>;
       std::vector<MsgT> kvs;
       kvs.push_back(std::make_pair(vertex.id, std::make_pair(vertex.label, vertex.outlinks)));
     
@@ -258,13 +302,13 @@ int main(int argc, char** argv) {
       }
       return kvs;
     },
-    [](Vertex* vertex, std::pair<std::string, std::vector<Vertex>> msg){
+    [](Vertex* vertex, std::pair<char, std::vector<Vertex>> msg){
       vertex->label = msg.first;
       for (auto& outlink : msg.second) {
         vertex->outlinks.push_back(std::move(outlink));
       }
     }
-  )->SetCombine([](std::pair<std::string, std::vector<Vertex>>* msg1, std::pair<std::string, std::vector<Vertex>> msg2){
+  )->SetCombine([](std::pair<char, std::vector<Vertex>>* msg1, std::pair<char, std::vector<Vertex>> msg2){
     CHECK_EQ(msg1->first, msg2.first);
     for (Vertex& vertex : msg2.second) msg1->second.push_back(std::move(vertex));
   })
@@ -273,23 +317,19 @@ int main(int argc, char** argv) {
 
   auto matcher = Context::placeholder<Matcher>(num_matcher_parts);
   Context::mapjoin(dataset, matcher,
-    [](const Vertex& vertex){
-      std::vector<std::pair<int, int>> msg;
-      msg.push_back(std::make_pair(vertex.id, 0));
-      for (const Vertex& outlink : vertex.outlinks) {
-        msg.push_back(std::make_pair(outlink.id, 0));
-      }
-      return msg;
+    [num_matchers](const Vertex& vertex){
+	  int matcherId = vertex.id % num_matchers;
+      return std::make_pair(matcherId, vertex.id);//TODO: now put close seeds in one matcher
     },
     [](Matcher* matcher, int msg){
+	  matcher->seeds.insert(msg);
     }
-  )->SetCombine([](int* msg1, int msg2){})
-  ->SetName("matcher");
+  )->SetName("matcher");
 
   //matcher id, (round id, postition id, vertex id, label, parent id, sibling ids)
-  using MsgT = std::pair<int, std::vector<std::tuple<int, int, int, std::string, int, std::set<int>>>>;
+  using MsgT = std::pair<int, std::vector<std::tuple<int, int, int, char, int, std::set<int>>>>;
   Context::mappartwithjoin(matcher, graph, matcher,
-    [pattern, num_matcher_parts, num_graph_parts, graph_key_part_mapper](TypedPartition<Matcher>* p,
+    [pattern, num_matcher_parts, num_graph_parts, graph_key_part_mapper, num_matchers](TypedPartition<Matcher>* p,
       TypedCache<Vertex>* typed_cache,
       AbstractMapProgressTracker* t){
       std::vector<MsgT> kvs;
@@ -303,95 +343,115 @@ int main(int argc, char** argv) {
       }
 
       for (auto matcher : *p) {
-        if (matcher.is_match_failed) continue;
-        
         MsgT MSG;
         MSG.first = matcher.id;
-        
-        if (matcher.matched_round == -1) {
-          auto with_p = with_parts[graph_key_part_mapper->Get(matcher.id)];
-          Vertex* root = with_p->Find(matcher.id);
-          CHECK(root != nullptr);
-          if (root->label != pattern.label) {
-            kvs.push_back(MSG);// send empty msg indicating matching failed
-            continue;
-          }
-          else {
-            MSG.second.push_back(std::make_tuple(0, 0, root->id, root->label, -1, std::set<int>()));
-            kvs.push_back(MSG);
-            continue; 
-          } 
-        }
-      
-        // root matched
-        int next_round_pos_start = 0;
-        auto pattern_round = pattern.GetRound(matcher.matched_round);
-        for (int round_pos = 0; round_pos < pattern_round.size(); round_pos++){
-          auto vertices_matcher = matcher.result[matcher.matched_round][round_pos];
-          Pattern vertex_pattern = pattern_round.at(round_pos);
-          if (round_pos != 0) next_round_pos_start += pattern_round.at(round_pos-1).outlinks.size();
-          for (auto vertex_matcher : vertices_matcher) {
-            auto with_p = with_parts[graph_key_part_mapper->Get(vertex_matcher.first)];
-            Vertex* vertex_matcher_vertex = with_p->Find(vertex_matcher.first); 
-            for (const Vertex& outlink : vertex_matcher_vertex->outlinks) {
-              auto with_p = with_parts[graph_key_part_mapper->Get(outlink.id)];
-              Vertex* vertex_to_add = with_p->Find(outlink.id); 
+		if (matcher.matched_round == -1) {//first round
+		  for (int seed : matcher.seeds) {
+            auto with_p = with_parts[graph_key_part_mapper->Get(seed)];
+            Vertex* root = with_p->Find(seed);
+            CHECK(root != nullptr);
+            if (root->label != pattern.label) {
+              MSG.second.push_back(std::make_tuple(-1, -1, root->id, root->label, -1, std::set<int>()));
+            }
+            else {
+              MSG.second.push_back(std::make_tuple(0, 0, root->id, root->label, -1, std::set<int>()));
+            }
+		  }
+		}
+		else {//except first round
+          int next_round_pos_start = 0;
+          auto pattern_round = pattern.GetRound(matcher.matched_round);
+          for (int round_pos = 0; round_pos < pattern_round.size(); round_pos++){
+            auto vertices_matcher = matcher.result[matcher.matched_round][round_pos];
+            Pattern vertex_pattern = pattern_round.at(round_pos);
+            if (round_pos != 0) next_round_pos_start += pattern_round.at(round_pos-1).outlinks.size();
+            for (auto vertex_matcher : vertices_matcher) {
+              auto with_p = with_parts[graph_key_part_mapper->Get(vertex_matcher.first)];
+              Vertex* vertex_matcher_vertex = with_p->Find(vertex_matcher.first); 
+              for (const Vertex& outlink : vertex_matcher_vertex->outlinks) {
+                auto with_p = with_parts[graph_key_part_mapper->Get(outlink.id)];
+                Vertex* vertex_to_add = with_p->Find(outlink.id); 
 
-              for (int pos = 0; pos < vertex_pattern.outlinks.size(); pos++) {
-                int next_round_pos = pos + next_round_pos_start;
-                
-				if (outlink.label == vertex_pattern.outlinks.at(pos).label) { //outlink.outlinks here is empty
-				  std::set<int> sibling_ids;
-				  if (vertex_pattern.outlinks.at(pos).siblings.size() == 0) {}
-				  else if (vertex_pattern.outlinks.at(pos).siblings.size() == 1) {
-				    std::string sibling_label = vertex_pattern.outlinks.at(pos).siblings[0].label;
-					for (Vertex& v : vertex_matcher_vertex->outlinks) {//TODO
-					  if (v.id == outlink.id) continue;
-					  if (v.label == sibling_label) {
-						for (Vertex& v2 : vertex_to_add->outlinks) {
-						  if (v.id == v2.id) sibling_ids.insert(v.id);
-						}
-					  }
+                for (int pos = 0; pos < vertex_pattern.outlinks.size(); pos++) {
+                  int next_round_pos = pos + next_round_pos_start;
+                  
+				  if (vertex_to_add->label == vertex_pattern.outlinks.at(pos).label) {
+	      	  	    std::set<int> sibling_ids;
+	      	  	    if (vertex_pattern.outlinks.at(pos).siblings.size() == 0) {}
+	      	  	    else if (vertex_pattern.outlinks.at(pos).siblings.size() == 1) {
+	      	  	      char sibling_label = vertex_pattern.outlinks.at(pos).siblings[0].label;
+	      	  		  for (Vertex& v : vertex_matcher_vertex->outlinks) {//TODO
+	      	  		    if (v.id == vertex_to_add->id) continue;
+	      	  		    if (v.label == sibling_label) {
+	      	  		      for (Vertex& v2 : vertex_to_add->outlinks) {
+	      	  			    if (v.id == v2.id) {
+							  sibling_ids.insert(v.id);
+							  break;
+							}
+	      	  			  }
+	      	  		    }
+	      	  		  }
+	      	  		  if (sibling_ids.empty()) continue;
+	      	  	    }
+	      	  	    else { CHECK(false); }
+                    
+					if (matcher.id == 1176038 / num_matchers) {
+					  LOG(INFO) << "DEBUG: matcher.matched_round+1: " << matcher.matched_round+1 
+						<< " next_round_pos: " << next_round_pos
+						<< " vertex_to_add->id: " << vertex_to_add->id 
+						<< " vertex_to_add->label: " << vertex_to_add->label
+						<< " vertex_matcher.first: " << vertex_matcher.first << "\nsibling_ids: ";
+					  for (auto id :sibling_ids) LOG(INFO)<<id;
+
 					}
-					if (sibling_ids.empty()) continue;
-				  }
-				  else { CHECK(false); }
-
-                  MSG.second.push_back(std::make_tuple(matcher.matched_round+1, next_round_pos,
-                        outlink.id, outlink.label, vertex_matcher.first, std::move(sibling_ids)));
+                    MSG.second.push_back(std::make_tuple(matcher.matched_round+1, next_round_pos,
+	        			vertex_to_add->id, vertex_to_add->label, vertex_matcher.first, std::move(sibling_ids)));
+                  }
                 }
               }
             }
-          } 
-        }
+          }
+		}
         if (!MSG.second.empty()) kvs.push_back(MSG); // do not send empty msg
-      }
+	  }
       for (int i = 0; i < num_graph_parts; i++) {
         typed_cache->ReleasePart(i);
       }
       return kvs;
     },
-    [iteration, pattern](Matcher* matcher, std::vector<std::tuple<int, int, int, std::string, int, std::set<int>>> msgs){
-      if (msgs.empty()) {//root matching failed
-        CHECK_EQ(matcher->matched_round, -1);
-        CHECK_EQ(matcher->is_match_failed, false);
-        matcher->is_match_failed = true;
-        return;
-      }
-      
-      for (auto msg : msgs) {
-		matcher->sibling_result[std::get<2>(msg)] = std::move(std::get<5>(msg));
-        matcher->result[std::get<0>(msg)][std::get<1>(msg)][std::get<2>(msg)].first = std::get<3>(msg);
-        if (std::get<4>(msg) != -1) {
+    [iteration, pattern](Matcher* matcher, std::vector<std::tuple<int, int, int, char, int, std::set<int>>> msgs){
+	  if (matcher->matched_round == -1) {//first round
+		for (auto msg : msgs) {
+		  if (std::get<0>(msg) == -1) {//root matching failed
+		    CHECK_EQ(std::get<1>(msg), -1);
+		    CHECK_NE(std::get<3>(msg), 'a');
+		    CHECK_EQ(std::get<4>(msg), -1);
+		    CHECK_EQ(std::get<5>(msg).size(), 0);
+		  }
+		  else {//root matching succeeded
+		    CHECK_EQ(std::get<0>(msg), 0);
+		    CHECK_EQ(std::get<1>(msg), 0);
+		    CHECK_EQ(std::get<3>(msg), 'a');
+		    CHECK_EQ(std::get<4>(msg), -1);
+		    CHECK_EQ(std::get<5>(msg).size(), 0);
+            matcher->result[std::get<0>(msg)][std::get<1>(msg)][std::get<2>(msg)].first = std::get<3>(msg);
+		  }
+		}
+	  }
+	  else {//except first round
+	    for (auto msg : msgs){
+		  CHECK_NE(std::get<0>(msg), -1);
+		  CHECK_NE(std::get<0>(msg), 0);
+		  for (auto tmp : std::get<5>(msg)) matcher->sibling_result[std::get<2>(msg)].insert(tmp);//TODO
+          matcher->result[std::get<0>(msg)][std::get<1>(msg)][std::get<2>(msg)].first = std::get<3>(msg);
           matcher->result[std::get<0>(msg)][std::get<1>(msg)][std::get<2>(msg)].second.push_back(std::get<4>(msg));
-        }
-      }
-     
+		}
+	  }
       matcher->matched_round ++;
-      matcher->CheckRound(pattern); //if check failed, round--, is_match_failed=true
+	  //matcher->UpdateResult(pattern);
     }
   )->SetIter(iteration)
-	->SetStaleness(10)
+  ->SetStaleness(iteration)
   ->SetName("Main Logic");
 
  //a-b
@@ -401,51 +461,105 @@ int main(int argc, char** argv) {
   Context::mappartjoin(matcher, count,
     [](TypedPartition<Matcher>* p,
       AbstractMapProgressTracker* t) {
-      std::vector<std::pair<int, int64_t>> ret;
+      std::vector<std::pair<int, std::tuple<int64_t, int64_t, int64_t>>> ret;
+	  int partition_result = 0;
       for (Matcher& matcher : *p) {
-        if (matcher.is_match_failed) continue;
-        std::map<int, std::pair<std::string, std::vector<int>>> pos10 = matcher.result[1][0];
-        std::map<int, std::pair<std::string, std::vector<int>>> pos11 = matcher.result[1][1];
-        std::map<int, std::pair<std::string, std::vector<int>>> pos20 = matcher.result[2][0];
-        std::map<int, std::pair<std::string, std::vector<int>>> pos30 = matcher.result[3][0];
-
-		int64_t result = 0;
-		for (auto v : pos30) {
-		  CHECK_EQ(v.second.first, "d");
-		  for (int parent_id : v.second.second) {
-			int b_id = parent_id;
-		    CHECK_EQ(pos20[parent_id].first, "b");
-			for (int parent_id : pos20[b_id].second) {
-			  CHECK_EQ(pos11[parent_id].first, "c");
-			  int add = matcher.sibling_result[parent_id].size();
-			  if (matcher.sibling_result[parent_id].find(b_id) != matcher.sibling_result[parent_id].end()) {
-			    add --;
-			  }
-			  result += add;
+     	int64_t size = 0;
+		for (auto tmp1 : matcher.result) {
+		  size += 4;
+		  for (auto tmp2 : tmp1.second) {
+			size += 4;
+		    for (auto tmp3 : tmp2.second) {
+			  size += 1;
+			  size += tmp3.second.second.size()*4;
 			}
 		  }
 		}
-        
-        ret.push_back(std::make_pair(0, result));
-        if (result > 0 && result < 50) {
-          //LOG(INFO) << BLUE("MATCHED NUMBER: ") << result;
-		  //LOG(INFO) << matcher.DebugString();
-        }
+		for (auto tmp : matcher.sibling_result) {
+		  size += 4;
+		  size += tmp.second.size()*4;
+		}
+        ret.push_back(std::make_pair(0, std::make_tuple(0, size, 0)));
+
+        std::map<int, std::pair<char, std::vector<int>>> pos10 = matcher.result[1][0];
+        std::map<int, std::pair<char, std::vector<int>>> pos11 = matcher.result[1][1];
+        std::map<int, std::pair<char, std::vector<int>>> pos20 = matcher.result[2][0];
+        std::map<int, std::pair<char, std::vector<int>>> pos30 = matcher.result[3][0];
+		std::map<int, std::set<int>> sibling_seeds;
+		//for (auto& tmp : pos10) {
+		//  for (int parent_id : tmp.second.second) {
+		//    sibling_seeds[tmp.first].insert(parent_id);
+		//  }
+		//}
+		std::unique_ptr<Executor> exec(new Executor(20));
+		std::mutex mu;
+		int64_t result = 0;
+		for (auto& v : pos30) {
+		  CHECK_EQ(v.second.first, 'd');
+		  for (int parent_id : v.second.second) {
+			int b_id = parent_id;
+		    CHECK_EQ(pos20[parent_id].first, 'b');
+			exec->Add([b_id, &result, &sibling_seeds,
+				&pos20, &pos11, &pos10, &matcher, &mu]() {
+
+  		      size_t local_result = 0;
+  			  for (int parent_id : pos20[b_id].second) {
+  			    CHECK_EQ(pos11[parent_id].first, 'c');
+  			    for (int seed : pos11[parent_id].second) {
+  			      for (int sibling : matcher.sibling_result[parent_id]) {
+  			  	    if (sibling == b_id) continue;
+  			  	    //if (sibling_seeds[sibling].find(seed) != sibling_seeds[sibling].end()) {
+  			  	    //  result ++;
+  			  	    //}
+  			  	    for (int sibling_seed : pos10[sibling].second) {
+  			  	      if (sibling_seed == seed) {
+  			  	        local_result ++;
+  			  	      }
+  			  	    }
+  			  	  }
+  			    }
+  			  }
+  
+  			  std::lock_guard<std::mutex> lk(mu);
+  			  result += local_result;
+
+			});
+		  }
+		}
+		exec.reset();
+		if (result > 0) {
+          ret.push_back(std::make_pair(0, std::make_tuple(result, 0, size)));
+		}
+		partition_result += result;
+        //if (result > 0 && result < 50) {
+        //  LOG(INFO) << BLUE("MATCHED NUMBER: ") << result;
+		//  LOG(INFO) << matcher.DebugString();
+        //}
       }
+	  LOG(INFO) << "pid, result: " << p->id << ", " << partition_result;
       return ret;
     },
-    [](CountObj* obj, int64_t msg){
-      obj->count += msg;
+    [](CountObj* obj, std::tuple<int64_t, int64_t, int64_t> msg){
+      obj->count += std::get<0>(msg);
+	  obj->total_memory += std::get<1>(msg);
+	  obj->matched_memory += std::get<2>(msg);
     }
-  )->SetCombine([](int64_t* msg1, int64_t msg2) {
-    *msg1 = *msg1 + msg2;
+  )->SetCombine([](std::tuple<int64_t, int64_t, int64_t>* msg1, std::tuple<int64_t, int64_t, int64_t> msg2) {
+	std::get<0>(*msg1) += std::get<0>(msg2);
+	std::get<1>(*msg1) += std::get<1>(msg2);
+	std::get<2>(*msg1) += std::get<2>(msg2);
   })->SetName("Count Matched Pattern");
   Context::mappartjoin(count, count,
     [](TypedPartition<CountObj>* p,
       AbstractMapProgressTracker* t) {
       std::vector<std::pair<int, int>> ret;
-      for (CountObj obj : *p) LOG(INFO) << GREEN("Matched Pattern Number: "
-		  + std::to_string(obj.count));
+      for (CountObj obj : *p) {
+	    LOG(INFO) << GREEN("Matched Pattern Number: " + std::to_string(obj.count));
+        LOG(INFO) << GREEN("Estimated All Matcher Memory Size: " + std::to_string(obj.total_memory)
+			+ " = " + std::to_string(obj.total_memory/1024.0/1024.0/1024.0) + "GB");
+        LOG(INFO) << GREEN("Estimated Matched Matcher Memory Size: " + std::to_string(obj.matched_memory)
+			+ " = " + std::to_string(obj.matched_memory/1024.0/1024.0/1024.0) + "GB");
+	  }
       return ret;
     },
     [](CountObj* obj, int msg) {}

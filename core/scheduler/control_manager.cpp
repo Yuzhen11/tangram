@@ -67,16 +67,21 @@ void ControlManager::Control(SArrayBinStream bin) {
 #ifdef WITH_LB_JOIN
     if (migrate_control && 
         specs_[ctrl.plan_id].name == "pagerank main logic" &&
-        versions_[ctrl.plan_id] == 2) {//migrate at version 2
+        versions_[ctrl.plan_id] == 6) {//migrate at version x
       std::vector<std::tuple<int, int, int>> meta;
       // NEED TO BE MANUALLY SET
       int from_id = 1;
       int node_num = 20;
-      int num_parts = 400;
-      for (int i = 0; i < num_parts; i = i + num_parts/node_num) {
-        int to_id = ( (i / node_num) % (node_num - 1) + 1 + from_id - 1) % node_num + 1;
-        meta.push_back(std::make_tuple(from_id, to_id, i));
-      }
+      int num_parts = 100;
+	  CHECK_EQ(num_parts % node_num, 0);
+
+	  int nodesPerPart = num_parts / node_num;
+	  for (int i = 0; i < nodesPerPart; i++) {
+		int part_id = 0 + i*node_num;
+		int to_id = (from_id + 1 + i%(node_num-1)) % node_num;
+		//LOG(INFO) << "to id: " << to_id << " part id: " << part_id << std::endl;
+        meta.push_back(std::make_tuple(from_id, to_id, part_id));
+	  }
       PreBatchMigrate(ctrl.plan_id, meta);
       migrate_control = false;
     }
@@ -286,7 +291,7 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
         int to_id = std::get<1>(submeta);
         int part_id = std::get<2>(submeta);
         CHECK_EQ(from_id, part_to_node[part_id])
-          << " " << from_id << " " << to_id << " " << part_id
+          << "from id: " << from_id << " to id: " << to_id << " part id: " << part_id << " "
           << collection_view.mapper.DebugString();
         part_to_node[part_id] = to_id;
         with_parts.push_back(std::get<2>(submeta));
