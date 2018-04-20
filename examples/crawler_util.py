@@ -2,12 +2,14 @@ import argparse
 from bs4 import BeautifulSoup
 from urlparse import urljoin
 from urllib2 import urlopen
+import ssl
 
 def get_page(url):
     """Get the text of the web page at the given URL
     return a string containing the content"""
 
-    fd = urlopen(url)
+    context = ssl._create_unverified_context()
+    fd = urlopen(url, context=context)
     content = fd.read()
     fd.close()
 

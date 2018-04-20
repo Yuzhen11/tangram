@@ -3,22 +3,23 @@
 import sys
 from launcher import Launcher
 
-hostfile = "machinefiles/5nodes"
-progfile = "debug/Crawler"
-schedulerfile = "debug/SchedulerMain"
+hostfile = "machinefiles/20nodes"
+progfile = "release/Crawler"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
-    "scheduler" : "proj10",
+    "scheduler" : "proj99",
     "scheduler_port" : "33224",
-    "hdfs_namenode" : "proj10",
+    "hdfs_namenode" : "proj99",
     "hdfs_port" : 9000,
 }
 
 program_params = {
     # "url" : "http://course.cse.cuhk.edu.hk/~csci4140",
-    "url" : "http://www.sina.com.cn",
+    # "url" : "http://www.sina.com.cn",
+    "url": "https://en.wikipedia.org/wiki/Main_Page",
     "num_local_threads" : 20,
-    "python_script_path" : "/data/opt/tmp/tommy/xyz/examples/crawler_util.py",
+    "python_script_path" : "/data/yuzhen/xyz/examples/crawler_util.py",
 }
 
 scheduler_params = {
