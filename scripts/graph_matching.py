@@ -15,15 +15,17 @@ common_params = {
 }
 
 program_params = {
-    "url" : "/datasets/graph/label_skitter_8m.adj",
+    #"url" : "/datasets/graph/label_skitter_8m.adj",
     #"url" : "/datasets/graph/label_skitter.adj",
-    # "url" : "/datasets/graph/label_orkut.adj",
-    #"url" : "/tmp/xuan/toy2.graph",#TODO:SSP sometimes stuck?
+    "url" : "/datasets/graph/label_orkut.adj",
+    #"url" : "/tmp/xuan/toy2.graph",
     #"url" : "/tmp/xuan/pattern.graph",
     "num_local_threads" : 20,
     "num_matcher_parts" : 800,
     "num_graph_parts" : 400,
     "num_matchers" : 800,
+    #"num_vertices" : 1696415,#skitter
+    "num_vertices" : 3072441,#orkut
 }
 
 scheduler_params = {

@@ -1,5 +1,6 @@
 #include "core/plan/runner.hpp"
 #include "base/color.hpp"
+#include "boost/tokenizer.hpp"
 
 DEFINE_string(url, "", "The url to fetch");
 
@@ -39,7 +40,13 @@ struct UrlElem {
 
 int main(int argc, char** argv) {
   Runner::Init(argc, argv);
-  std::vector<UrlElem> seeds{UrlElem(FLAGS_url)};
+  std::vector<UrlElem> seeds;
+  boost::char_separator<char> sep(",");
+  boost::tokenizer<boost::char_separator<char>> tok(FLAGS_url, sep);
+  boost::tokenizer<boost::char_separator<char>>::iterator it = tok.begin();
+  while (it != tok.end()) {
+    seeds.push_back(UrlElem(*(it++)));
+  }
   auto url_table = Context::distribute_by_key(seeds, 400, "distribute the seed");
 
   Context::mapjoin(url_table, url_table, 

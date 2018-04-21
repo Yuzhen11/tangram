@@ -33,6 +33,13 @@ target_link_libraries(GraphMatching ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET GraphMatching PROPERTY CXX_STANDARD 14)
 add_dependencies(GraphMatching ${external_project_dependencies})
 
+# SSSP 
+add_executable(SSSP sssp.cpp)
+target_link_libraries(SSSP xyz)
+target_link_libraries(SSSP ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET SSSP PROPERTY CXX_STANDARD 14)
+add_dependencies(SSSP ${external_project_dependencies})
+
 # SchedulerMain
 add_executable(SchedulerMain scheduler_main.cpp)
 target_link_libraries(SchedulerMain xyz)

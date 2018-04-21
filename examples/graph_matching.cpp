@@ -13,6 +13,7 @@
 
 DEFINE_int32(num_matcher_parts, 400, "# num of matcher partitions");
 DEFINE_int32(num_graph_parts, 400, "# num of graph partitions");
+DEFINE_int32(num_vertices, 0, "# num of graph partitions");
 DEFINE_int32(num_matchers, 10, "# num of graph partitions");
 DEFINE_string(url, "", "The url for hdfs file");
 
@@ -287,9 +288,23 @@ int main(int argc, char** argv) {
     return obj;
   })->SetName("dataset");
 
-  auto graph_key_part_mapper = std::make_shared<HashKeyToPartMapper<int>>(num_graph_parts);
+  std::vector<third_party::Range> ranges;
+  int num_vertices_per_part = ceil(FLAGS_num_vertices / float(num_graph_parts));
+  for (int i = 0; i < num_graph_parts-1; ++ i) {
+    ranges.push_back(third_party::Range(i*num_vertices_per_part, (i+1)*num_vertices_per_part));
+  }
+  ranges.push_back(third_party::Range((num_graph_parts-1)*num_vertices_per_part, FLAGS_num_vertices));
+  CHECK_EQ(ranges.size(), num_graph_parts);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "num_graph_parts: " << num_graph_parts;
+    for (auto range: ranges) {
+      LOG(INFO) << "range: " << range.begin() << ", " << range.end();
+    }
+  }
+  auto graph_key_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
+  
+  //auto graph_key_part_mapper = std::make_shared<HashKeyToPartMapper<int>>(num_graph_parts);
   auto graph = Context::placeholder<Vertex>(num_graph_parts, graph_key_part_mapper);
-
   Context::mapjoin(dataset, graph,
     [](const Vertex& vertex){
       using MsgT = std::pair<int, std::pair<char, std::vector<Vertex>>>;
@@ -394,16 +409,7 @@ int main(int argc, char** argv) {
 	      	  		  if (sibling_ids.empty()) continue;
 	      	  	    }
 	      	  	    else { CHECK(false); }
-                    
-					if (matcher.id == 1176038 / num_matchers) {
-					  LOG(INFO) << "DEBUG: matcher.matched_round+1: " << matcher.matched_round+1 
-						<< " next_round_pos: " << next_round_pos
-						<< " vertex_to_add->id: " << vertex_to_add->id 
-						<< " vertex_to_add->label: " << vertex_to_add->label
-						<< " vertex_matcher.first: " << vertex_matcher.first << "\nsibling_ids: ";
-					  for (auto id :sibling_ids) LOG(INFO)<<id;
-
-					}
+					
                     MSG.second.push_back(std::make_tuple(matcher.matched_round+1, next_round_pos,
 	        			vertex_to_add->id, vertex_to_add->label, vertex_matcher.first, std::move(sibling_ids)));
                   }
@@ -464,27 +470,10 @@ int main(int argc, char** argv) {
       std::vector<std::pair<int, std::tuple<int64_t, int64_t, int64_t>>> ret;
 	  int partition_result = 0;
       for (Matcher& matcher : *p) {
-     	int64_t size = 0;
-		for (auto tmp1 : matcher.result) {
-		  size += 4;
-		  for (auto tmp2 : tmp1.second) {
-			size += 4;
-		    for (auto tmp3 : tmp2.second) {
-			  size += 1;
-			  size += tmp3.second.second.size()*4;
-			}
-		  }
-		}
-		for (auto tmp : matcher.sibling_result) {
-		  size += 4;
-		  size += tmp.second.size()*4;
-		}
-        ret.push_back(std::make_pair(0, std::make_tuple(0, size, 0)));
-
-        std::map<int, std::pair<char, std::vector<int>>> pos10 = matcher.result[1][0];
-        std::map<int, std::pair<char, std::vector<int>>> pos11 = matcher.result[1][1];
-        std::map<int, std::pair<char, std::vector<int>>> pos20 = matcher.result[2][0];
-        std::map<int, std::pair<char, std::vector<int>>> pos30 = matcher.result[3][0];
+        std::map<int, std::pair<char, std::vector<int>>>& pos10 = matcher.result[1][0];
+        std::map<int, std::pair<char, std::vector<int>>>& pos11 = matcher.result[1][1];
+        std::map<int, std::pair<char, std::vector<int>>>& pos20 = matcher.result[2][0];
+        std::map<int, std::pair<char, std::vector<int>>>& pos30 = matcher.result[3][0];
 		std::map<int, std::set<int>> sibling_seeds;
 		//for (auto& tmp : pos10) {
 		//  for (int parent_id : tmp.second.second) {
@@ -527,6 +516,25 @@ int main(int argc, char** argv) {
 		  }
 		}
 		exec.reset();
+
+        int64_t size = 0;
+		/*
+		for (auto tmp1 : matcher.result) {
+		  size += 4;
+		  for (auto tmp2 : tmp1.second) {
+			size += 4;
+		    for (auto tmp3 : tmp2.second) {
+			  size += 1;
+			  size += tmp3.second.second.size()*4;
+			}
+		  }
+		}
+		for (auto tmp : matcher.sibling_result) {
+		  size += 4;
+		  size += tmp.second.size()*4;
+		}
+        ret.push_back(std::make_pair(0, std::make_tuple(0, size, 0)));
+		*/
 		if (result > 0) {
           ret.push_back(std::make_pair(0, std::make_tuple(result, 0, size)));
 		}
