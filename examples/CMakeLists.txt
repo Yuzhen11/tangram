@@ -87,3 +87,11 @@ target_link_libraries(TestCP xyz)
 target_link_libraries(TestCP ${HUSKY_EXTERNAL_LIB})
 set_property(TARGET TestCP PROPERTY CXX_STANDARD 14)
 add_dependencies(TestCP ${external_project_dependencies})
+
+# TFIDF_LR
+add_executable(TFIDF_LR tfidf_lr.cpp)
+target_link_libraries(TFIDF_LR xyz)
+target_link_libraries(TFIDF_LR ${HUSKY_EXTERNAL_LIB})
+set_property(TARGET TFIDF_LR PROPERTY CXX_STANDARD 14)
+add_dependencies(TFIDF_LR ${external_project_dependencies})
+add_dependencies(TFIDF_LR ${external_project_dependencies})

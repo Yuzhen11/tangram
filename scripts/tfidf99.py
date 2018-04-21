@@ -24,6 +24,7 @@ program_params = {
     "num_of_docs" : 10000,
     "num_doc_partition" : 1000,
     "num_term_partition" : 100,
+    "combine_type" : "kShuffleCombine",
 }
 
 scheduler_params = {
