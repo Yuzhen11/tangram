@@ -153,9 +153,12 @@ int main(int argc, char **argv) {
 
             // 3. calculate
             begin_time = std::chrono::steady_clock::now();
-            auto data_iter = p->begin();
             int count = 0;
             int sgd_counter = -1;
+
+            for (int replicate = 0; replicate < FLAGS_replicate_factor; ++ replicate) {
+
+            auto data_iter = p->begin();
             auto end_iter = p->end();
             while (data_iter != end_iter) {
               for (auto& point : data_iter->points) {
@@ -189,6 +192,8 @@ int main(int argc, char **argv) {
               }
               ++data_iter;
             }
+
+            }  // replicate
 
             // create the output
             std::vector<std::pair<int, std::vector<float>>> kvs(num_param_parts);

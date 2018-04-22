@@ -51,6 +51,7 @@ program_params = {
     # to make it fast, use kShuffleCombine 
     "combine_type" : "kShuffleCombine",
     "max_lines_per_part" : -1,
+    "replicate_factor" : 1;
 }
 
 # choose one of them
