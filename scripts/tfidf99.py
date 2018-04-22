@@ -15,16 +15,15 @@ common_params = {
 }
 
 program_params = {
-    # "url" : "/datasets/corpus/enwiki-21g/wiki_0",
+    "url" : "/datasets/corpus/enwiki-21g/wiki_0",
     # "url" : "/datasets/corpus/enwiki",
     # "url" : "/datasets/corpus/enwiki-21g",
-    "url" : "/datasets/corpus/enwiki100g",
+    # "url" : "/datasets/corpus/enwiki100g",
     # "url" : "/datasets/corpus/enwiki200g",
     "num_local_threads" : 20,
     "num_of_docs" : 10000,
     "num_doc_partition" : 1000,
     "num_term_partition" : 100,
-    "combine_type" : "kShuffleCombine",
 }
 
 scheduler_params = {
