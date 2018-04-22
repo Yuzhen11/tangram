@@ -4,7 +4,8 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/20nodes"
-progfile = "release/KmeansExample"
+# progfile = "release/KmeansExample"
+progfile = "release/KmeansRowExample"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
@@ -28,8 +29,8 @@ mnist8m_params = {
     "url" : "/jasper/mnist8m",
     "num_data" : 8100000,
     "num_dims" : 784,
-    "num_param_per_part" : 784*11,
-    "K" : 10,
+    "num_param_per_part" : 784*101,
+    "K" : 100,
 }
 
 # for a9
@@ -37,7 +38,7 @@ a9_params = {
     "url" : "/jasper/a9",
     "num_data" : 32561,
     "num_dims" : 123,
-    "num_param_per_part" : 123,
+    "num_param_per_part" : 123*3,
     "K" : 2,
 }
 
@@ -52,7 +53,7 @@ avazu_params = {
 
 program_params = {
     "num_local_threads" : 20,
-    "num_data_parts" : 1000,
+    "num_data_parts" : 1200,
     "batch_size" : 1000,
     "alpha" : 0.1,
     "num_iter" : 10,
@@ -60,9 +61,10 @@ program_params = {
     "is_sgd" : False,
     # to make FT work, do not use kShuffleCombine,
     # to make it fast, use kShuffleCombine
+    # "combine_type" : "kShuffleCombine",
     "combine_type" : "kDirectCombine",
     "max_lines_per_part" : -1,
-    "replicate_factor" : 10,
+    "replicate_factor" : 1,
 }
 
 # choose one of them

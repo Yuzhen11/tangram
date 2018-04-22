@@ -1,5 +1,13 @@
 #include "examples/kmeans/kmeans_helper.hpp"
 
+/*
+ * Use row to store the centers, like Bosen. 
+ * Achieve better performance using row-based updates.
+ * For small model size, we can just use 1 row to store all the parameters.
+ *
+ * To store all params in one row, set num_param_per_part >= num_dims*(K+1)
+ */
+
 // #define ENABLE_CP
 //
 struct DenseRow {

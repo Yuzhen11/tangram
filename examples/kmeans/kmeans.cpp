@@ -1,6 +1,13 @@
 #include "examples/kmeans/kmeans_helper.hpp"
 #include "core/index/range_key_to_part_mapper.hpp"
 
+/*
+ * Use kv-pair to store parameters and the performance is worse than kmeans_row.
+ * Especially when the model is large and we want to store the model in one partition
+ * to simulate the Spark Kmeans, in which losing a machine means losing only 
+ * the data partitions. 
+ */
+
 // #define ENABLE_CP
 
 int main(int argc, char **argv) {
@@ -26,7 +33,9 @@ int main(int argc, char **argv) {
       return all;
     },
     [](IndexedPoints* ip, Point p) {
-      ip->points.push_back(p);
+      // for (int i = 0; i < 10; ++ i) {
+        ip->points.push_back(p);
+      // }
     })
     ->SetName("construct points from dataset");
 
