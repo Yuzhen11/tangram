@@ -35,15 +35,16 @@ class Document {
     std::vector<float> tf;
     std::vector<float> tf_idf;
     std::vector<size_t> words;
+    int label;  // for training
     int total_words = 0;
     const KeyT& id() const { return title; }
     KeyT Key() const { return title; }
     friend SArrayBinStream &operator<<(SArrayBinStream& stream, const Document& doc) {
-        stream << doc.title << doc.tf << doc.tf_idf << doc.words << doc.total_words;
+        stream << doc.title << doc.tf << doc.tf_idf << doc.words << doc.total_words << doc.label;
         return stream;
     }
     friend SArrayBinStream &operator>>(SArrayBinStream& stream, Document& doc) {
-        stream >> doc.title >> doc.tf >> doc.tf_idf >> doc.words >> doc.total_words;
+        stream >> doc.title >> doc.tf >> doc.tf_idf >> doc.words >> doc.total_words >> doc.label;
         return stream;
     }
 };
@@ -140,7 +141,7 @@ int main(int argc, char **argv) {
         boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
         boost::tokenizer<boost::char_separator<char>> tok(content, sep);
         for (auto& w : tok) {
-            doc.words.push_back(std::hash<std::string>{}(w));
+            doc.words.push_back(std::hash<std::string>{}(w) % FLAGS_num_params);
             //std::transform(doc.words.back().begin(), doc.words.back().end(), doc.words.back().begin(), ::tolower);
         }
         doc.total_words = doc.words.size();
@@ -161,6 +162,7 @@ int main(int argc, char **argv) {
         for (int i = 0; i < doc.words.size(); i++) {
             doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
         }
+        doc.label = rand() % 2;  // random label
       }
 
       return doc;
@@ -379,15 +381,14 @@ int main(int argc, char **argv) {
                   continue;
               }
 
-              // auto &words = data_iter->words;
+              auto &words = data_iter->words;
               auto &tf_idf = data_iter->tf_idf;
-              // CHECK_EQ(words.size(), tf_idf.size());
-
-              int y = rand() % 2;
+              CHECK_EQ(words.size(), tf_idf.size());
+              int y = data_iter->label;
 
               float pred_y = 0.0;
               for (int i = 0; i < tf_idf.size(); i++) {
-                  pred_y += old_params[rand() % num_params] * tf_idf[i];
+                  pred_y += old_params[words[i]] * tf_idf[i];
               }
               pred_y += old_params[num_params - 1]; // intercept
               pred_y = 1. / (1. + exp(-1 * pred_y));
@@ -396,7 +397,7 @@ int main(int argc, char **argv) {
                   correct_count++;
               }
               for (int i = 0; i < tf_idf.size(); i++) {
-                  step_sum[rand() % num_params] += alpha * tf_idf[i] * (y - pred_y);
+                  step_sum[words[i]] += alpha * tf_idf[i] * (y - pred_y);
               }
               step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
               count++;
@@ -548,15 +549,14 @@ int main(int argc, char **argv) {
                   continue;
               }
 
-              // auto &words = data_iter->words;
+              auto &words = data_iter->words;
               auto &tf_idf = data_iter->tf_idf;
-              // CHECK_EQ(words.size(), tf_idf.size());
-
-              int y = rand() % 2;
+              int y = data_iter->label;
+              CHECK_EQ(words.size(), tf_idf.size());
 
               float pred_y = 0.0;
               for (int i = 0; i < tf_idf.size(); i++) {
-                  pred_y += old_params[rand() % num_params] * tf_idf[i];
+                  pred_y += old_params[words[i]] * tf_idf[i];
               }
               pred_y += old_params[num_params - 1]; // intercept
               pred_y = 1. / (1. + exp(-1 * pred_y));
@@ -565,7 +565,7 @@ int main(int argc, char **argv) {
                   correct_count++;
               }
               for (int i = 0; i < tf_idf.size(); i++) {
-                  step_sum[rand() % num_params] += alpha * tf_idf[i] * (y - pred_y);
+                  step_sum[words[i]] += alpha * tf_idf[i] * (y - pred_y);
               }
               step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
               count++;
