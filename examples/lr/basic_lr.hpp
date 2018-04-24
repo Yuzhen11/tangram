@@ -2,6 +2,8 @@
 #include "core/plan/runner.hpp"
 #include "boost/tokenizer.hpp"
 
+#include "core/index/range_key_to_part_mapper.hpp"
+
 #include <string>
 #include <cmath>
 
@@ -127,4 +129,49 @@ static auto* load_data() {
 
     return point;
   }, FLAGS_max_lines_per_part)->SetName("dataset");
+}
+
+// Repartition the data
+template<typename Collection>
+static auto* repartition(Collection* dataset) {
+  int num_data_parts = FLAGS_num_data_parts;
+  auto points = Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
+  Context::mappartjoin(dataset, points,
+    [num_data_parts](TypedPartition<Point>* p,
+      AbstractMapProgressTracker* t) {
+      std::vector<std::pair<int,Point>> all;
+      for (auto& v: *p) {
+        all.push_back(std::make_pair(rand() % num_data_parts, v));
+      }
+      return all;
+    },
+    [](IndexedPoints* ip, Point p) {
+      ip->points.push_back(p);
+    })
+    ->SetName("construct points from dataset");
+
+  return points;
+}
+
+static auto* create_range_params(
+    const int num_params, const int num_param_per_part) {
+  std::vector<third_party::Range> ranges;
+  int num_param_parts = num_params / num_param_per_part;
+  for (int i = 0; i < num_param_parts; ++ i) {
+    ranges.push_back(third_party::Range(i*num_param_per_part, (i+1)*num_param_per_part));
+  }
+  if (num_params % num_param_per_part != 0) {
+    ranges.push_back(third_party::Range(num_param_parts*num_param_per_part, num_params));
+    num_param_parts += 1;
+  }
+  CHECK_EQ(ranges.size(), num_param_parts);
+  if (FLAGS_node_id == 0) {
+    LOG(INFO) << "num_param_parts: " << num_param_parts;
+    for (auto range: ranges) {
+      LOG(INFO) << "range: " << range.begin() << ", " << range.end();
+    }
+  }
+  auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
+  auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
+  return params;
 }

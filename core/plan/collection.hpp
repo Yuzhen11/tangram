@@ -66,14 +66,14 @@ class Collection : public CollectionBase {
   }
 
   template<typename Q = PartitionT>
-  typename std::enable_if<!std::is_same<Q, IndexedSeqPartition<T>>::value>::type
+  typename std::enable_if<!std::is_base_of<Indexable<T>, Q>::value>::type
   RegisterHelper(
           std::shared_ptr<AbstractFunctionStore> function_store) {
     // do nothing
   }
 
   template<typename Q = PartitionT>
-  typename std::enable_if<std::is_same<Q, IndexedSeqPartition<T>>::value>::type 
+  typename std::enable_if<std::is_base_of<Indexable<T>, Q>::value>::type 
   RegisterHelper(
           std::shared_ptr<AbstractFunctionStore> function_store) {
     function_store->AddGetter(id_, GetGetterFunc<T>());

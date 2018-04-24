@@ -226,8 +226,11 @@ void Fetcher::FetchObjs(int plan_id, int upstream_part_id, int collection_id,
         const std::map<int, SArrayBinStream>& part_to_keys,
         std::vector<SArrayBinStream>* const rets) {
 
-  // 0. register rets
-  recv_binstream_[upstream_part_id] = rets;
+  {
+    std::unique_lock<std::mutex> lk(m_);
+    // 0. register rets
+    recv_binstream_[upstream_part_id] = rets;
+  }
       
   // 1. send requests
   for (auto const& pair : part_to_keys) {

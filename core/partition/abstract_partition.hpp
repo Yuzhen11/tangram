@@ -71,6 +71,9 @@ class TypedPartition : public AbstractPartition {
     bool operator!=(const IterWrapper& iw) const {
       return iter->SubUnequal(iw.iter);
     }
+    bool operator==(const IterWrapper& iw) const {
+      return !iter->SubUnequal(iw.iter);
+    }
   };
   IterWrapper begin() {
     return CreateIterator(true);

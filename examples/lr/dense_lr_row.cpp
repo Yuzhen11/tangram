@@ -39,21 +39,7 @@ int main(int argc, char **argv) {
   auto dataset = load_data();
 
   // Repartition the data
-  int num_data_parts = FLAGS_num_data_parts;
-  auto points = Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
-  auto p0 = Context::mappartjoin(dataset, points,
-    [num_data_parts](TypedPartition<Point>* p,
-      AbstractMapProgressTracker* t) {
-      std::vector<std::pair<int,Point>> all;
-      for (auto& v: *p) {
-        all.push_back(std::make_pair(rand() % num_data_parts, v));
-      }
-      return all;
-    },
-    [](IndexedPoints* ip, Point p) {
-      ip->points.push_back(p);
-    })
-    ->SetName("construct points from dataset");
+  auto points = repartition(dataset);
 
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;

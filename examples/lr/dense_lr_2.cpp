@@ -19,45 +19,18 @@ int main(int argc, char **argv) {
   auto dataset = load_data();
 
   // Repartition the data
-  int num_data_parts = FLAGS_num_data_parts;
-  auto points = Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
-  auto p0 = Context::mappartjoin(dataset, points,
-    [num_data_parts](TypedPartition<Point>* p,
-      AbstractMapProgressTracker* t) {
-      std::vector<std::pair<int,Point>> all;
-      for (auto& v: *p) {
-        all.push_back(std::make_pair(rand() % num_data_parts, v));
-      }
-      return all;
-    },
-    [](IndexedPoints* ip, Point p) {
-      ip->points.push_back(p);
-    })
-    ->SetName("construct points from dataset");
+  auto points = repartition(dataset);
 
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
   const int num_param_per_part = FLAGS_num_param_per_part;
   bool is_sgd = FLAGS_is_sgd;
 
-  std::vector<third_party::Range> ranges;
   int num_param_parts = num_params / num_param_per_part;
-  for (int i = 0; i < num_param_parts; ++ i) {
-    ranges.push_back(third_party::Range(i*num_param_per_part, (i+1)*num_param_per_part));
-  }
   if (num_params % num_param_per_part != 0) {
-    ranges.push_back(third_party::Range(num_param_parts*num_param_per_part, num_params));
     num_param_parts += 1;
   }
-  CHECK_EQ(ranges.size(), num_param_parts);
-  if (FLAGS_node_id == 0) {
-    LOG(INFO) << "num_param_parts: " << num_param_parts;
-    for (auto range: ranges) {
-      LOG(INFO) << "range: " << range.begin() << ", " << range.end();
-    }
-  }
-  auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
-  auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
+  auto params = create_range_params(num_params, num_param_per_part);
 
 #ifdef ENABLE_CP
   Context::checkpoint(params, "/tmp/tmp/yz");
@@ -68,7 +41,7 @@ int main(int argc, char **argv) {
       Context::mappartwithjoin(
           points, params, params,
           [num_params, alpha, is_sgd,
-           num_param_parts, range_key_to_part_mapper](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
+           num_param_parts](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
                       AbstractMapProgressTracker *t) {
             std::vector<std::pair<int, float>> kvs(num_params);
             std::vector<float> step_sum(num_params, 0);
