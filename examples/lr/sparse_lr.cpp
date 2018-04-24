@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
                 data_iter = p->begin();
               }
             }
-            LOG(INFO) << RED("Correct: " + std::to_string(correct_count) +
+            LOG_IF(INFO, p->id) << RED("Correct: " + std::to_string(correct_count) +
                              ", Batch size: " + std::to_string(local_batch_size) +
                              ", Accuracy: " +
                              std::to_string(correct_count / float(local_batch_size)));

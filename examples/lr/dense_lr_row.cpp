@@ -44,7 +44,6 @@ int main(int argc, char **argv) {
   int num_params = FLAGS_num_params + 2;
   double alpha = FLAGS_alpha;
   const int num_param_per_part = FLAGS_num_param_per_part;
-  bool is_sgd = FLAGS_is_sgd;
 
   std::vector<third_party::Range> ranges;
   int num_param_parts = num_params / num_param_per_part;
@@ -81,7 +80,7 @@ int main(int argc, char **argv) {
   auto p1 =
       Context::mappartwithjoin(
           points, dense_rows, dense_rows,
-          [num_params, alpha, is_sgd,
+          [num_params, alpha,
            num_param_parts, num_param_per_part](TypedPartition<IndexedPoints> *p, TypedCache<DenseRow> *typed_cache,
                       AbstractMapProgressTracker *t) {
             std::vector<float> step_sum(num_params, 0);
@@ -140,7 +139,6 @@ int main(int argc, char **argv) {
             // 3. calculate
             begin_time = std::chrono::steady_clock::now();
             int count = 0;
-            int sgd_counter = -1;
 
             for (int replicate = 0; replicate < FLAGS_replicate_factor; ++ replicate) {
 
@@ -148,13 +146,6 @@ int main(int argc, char **argv) {
             auto end_iter = p->end();
             while (data_iter != end_iter) {
               for (auto& point : data_iter->points) {
-                // sgd: pick 1 point out of 10
-                if (is_sgd) {
-                  sgd_counter++;
-                  if (sgd_counter % 10 != 0)
-                    continue;
-                }
-
                 auto &x = point.x;
                 auto y = point.y;
                 if (y < 0)

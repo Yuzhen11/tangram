@@ -4,7 +4,8 @@ import sys
 from launcher import Launcher
 
 hostfile = "machinefiles/20nodes"
-progfile = "release/DenseLRRowExample"
+progfile = "release/SparseLRExample"
+# progfile = "release/DenseLRRowExample"
 schedulerfile = "release/SchedulerMain"
 
 common_params = {
@@ -35,32 +36,28 @@ avazu_params = {
     "url" : "/jasper/avazu-app",
     "num_data" : 40428967,
     "num_params" : 1000000,
-    "num_param_per_part" : 1000000,
+    "num_param_per_part" : 10000,
 }
 
 program_params = {
     "num_local_threads" : 20,
-    "num_data_parts" : 400,
-    "batch_size" : 800,
+    "num_data_parts" : 200,
+    "batch_size" : 35000,  # only for sparse_lr, others are full batch
     "alpha" : 0.1,
     "num_iter" : 10,
     "staleness" : 0,
-    "is_sparse" : False,
-    "is_sgd" : False,
     # to make FT work, do not use kShuffleCombine,
     # to make it fast, use kShuffleCombine 
-    "combine_type" : "kShuffleCombine",
+    # "combine_type" : "kShuffleCombine",
+    "combine_type" : "kNoCombine",
     "max_lines_per_part" : -1,
-    "replicate_factor" : 1;
+    "replicate_factor" : 10,
 }
 
 # choose one of them
 program_params.update(webspam_params)
 # program_params.update(a9_params)
 # program_params.update(avazu_params)
-
-if program_params["is_sparse"]:
-  progfile = "release/SparseLRExample"
 
 scheduler_params = {
     "dag_runner_type" : "sequential",
