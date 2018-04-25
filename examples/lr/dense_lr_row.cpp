@@ -2,32 +2,6 @@
 
 #include "core/index/range_key_to_part_mapper.hpp"
 
-/*
- * Store the param in DenseRow, similar to Bosen.
- */
-// #define ENABLE_CP
-
-struct DenseRow {
-  using KeyT = int;
-  DenseRow() = default;
-  DenseRow(KeyT id) : row_id(id) {}
-  KeyT Key() const { return row_id; }
-
-  int row_id;
-  std::vector<float> params;
-
-  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
-                                     const DenseRow& row) {
-    stream << row.row_id << row.params;
-    return stream;
-  }
-  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
-                                     DenseRow& row) {
-    stream >> row.row_id >> row.params;
-    return stream;
-  }
-};
-
 int main(int argc, char **argv) {
   Runner::Init(argc, argv);
   const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
@@ -52,25 +26,10 @@ int main(int argc, char **argv) {
   }
   // there are num_param_parts elements and num_param_parts partition.
   // the partition number does not need to be num_param_parts.
-  auto dense_rows = Context::placeholder<DenseRow>(num_param_parts);
 
   // init the param
-  auto dummy_collection = Context::distribute<int>({1});
-  Context::mapjoin(dummy_collection, dense_rows, 
-      [num_param_parts](int) {
-        std::vector<std::pair<int, int>> ret;
-        for (int i = 0;  i < num_param_parts; ++ i) {
-          ret.push_back({i, 0});
-        }
-        return ret;
-      },
-      [num_param_parts, num_params, num_param_per_part](DenseRow* row, int) {
-        if ((row->row_id == num_param_parts - 1) && (num_params % num_param_per_part != 0)) {
-          row->params.resize(num_params % num_param_per_part);
-        } else {
-          row->params.resize(num_param_per_part);
-        }
-      });
+  auto dense_rows =
+      create_dense_rows(num_param_parts, num_params, num_param_per_part);
 
 #ifdef ENABLE_CP
   Context::checkpoint(params, "/tmp/tmp/yz");
@@ -87,7 +46,6 @@ int main(int argc, char **argv) {
 
             // 0. init params (allocate)
             auto begin_time = std::chrono::steady_clock::now();
-            std::vector<float> old_params(num_params);
             std::vector<float> step_sum(num_params, 0);
             auto end_time = std::chrono::steady_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
@@ -97,15 +55,7 @@ int main(int argc, char **argv) {
 
             // 1. prepare params
             begin_time = std::chrono::steady_clock::now();
-            std::vector<std::shared_ptr<TypedPartition<DenseRow>>> with_parts(num_param_parts);
-            int start_idx =
-                rand() %
-                num_param_parts; // random start_idx to avoid overload on one point
-            for (int i = 0; i < num_param_parts; i++) {
-              int idx = (start_idx + i) % num_param_parts;
-              auto part = typed_cache->GetPartition(idx);
-              with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<DenseRow>>(part);
-            }
+            auto with_parts = prepare_lr_params<DenseRow>(num_param_parts, typed_cache);
 
             // TOOD:FT for fetching map is not supported yet!
             // so make sure to kill after fetching
@@ -122,25 +72,12 @@ int main(int argc, char **argv) {
             // 2. copy params
 
             begin_time = std::chrono::steady_clock::now();
-            for (auto with_p : with_parts) {
-              auto iter1 = with_p->begin();
-              auto end_iter = with_p->end();
-              while (iter1 != end_iter) {
-                int k = iter1->row_id;
-                auto& params = iter1->params;
-                if (k == num_param_parts - 1 && num_params % num_param_per_part != -1) {
-                  CHECK_EQ(params.size(),  num_params % num_param_per_part);
-                } else {
-                  CHECK_EQ(params.size(), num_param_per_part);
-                }
-                std::copy(params.begin(), params.end(), old_params.begin() + k*num_param_per_part);
-                ++iter1;
-              }
-            }
+            auto old_params = copy_lr_params(with_parts, num_param_parts,
+                                             num_params, num_param_per_part);
+
             for (int i = 0; i < num_param_parts; i++) {
               typed_cache->ReleasePart(i);
             }
-               
 
             end_time = std::chrono::steady_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
@@ -186,23 +123,8 @@ int main(int argc, char **argv) {
             }  // replicate
 
             // create the output
-            std::vector<std::pair<int, std::vector<float>>> kvs(num_param_parts);
-            for (int i = 0 ; i < num_param_parts - 1; ++ i) {
-              kvs[i].first = i;
-              kvs[i].second.resize(num_param_per_part);
-              auto begin = step_sum.begin() + i*num_param_per_part;
-              auto end = step_sum.begin() + (i+1)*num_param_per_part;
-              std::transform(begin, end, kvs[i].second.begin(), [count](float v) { return v/count; });
-            }
-            auto last_part_id = num_param_parts - 1;
-            kvs[last_part_id].first = last_part_id;
-            if (num_params % num_param_per_part != 0) {
-              kvs[last_part_id].second.resize(num_params % num_param_per_part);
-            } else {
-              kvs[last_part_id].second.resize(num_param_per_part);
-            }
-            auto begin = step_sum.begin() + last_part_id*num_param_per_part;
-            std::transform(begin, step_sum.end(), kvs[last_part_id].second.begin(), [count](float v) { return v/count; });
+            auto kvs = create_lr_output(num_param_parts, num_param_per_part,
+                                        num_params, count, step_sum);
             
             LOG_IF(INFO, p->id == 0) << RED("Correct: " + std::to_string(correct_count) +
                              ", Batch size: " + std::to_string(count) +

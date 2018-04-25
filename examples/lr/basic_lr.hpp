@@ -81,6 +81,32 @@ struct Param {
   }
 };
 
+/*
+ * Store the param in DenseRow, similar to Bosen.
+ */
+// #define ENABLE_CP
+
+struct DenseRow {
+  using KeyT = int;
+  DenseRow() = default;
+  DenseRow(KeyT id) : row_id(id) {}
+  KeyT Key() const { return row_id; }
+
+  int row_id;
+  std::vector<float> params;
+
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const DenseRow& row) {
+    stream << row.row_id << row.params;
+    return stream;
+  }
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream,
+                                     DenseRow& row) {
+    stream >> row.row_id >> row.params;
+    return stream;
+  }
+};
+
 static auto* load_data() {
   return Context::load(FLAGS_url, [](std::string s) {
 	  Point point;
@@ -177,4 +203,91 @@ static auto* create_range_params(
   auto range_key_to_part_mapper = std::make_shared<RangeKeyToPartMapper<int>>(ranges);
   auto params = Context::range_placeholder<Param>(range_key_to_part_mapper);
   return params;
+}
+
+static auto *create_dense_rows(int num_param_parts, int num_params,
+                              int num_param_per_part) {
+  auto dense_rows = Context::placeholder<DenseRow>(num_param_parts);
+  // init the param
+  auto dummy_collection = Context::distribute<int>({1});
+  Context::mapjoin(
+      dummy_collection, dense_rows,
+      [num_param_parts](int) {
+        std::vector<std::pair<int, int>> ret;
+        for (int i = 0; i < num_param_parts; ++i) {
+          ret.push_back({i, 0});
+        }
+        return ret;
+      },
+      [num_param_parts, num_params, num_param_per_part](DenseRow *row, int) {
+        if (row->row_id == num_param_parts - 1) {
+          row->params.resize(num_params % num_param_per_part);
+        } else {
+          row->params.resize(num_param_per_part);
+        }
+      })
+      ->SetName("Create dense_rows for LR params");
+  ;
+  return dense_rows;
+}
+
+template<typename ObjT>
+static auto prepare_lr_params(int num_param_parts,
+                              TypedCache<ObjT> *typed_cache) {
+  std::vector<std::shared_ptr<TypedPartition<ObjT>>> with_parts(
+      num_param_parts);
+  int start_idx =
+      rand() %
+      num_param_parts; // random start_idx to avoid overload on one point
+  for (int i = 0; i < num_param_parts; i++) {
+    int idx = (start_idx + i) % num_param_parts;
+    auto part = typed_cache->GetPartition(idx);
+    with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<ObjT>>(part);
+  }
+  return with_parts;
+}
+
+// for DenseRow
+static auto copy_lr_params(
+    std::vector<std::shared_ptr<TypedPartition<DenseRow>>> &with_parts,
+    int num_param_parts, int num_params, int num_param_per_part) {
+  std::vector<float> old_params(num_params);
+  for (auto with_p : with_parts) {
+    auto iter1 = with_p->begin();
+    auto end_iter = with_p->end();
+    while (iter1 != end_iter) {
+      int k = iter1->row_id;
+      auto &params = iter1->params;
+      if (k == num_param_parts - 1) {
+        CHECK_EQ(params.size(), num_params % num_param_per_part);
+      } else {
+        CHECK_EQ(params.size(), num_param_per_part);
+      }
+      std::copy(params.begin(), params.end(),
+                old_params.begin() + k * num_param_per_part);
+      ++iter1;
+    }
+  }
+  return old_params;
+}
+
+static auto create_lr_output(int num_param_parts, int num_param_per_part,
+                             int num_params, int count,
+                             std::vector<float> &step_sum) {
+  std::vector<std::pair<int, std::vector<float>>> kvs(num_param_parts);
+  for (int i = 0; i < num_param_parts - 1; ++i) {
+    kvs[i].first = i;
+    kvs[i].second.resize(num_param_per_part);
+    auto begin = step_sum.begin() + i * num_param_per_part;
+    auto end = step_sum.begin() + (i + 1) * num_param_per_part;
+    std::transform(begin, end, kvs[i].second.begin(),
+                   [count](float v) { return v / count; });
+  }
+  auto last_part_id = num_param_parts - 1;
+  kvs[last_part_id].first = last_part_id;
+  kvs[last_part_id].second.resize(num_params % num_param_per_part);
+  auto begin = step_sum.begin() + last_part_id * num_param_per_part;
+  std::transform(begin, step_sum.end(), kvs[last_part_id].second.begin(),
+                 [count](float v) { return v / count; });
+  return kvs;
 }

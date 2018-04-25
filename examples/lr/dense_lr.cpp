@@ -42,15 +42,7 @@ int main(int argc, char **argv) {
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
-            std::vector<std::shared_ptr<TypedPartition<Param>>> with_parts(num_param_parts);
-            int start_idx =
-                rand() %
-                num_param_parts; // random start_idx to avoid overload on one point
-            for (int i = 0; i < num_param_parts; i++) {
-              int idx = (start_idx + i) % num_param_parts;
-              auto part = typed_cache->GetPartition(idx);
-              with_parts[idx] = std::dynamic_pointer_cast<TypedPartition<Param>>(part);
-            }
+            auto with_parts = prepare_lr_params<Param>(num_param_parts, typed_cache);
 
             // TOOD:FT for fetching map is not supported yet!
             // so make sure to kill after fetching
