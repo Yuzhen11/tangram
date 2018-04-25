@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   auto points = repartition(dataset);
 
   int num_params = FLAGS_num_params + 2;
-  double alpha = FLAGS_alpha;
+  float alpha = FLAGS_alpha;
   const int num_param_per_part = FLAGS_num_param_per_part;
 
   std::vector<third_party::Range> ranges;
@@ -83,11 +83,20 @@ int main(int argc, char **argv) {
           [num_params, alpha,
            num_param_parts, num_param_per_part](TypedPartition<IndexedPoints> *p, TypedCache<DenseRow> *typed_cache,
                       AbstractMapProgressTracker *t) {
-            std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
-            // 1. prepare params
+            // 0. init params (allocate)
             auto begin_time = std::chrono::steady_clock::now();
+            std::vector<float> old_params(num_params);
+            std::vector<float> step_sum(num_params, 0);
+            auto end_time = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter init time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
+
+            // 1. prepare params
+            begin_time = std::chrono::steady_clock::now();
             std::vector<std::shared_ptr<TypedPartition<DenseRow>>> with_parts(num_param_parts);
             int start_idx =
                 rand() %
@@ -103,16 +112,16 @@ int main(int argc, char **argv) {
             // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("sleeping");
             // std::this_thread::sleep_for(std::chrono::seconds(1));
 
-            auto end_time = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            end_time = std::chrono::steady_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
             // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
             LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
                           std::to_string(duration.count())
                           + "ms on part 0");
 
             // 2. copy params
+
             begin_time = std::chrono::steady_clock::now();
-            std::vector<float> old_params(num_params);
             for (auto with_p : with_parts) {
               auto iter1 = with_p->begin();
               auto end_iter = with_p->end();
@@ -128,10 +137,13 @@ int main(int argc, char **argv) {
                 ++iter1;
               }
             }
+            for (int i = 0; i < num_param_parts; i++) {
+              typed_cache->ReleasePart(i);
+            }
+               
 
             end_time = std::chrono::steady_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
-            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter copy time: " + std::to_string(duration.count()));
             LOG_IF(INFO, p->id == 0) << GREEN("Parameter copy time: " + 
                           std::to_string(duration.count())
                           + "ms on part 0");
@@ -152,7 +164,7 @@ int main(int argc, char **argv) {
                   y = 0;
 
                 float pred_y = 0.0;
-                for (auto field : x) {
+                for (auto& field : x) {
                     pred_y += old_params[field.first] * field.second;
                 }
                 pred_y += old_params[num_params - 1]; // intercept
@@ -161,10 +173,11 @@ int main(int argc, char **argv) {
                 if ((y == 0 && pred_y < 0.5) || (y == 1 && pred_y >= 0.5)) {
                     correct_count++;
                 }
-                for (auto field : x) {
-                    step_sum[field.first] += alpha * field.second * (y - pred_y);
+                float diff = alpha * (y - pred_y);
+                for (auto& field : x) {
+                    step_sum[field.first] += diff * field.second;
                 }
-                step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
+                step_sum[num_params - 1] += diff; // intercept
                 count++;
               }
               ++data_iter;
@@ -203,10 +216,6 @@ int main(int argc, char **argv) {
                           std::to_string(duration.count())
                           + "ms on part 0");
 
-            for (int i = 0; i < num_param_parts; i++) {
-              typed_cache->ReleasePart(i);
-            }
-               
             return kvs;
           },
           [](DenseRow* row, std::vector<float> v) { 

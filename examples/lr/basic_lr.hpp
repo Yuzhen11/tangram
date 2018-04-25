@@ -138,8 +138,13 @@ static auto* repartition(Collection* dataset) {
     [num_data_parts](TypedPartition<Point>* p,
       AbstractMapProgressTracker* t) {
       std::vector<std::pair<int,Point>> all;
+      int i = rand()%num_data_parts;
       for (auto& v: *p) {
-        all.push_back(std::make_pair(rand() % num_data_parts, v));
+        all.push_back(std::make_pair(i, v));
+        i += 1;
+        if (i == num_data_parts) {
+          i = 0;
+        }
       }
       return all;
     },

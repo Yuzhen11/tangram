@@ -120,6 +120,9 @@ void Fetcher::FetchPartRequest(Message msg) {
   bin >> meta;
 
   std::lock_guard<std::mutex> lk(m_);
+  if (IsVersionSatisfied(meta)) {
+    return;
+  }
   auto& q = requesting_versions_[meta.collection_id][meta.partition_id];
   // if q is empty,
   //    then push to q and fetch it!

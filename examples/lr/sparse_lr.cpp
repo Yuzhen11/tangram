@@ -32,6 +32,8 @@ int main(int argc, char **argv) {
             std::vector<std::pair<int, float>> kvs;
 
             // 1. Prepare keys
+            auto begin_time = std::chrono::steady_clock::now();
+
             auto data_iter = p->begin();
             auto end_iter = p->end();
             // make sure there is local data
@@ -60,8 +62,22 @@ int main(int argc, char **argv) {
             std::sort(keys.begin(), keys.end());
             keys.erase(std::unique(keys.begin(), keys.end()), keys.end());
 
+            auto end_time = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0, params size: " + std::to_string(keys.size()));
+
             // 2. Get
+            begin_time = std::chrono::steady_clock::now();
             auto pulled_objs = typed_cache->Get(keys);
+            end_time = std::chrono::steady_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            LOG_IF(INFO, p->id == 0) << GREEN("Parameter Get time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
+
             // std::stringstream ss;
             // for (auto obj : pulled_objs) {
             //   ss << obj.fea << ": " << obj.val << ", ";
@@ -69,6 +85,7 @@ int main(int argc, char **argv) {
             // LOG(INFO) << ss.str();
 
             // 3. Calc grad
+            begin_time = std::chrono::steady_clock::now();
             int correct_count = 0;
             std::vector<std::pair<int, float>> delta(keys.size());
             for (int i = 0; i < delta.size(); ++ i) {
@@ -117,7 +134,12 @@ int main(int argc, char **argv) {
                 data_iter = p->begin();
               }
             }
-            LOG_IF(INFO, p->id) << RED("Correct: " + std::to_string(correct_count) +
+            end_time = std::chrono::steady_clock::now();
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
+            LOG_IF(INFO, p->id == 0) << GREEN("calculate time: " + 
+                          std::to_string(duration.count())
+                          + "ms on part 0");
+            LOG_IF(INFO, p->id == 0) << RED("Correct: " + std::to_string(correct_count) +
                              ", Batch size: " + std::to_string(local_batch_size) +
                              ", Accuracy: " +
                              std::to_string(correct_count / float(local_batch_size)));
