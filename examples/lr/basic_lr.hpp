@@ -220,14 +220,13 @@ static auto *create_dense_rows(int num_param_parts, int num_params,
         return ret;
       },
       [num_param_parts, num_params, num_param_per_part](DenseRow *row, int) {
-        if (row->row_id == num_param_parts - 1) {
+        if (row->row_id == num_param_parts - 1 && num_params % num_param_per_part != 0) {
           row->params.resize(num_params % num_param_per_part);
         } else {
           row->params.resize(num_param_per_part);
         }
       })
       ->SetName("Create dense_rows for LR params");
-  ;
   return dense_rows;
 }
 
@@ -258,7 +257,7 @@ static auto copy_lr_params(
     while (iter1 != end_iter) {
       int k = iter1->row_id;
       auto &params = iter1->params;
-      if (k == num_param_parts - 1) {
+      if (k == num_param_parts - 1 && num_params % num_param_per_part != 0) {
         CHECK_EQ(params.size(), num_params % num_param_per_part);
       } else {
         CHECK_EQ(params.size(), num_param_per_part);
@@ -285,7 +284,11 @@ static auto create_lr_output(int num_param_parts, int num_param_per_part,
   }
   auto last_part_id = num_param_parts - 1;
   kvs[last_part_id].first = last_part_id;
-  kvs[last_part_id].second.resize(num_params % num_param_per_part);
+  if (num_params % num_param_per_part != 0) {
+    kvs[last_part_id].second.resize(num_params % num_param_per_part);
+  } else {
+    kvs[last_part_id].second.resize(num_param_per_part);
+  }
   auto begin = step_sum.begin() + last_part_id * num_param_per_part;
   std::transform(begin, step_sum.end(), kvs[last_part_id].second.begin(),
                  [count](float v) { return v / count; });
