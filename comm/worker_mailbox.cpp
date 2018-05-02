@@ -1,5 +1,8 @@
 #include "comm/worker_mailbox.hpp"
 
+// only work in our cluster: proj99 and w1-w20, hardcode the ib interface!!!
+// #define USE_IB
+
 namespace xyz {
 
 WorkerMailbox::WorkerMailbox(Node scheduler_node)
@@ -24,6 +27,12 @@ void WorkerMailbox::Start() {
   int port = third_party::GetAvailablePort();
   CHECK(!ip.empty()) << "failed to get ip";
   CHECK(port) << "failed to get a port";
+#ifdef USE_IB
+  // TODO: 172.16.104.1 -> 172.16.105.1
+  // my_node_.hostname = "172.16.105.1";
+  int idx = ip.find_last_of(".");
+  ip[idx-1] = '5';
+#endif
   my_node_.hostname = ip;
   my_node_.port = port;
   // cannot determine my id now, the scheduler will assign it later
