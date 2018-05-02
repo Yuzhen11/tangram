@@ -64,7 +64,7 @@ program_params = {
     # "combine_type" : "kShuffleCombine",
     "combine_type" : "kDirectCombine",
     "max_lines_per_part" : -1,
-    "replicate_factor" : 1,
+    "replicate_factor" : 10,
 }
 
 # choose one of them

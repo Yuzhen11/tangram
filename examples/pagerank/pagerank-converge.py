@@ -25,13 +25,13 @@ program_params = {
     # "url" : "/datasets/graph/google-adj",
     # "num_vertices" : 427554,
 
-    "num_local_threads" : 20,
+    "num_local_threads" : 5,
 
     "num_parts" : 400,
     "combine_type" : "kDirectCombine",
-    "num_iters" : 10,
+    "num_iters" : 1,
     "staleness" : 0,
-    "pr_url" : "/tmp/tmp/yz/tmp/0409/1930/",
+    "pr_url" : "/tmp/tmp/yz/tmp/0417/0/",
     "topk_url" : "/tmp/tmp/yz/tmp/tmp/10-1/topk",
 }
 
@@ -58,8 +58,8 @@ l = Launcher(schedulerfile, progfile, hostfile,
 l.Launch(sys.argv)
 
 # for i in reversed(xrange(5)):
-#     program_params["pr_url"] = "/tmp/tmp/yz/tmp/0409/1930/"+str(i)
-#     program_params["topk_url"] = "/tmp/tmp/yz/tmp/0409/topk3/"+str(i)
+#     program_params["pr_url"] = "/tmp/tmp/yz/tmp/0417/"+str(i)
+#     # program_params["topk_url"] = "/tmp/tmp/yz/tmp/0410/topk3/"+str(i)
 #     program_params["num_iters"] = 10+i*10
 #     l = Launcher(schedulerfile, progfile, hostfile,
 #                  common_params, scheduler_params, program_params, env_params,

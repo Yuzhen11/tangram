@@ -3,14 +3,14 @@
 import sys
 from launcher import Launcher
 
-hostfile = "machinefiles/5nodes"
-progfile = "debug/A"
-schedulerfile = "debug/SchedulerMain"
+hostfile = "machinefiles/20nodes"
+progfile = "release/A"
+schedulerfile = "release/SchedulerMain"
 
 common_params = {
-    "scheduler" : "proj10",
+    "scheduler" : "proj99",
     "scheduler_port" : "33214",
-    "hdfs_namenode" : "proj10",
+    "hdfs_namenode" : "proj99",
     "hdfs_port" : 9000,
 }
 

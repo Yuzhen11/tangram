@@ -23,7 +23,7 @@ common_params = {
 
 program_params = {
     "url1": "/tmp/tmp/yz/tmp/0408/pr/9",
-    "url2": "/tmp/tmp/yz/tmp/0409/50-0/pr",
+    "url2": "/tmp/tmp/yz/tmp/0417/0/",
 }
 
 scheduler_params = {
@@ -42,17 +42,17 @@ env_params = (
   )
 
 dump_core = False
-# l = Launcher(schedulerfile, progfile, hostfile,
-#              common_params, scheduler_params, program_params, env_params,
-#              dump_core)
+l = Launcher(schedulerfile, progfile, hostfile,
+             common_params, scheduler_params, program_params, env_params,
+             dump_core)
+
+l.Launch(sys.argv)
+
+# for i in xrange(5):
+#     program_params["url2"] = "/tmp/tmp/yz/tmp/0417/"+str(i)
+#     l = Launcher(schedulerfile, progfile, hostfile,
+#                  common_params, scheduler_params, program_params, env_params,
+#                  dump_core)
 #
-# l.Launch(sys.argv)
-
-for i in xrange(5):
-    program_params["url2"] = "/tmp/tmp/yz/tmp/0409/1930/"+str(i)
-    l = Launcher(schedulerfile, progfile, hostfile,
-                 common_params, scheduler_params, program_params, env_params,
-                 dump_core)
-
-    l.Launch(sys.argv)
+#     l.Launch(sys.argv)
 
