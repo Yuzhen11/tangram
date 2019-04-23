@@ -25,10 +25,10 @@ program_params = {
     # "url" : "/datasets/corpus/enwiki",
     # "url" : "/datasets/corpus/enwiki-21g",
     # "url" : "/datasets/corpus/enwiki10/1",
-    "url" : "/datasets/corpus/enwiki100g",
+    "url" : "/datasets/corpus/enwiki-200g-oneline",
     "num_local_threads" : 20,
 
-    "num_parts" : 100,
+    "num_parts" : 20*5,
     "combine_type": "kDirectCombine",
     # "combine_type": "kNoCombine",
     # "combine_type": "100",
@@ -51,16 +51,20 @@ env_params = (
   )
 
 dump_core = False
-l = Launcher(schedulerfile, progfile, hostfile,
-             common_params, scheduler_params, program_params, env_params,
-             dump_core)
-
-l.Launch(sys.argv)
-
-# for i in [1000, 2000, 4000, 8000]:
-#     program_params["combine_type"] = i
-#     l = Launcher(schedulerfile, progfile, hostfile,
-#                  common_params, scheduler_params, program_params, env_params,
-#                  dump_core)
+# l = Launcher(schedulerfile, progfile, hostfile,
+#              common_params, scheduler_params, program_params, env_params,
+#              dump_core)
 #
-#     l.Launch(sys.argv)
+# l.Launch(sys.argv)
+# exit(0)
+
+# for url in ["/datasets/corpus/enwiki50g", "/datasets/corpus/enwiki100g", "/datasets/corpus/enwiki200g"]:
+for url in ["/datasets/corpus/enwiki-200g-oneline"]:
+# for url in ["/datasets/corpus/enwiki-50g-oneline", "/datasets/corpus/enwiki-100g-oneline", "/datasets/corpus/enwiki-200g-oneline"]:
+    program_params["url"] = url
+    for i in xrange(3):
+        l = Launcher(schedulerfile, progfile, hostfile,
+                     common_params, scheduler_params, program_params, env_params,
+                     dump_core)
+
+        l.Launch(sys.argv)

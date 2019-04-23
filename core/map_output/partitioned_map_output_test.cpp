@@ -9,16 +9,16 @@
 namespace xyz {
 namespace {
 
-class TestPartitionedMapOutput : public testing::Test {};
+class TestOutput : public testing::Test {};
 
-TEST_F(TestPartitionedMapOutput, Construct) {
+TEST_F(TestOutput, Construct) {
   auto mapper = std::make_shared<HashKeyToPartMapper<std::string>>(4);
-  PartitionedMapOutput<std::string, int> output(mapper);
+  Output<std::string, int> output(mapper);
 }
 
-TEST_F(TestPartitionedMapOutput, Add) {
+TEST_F(TestOutput, Add) {
   auto mapper = std::make_shared<HashKeyToPartMapper<std::string>>(4);
-  PartitionedMapOutput<std::string, int> output(mapper);
+  Output<std::string, int> output(mapper);
   output.Add({"abc", 1});
   output.Add({"hello", 2});
   auto buffer = output.GetBuffer();
@@ -32,9 +32,9 @@ TEST_F(TestPartitionedMapOutput, Add) {
   EXPECT_EQ(buffer[3].size(), 0);
 }
 
-TEST_F(TestPartitionedMapOutput, AddVector) {
+TEST_F(TestOutput, AddVector) {
   auto mapper = std::make_shared<HashKeyToPartMapper<std::string>>(4);
-  PartitionedMapOutput<std::string, int> output(mapper);
+  Output<std::string, int> output(mapper);
   std::vector<std::pair<std::string, int>> v{{"abc", 1}, {"hello", 2}};
   output.Add(v);
   auto buffer = output.GetBuffer();
@@ -48,7 +48,7 @@ TEST_F(TestPartitionedMapOutput, AddVector) {
   EXPECT_EQ(buffer[3].size(), 0);
 }
 
-TEST_F(TestPartitionedMapOutput, CombineOneBuffer) {
+TEST_F(TestOutput, CombineOneBuffer) {
   std::vector<std::pair<int, int>> buffer{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
   auto combine = [](int* a, int b) { *a = *a + b; };
   const std::vector<std::pair<int, int>> expected{{3, 1}, {2, 2}, {3, 5}};
@@ -59,9 +59,9 @@ TEST_F(TestPartitionedMapOutput, CombineOneBuffer) {
   }
 }
 
-TEST_F(TestPartitionedMapOutput, Combine) {
+TEST_F(TestOutput, Combine) {
   auto mapper = std::make_shared<HashKeyToPartMapper<int>>(1);
-  PartitionedMapOutput<int, int> output(mapper);
+  Output<int, int> output(mapper);
   std::vector<std::pair<int, int>> v{{3, 1}, {2, 1}, {2, 1}, {3, 3}, {3, 2}};
   output.Add(v);
   output.SetCombineFunc([](int* a, int b) { *a = *a + b; });
@@ -74,7 +74,7 @@ TEST_F(TestPartitionedMapOutput, Combine) {
   }
 }
 
-TEST_F(TestPartitionedMapOutput, SerializeOneBuffer) {
+TEST_F(TestOutput, SerializeOneBuffer) {
   std::vector<std::pair<std::string, int>> v{{"abc", 1}, {"hello", 2}};
   SArrayBinStream bin = MapOutputStream<std::string, int>::SerializeOneBuffer(v);
   std::string s;
@@ -88,9 +88,9 @@ TEST_F(TestPartitionedMapOutput, SerializeOneBuffer) {
   EXPECT_EQ(bin.Size(), 0);
 }
 
-TEST_F(TestPartitionedMapOutput, Serialize) {
+TEST_F(TestOutput, Serialize) {
   auto mapper = std::make_shared<HashKeyToPartMapper<std::string>>(4);
-  PartitionedMapOutput<std::string, int> output(mapper);
+  Output<std::string, int> output(mapper);
   std::vector<std::pair<std::string, int>> v{{"abc", 1}, {"hello", 2}};
   output.Add(v);
   auto bins = output.Serialize();

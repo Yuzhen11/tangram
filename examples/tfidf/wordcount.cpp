@@ -6,7 +6,8 @@
 
 DEFINE_string(url, "", "The url for hdfs file");
 DEFINE_int32(num_parts, 100, "# word partitions");
-DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
+DEFINE_string(combine_type, "kDirectCombine",
+              "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
 
 using namespace xyz;
 
@@ -20,11 +21,12 @@ struct WC {
   KeyT Key() const { return word; }
 
   // TODO: we dont need the serialization func.
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const WC& wc) {
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const WC &wc) {
     stream << wc.word << wc.count;
     return stream;
   }
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, WC& wc) {
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream, WC &wc) {
     stream >> wc.word >> wc.count;
     return stream;
   }
@@ -34,65 +36,34 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
   const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
   if (FLAGS_node_id == 0) {
-    LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
+    LOG(INFO) << "combine_type: " << FLAGS_combine_type
+              << ", timeout: " << combine_timeout;
   }
-
-  /*
-  auto lines = Context::load(FLAGS_url, [](std::string content) {
-    return content;
-  });
-  auto wordcount = Context::placeholder<WC>(FLAGS_num_parts);
-  Context::mappartjoin(lines, wordcount, 
-    [](TypedPartition<std::string>* p, AbstractMapProgressTracker* t) {
-      std::vector<std::pair<std::string, int>> kvs;
-      for (auto& elem : *p) {
-        // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
-        boost::char_separator<char> sep(" \t\n");
-        boost::tokenizer<boost::char_separator<char>> tok(elem, sep);
-        for (auto& w : tok) {
-          kvs.push_back({w, 1});
-        }
-      }
-      return kvs;
-    },
-    [](WC* wc, int c) {
-      wc->count += c;
-    })
-  ->SetCombine(
-      [](int* a, int b) { return *a += b; }, 
-      combine_timeout);
-  */
 
   // use load_block_meta, read the block in mappartjoin
   auto lines = Context::load_block_meta(FLAGS_url);
   auto wordcount = Context::placeholder<WC>(FLAGS_num_parts);
-  Context::mappartjoin(lines, wordcount, 
-    [](TypedPartition<std::string>* p, AbstractMapProgressTracker* t) {
-      auto* bp = dynamic_cast<BlockPartition*>(p);
-      CHECK_NOTNULL(bp);
-      std::vector<std::pair<std::string, int>> kvs;
-      auto reader = bp->GetReader();
-      while (reader->HasLine()) {
-        auto line = reader->GetLine();
-        // LOG(INFO) << "line: " << line;
-        boost::char_separator<char> sep(" \t\n");
-        boost::tokenizer<boost::char_separator<char>> tok(line, sep);
-        for (auto& w : tok) {
-          kvs.push_back({w, 1});
+  Context::mappartjoin(
+      lines, wordcount,
+      [](TypedPartition<std::string> *p, Output<std::string, int> *o) {
+        auto *bp = dynamic_cast<BlockPartition *>(p);
+        CHECK_NOTNULL(bp);
+        auto reader = bp->GetReader();
+        while (reader->HasLine()) {
+          auto line = reader->GetLine();
+          // LOG(INFO) << "line: " << line;
+          boost::char_separator<char> sep(" \t\n");
+          boost::tokenizer<boost::char_separator<char>> tok(line, sep);
+          for (auto &w : tok) {
+            o->Add(w, 1);
+          }
         }
-      }
-      LOG(INFO) << p->id << " map done";
-      return kvs;
-    },
-    [](WC* wc, int c) {
-      wc->count += c;
-    })
-  ->SetCombine(
-      [](int* a, int b) { return *a += b; }, 
-      combine_timeout);
+        LOG(INFO) << p->id << " map done";
+      },
+      [](WC *wc, int c) { wc->count += c; })
+      ->SetCombine([](int *a, int b) { return *a += b; }, combine_timeout);
 
   Context::count(wordcount);
 
   Runner::Run();
 }
-

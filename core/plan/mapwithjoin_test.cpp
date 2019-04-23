@@ -24,10 +24,10 @@ TEST_F(TestMapWithJoin, Create) {
   Collection<ObjT> c2{2};
   Collection<ObjT> c3{4};
   auto plan = GetMapWithJoin<int>(plan_id, &c1, &c2, &c3);
-  plan.mapwith = [](const ObjT& obj, TypedCache<ObjT>* cache) {
+  plan.mapwith = [](const ObjT& obj, TypedCache<ObjT>* cache, Output<typename ObjT::KeyT, int>* o) {
     ObjT cache_obj = cache->Get(2);
     int ret = obj.Key() + cache_obj.a;
-    return std::pair<ObjT::KeyT, int>(ret, 1);
+    o->Add(ret, 1);
   };
 }
 

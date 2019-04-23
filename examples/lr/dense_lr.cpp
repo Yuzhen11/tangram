@@ -6,7 +6,8 @@ int main(int argc, char **argv) {
   Runner::Init(argc, argv);
   const int combine_timeout = ParseCombineTimeout(FLAGS_combine_type);
   if (FLAGS_node_id == 0) {
-    LOG(INFO) << "combine_type: " << FLAGS_combine_type << ", timeout: " << combine_timeout;
+    LOG(INFO) << "combine_type: " << FLAGS_combine_type
+              << ", timeout: " << combine_timeout;
   }
 
   // load and generate two collections
@@ -33,16 +34,16 @@ int main(int argc, char **argv) {
   auto p1 =
       Context::mappartwithjoin(
           points, params, params,
-          [num_params, alpha,
-           num_param_parts](TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,
-                      AbstractMapProgressTracker *t) {
-            std::vector<std::pair<int, float>> kvs(num_params);
+          [num_params, alpha, num_param_parts](TypedPartition<IndexedPoints> *p,
+                                               TypedCache<Param> *typed_cache,
+                                               Output<int, float> *o) {
             std::vector<float> step_sum(num_params, 0);
             int correct_count = 0;
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
-            auto with_parts = prepare_lr_params<Param>(num_param_parts, typed_cache);
+            auto with_parts =
+                prepare_lr_params<Param>(num_param_parts, typed_cache);
 
             // TOOD:FT for fetching map is not supported yet!
             // so make sure to kill after fetching
@@ -50,11 +51,14 @@ int main(int argc, char **argv) {
             // std::this_thread::sleep_for(std::chrono::seconds(1));
 
             auto end_time = std::chrono::steady_clock::now();
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
-            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter prepare time: " + std::to_string(duration.count()));
-            LOG_IF(INFO, p->id == 0) << GREEN("Parameter prepare time: " + 
-                          std::to_string(duration.count())
-                          + "ms on part 0");
+            auto duration =
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    end_time - begin_time);
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter prepare
+            // time: " + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0)
+                << GREEN("Parameter prepare time: " +
+                         std::to_string(duration.count()) + "ms on part 0");
 
             // 2. copy params
             begin_time = std::chrono::steady_clock::now();
@@ -70,11 +74,13 @@ int main(int argc, char **argv) {
             }
 
             end_time = std::chrono::steady_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
-            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter copy time: " + std::to_string(duration.count()));
-            LOG_IF(INFO, p->id == 0) << GREEN("Parameter copy time: " + 
-                          std::to_string(duration.count())
-                          + "ms on part 0");
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                end_time - begin_time);
+            // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("Parameter copy time: "
+            // + std::to_string(duration.count()));
+            LOG_IF(INFO, p->id == 0)
+                << GREEN("Parameter copy time: " +
+                         std::to_string(duration.count()) + "ms on part 0");
 
             // 3. calculate
             begin_time = std::chrono::steady_clock::now();
@@ -82,7 +88,7 @@ int main(int argc, char **argv) {
             int count = 0;
             auto end_iter = p->end();
             while (data_iter != end_iter) {
-              for (auto& point : data_iter->points) {
+              for (auto &point : data_iter->points) {
                 auto &x = point.x;
                 auto y = point.y;
                 if (y < 0)
@@ -90,16 +96,16 @@ int main(int argc, char **argv) {
 
                 float pred_y = 0.0;
                 for (auto field : x) {
-                    pred_y += old_params[field.first] * field.second;
+                  pred_y += old_params[field.first] * field.second;
                 }
                 pred_y += old_params[num_params - 1]; // intercept
                 pred_y = 1. / (1. + exp(-1 * pred_y));
 
                 if ((y == 0 && pred_y < 0.5) || (y == 1 && pred_y >= 0.5)) {
-                    correct_count++;
+                  correct_count++;
                 }
                 for (auto field : x) {
-                    step_sum[field.first] += alpha * field.second * (y - pred_y);
+                  step_sum[field.first] += alpha * field.second * (y - pred_y);
                 }
                 step_sum[num_params - 1] += alpha * (y - pred_y); // intercept
                 count++;
@@ -109,26 +115,26 @@ int main(int argc, char **argv) {
 
             for (int i = 0; i < num_params; i++) {
               step_sum[i] /= count;
-              kvs[i] = std::make_pair(i, step_sum[i]);
             }
-            
-            LOG_IF(INFO, p->id == 0) << RED("Correct: " + std::to_string(correct_count) +
-                             ", Batch size: " + std::to_string(count) +
-                             ", Accuracy: " +
-                             std::to_string(correct_count / float(count))
-                          + " on part 0");
+
+            LOG_IF(INFO, p->id == 0) << RED(
+                "Correct: " + std::to_string(correct_count) + ", Batch size: " +
+                std::to_string(count) + ", Accuracy: " +
+                std::to_string(correct_count / float(count)) + " on part 0");
 
             end_time = std::chrono::steady_clock::now();
-            duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - begin_time);
-            LOG_IF(INFO, p->id == 0) << GREEN("Computation time: " + 
-                          std::to_string(duration.count())
-                          + "ms on part 0");
+            duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+                end_time - begin_time);
+            LOG_IF(INFO, p->id == 0)
+                << GREEN("Computation time: " +
+                         std::to_string(duration.count()) + "ms on part 0");
 
             for (int i = 0; i < num_param_parts; i++) {
               typed_cache->ReleasePart(i);
             }
-               
-            return kvs;
+            for (int i = 0; i < step_sum.size(); ++i) {
+              o->Add(i, step_sum[i]);
+            }
           },
           [](Param *param, float val) { param->val += val; })
           ->SetIter(FLAGS_num_iter)

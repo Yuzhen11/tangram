@@ -1,9 +1,9 @@
 #include "base/color.hpp"
-#include "core/plan/runner.hpp"
 #include "boost/tokenizer.hpp"
+#include "core/plan/runner.hpp"
 
-#include <string>
 #include <cmath>
+#include <string>
 
 DEFINE_string(url, "", "The url for hdfs file");
 DEFINE_int32(num_data, -1, "The number of data in the dataset");
@@ -16,11 +16,12 @@ DEFINE_double(alpha, 0.1, "The learning rate of the model");
 DEFINE_int32(num_iter, 1, "The number of iterations");
 DEFINE_int32(staleness, 0, "Staleness for the SSP");
 DEFINE_bool(is_sgd, false, "Full gradient descent or mini-batch SGD");
-DEFINE_string(combine_type, "kDirectCombine", "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
+DEFINE_string(combine_type, "kDirectCombine",
+              "kShuffleCombine, kDirectCombine, kNoCombine, timeout");
 DEFINE_int32(max_lines_per_part, -1, "max lines per part, for debug");
 DEFINE_int32(replicate_factor, 1, "replicate the dataset");
 
-using namespace xyz;
+namespace xyz {
 
 struct Point {
   Point() = default;
@@ -81,47 +82,53 @@ struct Param {
   }
 };
 
-static auto* load_data() {
-  return Context::load(FLAGS_url, [](std::string s) {
-	  Point point;
-	  char* pos;
-	  char* tok = strtok_r(&s[0], " \t:", &pos);
-	  int i = -1;
-	  int idx;
-	  float val;
-	  while (tok != NULL) {
-	    if (i == 0) {
-	        idx = std::atoi(tok) - 1;
-	        i = 1;
-	    } else if (i == 1) {
-	        val = std::atof(tok);
-	        point.x.push_back(std::make_pair(idx, val));
-	        i = 0;
-	    } else {
-	        point.y = std::atof(tok);
-	        i = 0;
-	    }
-	    // Next key/value pair
-	    tok = strtok_r(NULL, " \t:", &pos);
-	  }
+static auto *load_data() {
+  return Context::load(FLAGS_url,
+                       [](std::string s) {
+                         Point point;
+                         char *pos;
+                         char *tok = strtok_r(&s[0], " \t:", &pos);
+                         int i = -1;
+                         int idx;
+                         float val;
+                         while (tok != NULL) {
+                           if (i == 0) {
+                             idx = std::atoi(tok) - 1;
+                             i = 1;
+                           } else if (i == 1) {
+                             val = std::atof(tok);
+                             point.x.push_back(std::make_pair(idx, val));
+                             i = 0;
+                           } else {
+                             point.y = std::atof(tok);
+                             i = 0;
+                           }
+                           // Next key/value pair
+                           tok = strtok_r(NULL, " \t:", &pos);
+                         }
 
-    return point;
-  }, FLAGS_max_lines_per_part)->SetName("dataset");
+                         return point;
+                       },
+                       FLAGS_max_lines_per_part)
+      ->SetName("dataset");
 }
 
-// return ID of cluster whose center is the nearest (uses euclidean distance), and the distance
-std::pair<int, float> get_nearest_center(const std::vector<std::pair<int, float>>& x, int K,
-                                         const std::vector<float>& params, int num_dims) {
+// return ID of cluster whose center is the nearest (uses euclidean distance),
+// and the distance
+std::pair<int, float>
+get_nearest_center(const std::vector<std::pair<int, float>> &x, int K,
+                   const std::vector<float> &params, int num_dims) {
   float square_dist, min_square_dist = std::numeric_limits<float>::max();
   int id_cluster_center = -1;
 
-  for (int i = 0; i < K; i++)  // calculate the dist between point and clusters[i]
+  for (int i = 0; i < K;
+       i++) // calculate the dist between point and clusters[i]
   {
     int begin = i * num_dims;
     square_dist = 0;
-    for (auto& field : x) {
+    for (auto &field : x) {
       float diff = params[begin + field.first] - field.second;
-      square_dist += diff*diff;
+      square_dist += diff * diff;
     }
 
     if (square_dist < min_square_dist) {
@@ -131,3 +138,5 @@ std::pair<int, float> get_nearest_center(const std::vector<std::pair<int, float>
   }
   return std::make_pair(id_cluster_center, min_square_dist);
 }
+
+}  // namespace xyz

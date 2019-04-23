@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/index/abstract_part_to_node_mapper.hpp"
+#include "core/index/abstract_key_to_part_mapper.hpp"
 #include "base/third_party/range.h"
 
 #include <functional>

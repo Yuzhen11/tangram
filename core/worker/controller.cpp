@@ -31,6 +31,13 @@ void Controller::Process(Message msg) {
     }
   }
 
+  if (flag != ControllerFlag::kSetup) {
+    if (plan_timer_.find(plan_id) == plan_timer_.end()) {
+      plan_timer_[plan_id].start_time = std::chrono::steady_clock::now();
+    }
+  }
+  auto start_time = std::chrono::steady_clock::now();
+
   switch (flag) {
   case ControllerFlag::kSetup: {
     Setup(bin);
@@ -86,6 +93,18 @@ void Controller::Process(Message msg) {
   }
   default: CHECK(false);
   }
+
+  auto end_time = std::chrono::steady_clock::now();
+  if (flag != ControllerFlag::kSetup) {
+    CHECK(plan_timer_.find(plan_id) != plan_timer_.end());
+    plan_timer_[plan_id].control_time += std::chrono::duration_cast<std::chrono::microseconds>(end_time - start_time);
+    if (flag == ControllerFlag::kTerminatePlan) {
+      plan_timer_[plan_id].plan_time += std::chrono::duration_cast<std::chrono::microseconds>(end_time - plan_timer_[plan_id].start_time);
+      LOG(INFO) << "[Controller] plan " << plan_id 
+        << " plan time(ms): " << plan_timer_[plan_id].plan_time.count()/1000
+        << " control time(ms): " << plan_timer_[plan_id].control_time.count()/1000;
+    }
+  }
 }
 
 void Controller::Setup(SArrayBinStream bin) {
@@ -108,7 +127,7 @@ void Controller::TerminatePlan(int plan_id) {
   boost::unique_lock<boost::shared_mutex> lk(erase_mu_);
   erased[plan_id] = true;
   LOG(INFO) << "[Controller] Terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
-  plan_controllers_[plan_id]->DisplayTime();
+  // plan_controllers_[plan_id]->DisplayTime();
   plan_controllers_.erase(plan_id);
   LOG(INFO) << "[Controller] Done terminating plan " << plan_id << " on node: " << engine_elem_.node.id;
   /*

@@ -8,7 +8,6 @@
 #include "core/map_output/map_output_stream.hpp"
 #include "core/partition/abstract_partition.hpp"
 #include "core/cache/abstract_fetcher.hpp"
-#include "core/partition/abstract_map_progress_tracker.hpp"
 #include "io/abstract_block_reader.hpp"
 #include "io/abstract_writer.hpp"
 
@@ -17,16 +16,14 @@ namespace xyz {
 class AbstractFunctionStore {
  public:
   using MapFuncT = std::function<std::shared_ptr<AbstractMapOutput>(
-          std::shared_ptr<AbstractPartition>, 
-          std::shared_ptr<AbstractMapProgressTracker>)>;
+          std::shared_ptr<AbstractPartition>)>;
   using MergeCombineFuncT = std::function<SArrayBinStream(const std::vector<std::shared_ptr<AbstractMapOutput>>& map_outputs, int part_id)>;
   using JoinFuncT = std::function<void (std::shared_ptr<AbstractPartition>, SArrayBinStream)>;
   using JoinFunc2T = std::function<void(std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapOutputStream>)>;
   using MapWith = 
       std::function<std::shared_ptr<AbstractMapOutput>(int, int,
                                                        std::shared_ptr<AbstractPartition>,
-                                                       std::shared_ptr<AbstractFetcher>,
-                                                       std::shared_ptr<AbstractMapProgressTracker>)>;
+                                                       std::shared_ptr<AbstractFetcher>)>;
   using CreatePartFromBinFuncT = std::function<std::shared_ptr<AbstractPartition>(
           SArrayBinStream bin, int part_id, int num_part)>;
   using CreatePartFromBlockReaderFuncT = std::function<std::shared_ptr<AbstractPartition>(

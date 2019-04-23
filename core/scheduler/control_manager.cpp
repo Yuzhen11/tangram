@@ -64,6 +64,23 @@ void ControlManager::Control(SArrayBinStream bin) {
 #endif
   } else if (ctrl.flag == ControllerMsg::Flag::kJoin) {
     HandleUpdateJoinVersion(ctrl);
+    //// for kmeans
+    /*
+    if (migrate_control && versions_[ctrl.plan_id] == 3 && ctrl.plan_id == 7) {
+      migrate_control = false;
+      const int from_id = 1;
+      const int node_num = 10;
+      const int num_parts = 1200;
+      const int parts_per_node = num_parts/node_num;
+      for (int i = 0; i < parts_per_node; ++ i) {
+        int part_id = 0 + i*node_num;
+        int to_id = from_id + 1 + i %(node_num-1);
+        MigrateMapOnly(ctrl.plan_id, from_id, to_id, part_id);
+        LOG(INFO) << "migrating from_id, to_id, part_id: " << from_id << " " << to_id << " " << part_id;
+      }
+    }
+    */
+    //// for kmeans
 #ifdef WITH_LB_JOIN
     if (migrate_control && 
         specs_[ctrl.plan_id].name == "pagerank main logic" &&

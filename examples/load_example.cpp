@@ -13,35 +13,35 @@ struct ObjT {
   KeyT Key() const { return a; }
   KeyT a;
   int b;
-  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const ObjT& obj) {
+  friend SArrayBinStream &operator<<(xyz::SArrayBinStream &stream,
+                                     const ObjT &obj) {
     stream << obj.a << obj.b;
     return stream;
   }
-  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, ObjT& obj) {
+  friend SArrayBinStream &operator>>(xyz::SArrayBinStream &stream, ObjT &obj) {
     stream >> obj.a >> obj.b;
     return stream;
   }
 };
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   Runner::Init(argc, argv);
 
   auto c1 = Context::load(FLAGS_url, [](std::string s) { return s; });
   auto c2 = Context::placeholder<ObjT>(1);
 
-  auto p = Context::mapjoin(c1, c2, 
-    [](std::string word) {
-      return std::pair<std::string, int>(word, 1);
-    },
-    [](ObjT* obj, int m) {
-      obj->b += m;
-      LOG(INFO) << "join result: " << obj->a << " " << obj->b;
-    });
+  auto p = Context::mapjoin(
+      c1, c2,
+      [](std::string word, Output<std::string, int> *o) { o->Add(word, 1); },
+      [](ObjT *obj, int m) {
+        obj->b += m;
+        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+      });
 
-  Context::write(c2, FLAGS_output_url, [](const ObjT& obj, std::stringstream& ss) {
-    ss << obj.a << " " << obj.b << "\n";
-  });
+  Context::write(c2, FLAGS_output_url,
+                 [](const ObjT &obj, std::stringstream &ss) {
+                   ss << obj.a << " " << obj.b << "\n";
+                 });
 
   Runner::Run();
 }

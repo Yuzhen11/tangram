@@ -1,5 +1,7 @@
 #pragma once
 
+#include <chrono>
+
 #include "base/actor.hpp"
 #include "core/worker/abstract_plan_controller.hpp"
 #include "core/engine_elem.hpp"
@@ -33,6 +35,13 @@ class Controller : public Actor {
   std::map<int, std::shared_ptr<AbstractPlanController>> plan_controllers_;
   std::map<int, bool> erased;
   boost::shared_mutex erase_mu_;
+
+  struct Timer {
+    std::chrono::microseconds plan_time{0};
+    std::chrono::microseconds control_time{0};
+    std::chrono::time_point<std::chrono::steady_clock> start_time;
+  };
+  std::map<int, Timer> plan_timer_;
 };
 
 }  // namespace xyz

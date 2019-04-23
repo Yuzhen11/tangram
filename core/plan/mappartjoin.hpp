@@ -24,14 +24,14 @@ MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapPartJoin(i
 
 template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT>
 struct MapPartJoin : public PlanBase {
-  using MapPartFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(
-          TypedPartition<ObjT1>* p, AbstractMapProgressTracker* t)>;
+  using MapPartFuncT = std::function<void(
+          TypedPartition<ObjT1>* p, Output<typename ObjT2::KeyT, MsgT>* )>;
   using JoinFuncT = std::function<void(ObjT2*, MsgT)>;
   using CombineFuncT = std::function<void(MsgT*, const MsgT&)>;
 
   // for internal use
   using MapFuncTempT = std::function<std::shared_ptr<AbstractMapOutput>(
-          std::shared_ptr<AbstractPartition>, std::shared_ptr<AbstractMapProgressTracker>)>;
+          std::shared_ptr<AbstractPartition>)>;
 
   MapPartJoin(int _plan_id, C1* _map_collection, C2* _join_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), join_collection(_join_collection) {
@@ -82,11 +82,10 @@ struct MapPartJoin : public PlanBase {
   virtual void Register(std::shared_ptr<AbstractFunctionStore> function_store) override {
     auto map_part = GetMapPartFunc();
     function_store->AddMap(plan_id, [this, map_part](
-                std::shared_ptr<AbstractPartition> partition,
-                std::shared_ptr<AbstractMapProgressTracker> tracker) {
-      auto map_output = map_part(partition, tracker);
+                std::shared_ptr<AbstractPartition> partition) {
+      auto map_output = map_part(partition);
       if (combine_func) {
-        static_cast<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine_func);
+        static_cast<Output<typename ObjT2::KeyT, MsgT>*>(map_output.get())->SetCombineFunc(combine_func);
       }
       return map_output;
     });
@@ -98,13 +97,13 @@ struct MapPartJoin : public PlanBase {
 
   MapFuncTempT GetMapPartFunc() {
     CHECK_NOTNULL(mappart);
-    return [this](std::shared_ptr<AbstractPartition> partition, std::shared_ptr<AbstractMapProgressTracker> tracker) {
+    return [this](std::shared_ptr<AbstractPartition> partition) {
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
       CHECK_NOTNULL(join_collection->GetMapper());
-      auto output = std::make_shared<PartitionedMapOutput<typename ObjT2::KeyT, MsgT>>(join_collection->GetMapper());
+      auto output = std::make_shared<Output<typename ObjT2::KeyT, MsgT>>(join_collection->GetMapper());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
-      output->Add(mappart(p, tracker.get()));
+      mappart(p, output.get());
       return output;
     };
   }

@@ -1,11 +1,11 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
-#include "core/scheduler/scheduler.hpp"
 #include "comm/scheduler_mailbox.hpp"
 #include "comm/sender.hpp"
-#include "io/hdfs_browser.hpp"
+#include "core/scheduler/scheduler.hpp"
 #include "io/assigner.hpp"
+#include "io/hdfs_browser.hpp"
 
 DEFINE_int32(num_worker, -1, "The number of workers");
 DEFINE_string(scheduler, "proj10", "The host of scheduler");
@@ -21,7 +21,8 @@ void RunScheduler() {
   Node scheduler_node{0, FLAGS_scheduler, FLAGS_scheduler_port, false};
 
   // create mailbox and sender
-  auto scheduler_mailbox = std::make_shared<SchedulerMailbox>(scheduler_node, FLAGS_num_worker);
+  auto scheduler_mailbox =
+      std::make_shared<SchedulerMailbox>(scheduler_node, FLAGS_num_worker);
   auto sender = std::make_shared<Sender>(-1, scheduler_mailbox.get());
 
   // create scheduler and register queue
@@ -48,10 +49,9 @@ void RunScheduler() {
   scheduler_mailbox->Stop();
 }
 
-}  // namespace xyz
+} // namespace xyz
 
-
-int main(int argc, char** argv) {
+int main(int argc, char **argv) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 

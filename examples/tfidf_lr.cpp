@@ -28,7 +28,7 @@ public:
   KeyT title;
   std::vector<float> tf;
   std::vector<float> tf_idf;
-  std::vector<size_t> words;
+  std::vector<int> words;
   int label; // for training
   int total_words = 0;
   const KeyT &id() const { return title; }
@@ -48,7 +48,7 @@ public:
 
 class Term {
 public:
-  using KeyT = std::size_t;
+  using KeyT = int;
   Term() = default;
   explicit Term(const KeyT &term) : termid(term) {}
   KeyT termid;
@@ -120,6 +120,7 @@ int main(int argc, char **argv) {
   }
 
   // load and generate two collections
+  /*
   auto loaded_docs =
       Context::load_wholefiles(FLAGS_url, [](std::string content) {
         // parse extract title
@@ -166,18 +167,59 @@ int main(int argc, char **argv) {
 
         return doc;
       });
+      */
+
+  auto loaded_docs =
+      Context::load(FLAGS_url, [](std::string content) {
+        // parse extract title
+
+        Document doc("");
+        std::vector<int> count;
+        if (content.size() > 0) {
+          // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
+          boost::char_separator<char> sep(" \t\n");
+          boost::tokenizer<boost::char_separator<char>> tok(content, sep);
+          for (auto &w : tok) {
+            // doc.words.push_back(std::hash<std::string>{}(w)%1000);
+            // doc.words.push_back(std::hash<std::string>{}(w)%(2<<18));
+            doc.words.push_back(std::hash<std::string>{}(w)%FLAGS_num_params);
+            // std::transform(doc.words.back().begin(), doc.words.back().end(),
+            // doc.words.back().begin(), ::tolower);
+          }
+          doc.total_words = doc.words.size();
+          std::sort(doc.words.begin(), doc.words.end());
+          int n = 0;
+          for (int i = 0, j = 0; i < doc.words.size(); i = j) {
+            for (j = i + 1; j < doc.words.size(); j++) {
+              if (doc.words.at(i) != doc.words.at(j))
+                break;
+            }
+            count.push_back(j - i);
+            doc.words[n++] = doc.words[i];
+          }
+          doc.words.resize(n);
+          doc.words.shrink_to_fit();
+          doc.tf.resize(doc.words.size());
+          doc.tf_idf.resize(doc.words.size());
+          for (int i = 0; i < doc.words.size(); i++) {
+            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
+          }
+        }
+
+        return doc;
+      });
 
   // no need indexed_docs using pull model.
   // auto indexed_docs =
   // Context::placeholder<Document>(FLAGS_num_doc_partition);
   auto terms_key_part_mapper =
-      std::make_shared<HashKeyToPartMapper<size_t>>(FLAGS_num_term_partition);
+      std::make_shared<HashKeyToPartMapper<int>>(FLAGS_num_term_partition);
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition,
                                           terms_key_part_mapper);
   /*
   Context::mappartjoin(
       loaded_docs, indexed_docs,
-      [](TypedPartition<Document>* p, AbstractMapProgressTracker* t) {
+      [](TypedPartition<Document>* p) {
         std::vector<std::pair<std::string, Document>> ret;
         for (auto& doc : *p) {
           ret.push_back({doc.id(),doc});
@@ -193,21 +235,19 @@ int main(int argc, char **argv) {
   // Context::sort_each_partition(indexed_docs);
   Context::sort_each_partition(terms);
 
-  Context::mappartjoin(
-      loaded_docs, terms,
-      [](TypedPartition<Document> *p, AbstractMapProgressTracker *t) {
-        std::vector<std::pair<size_t, int>> ret;
-        for (auto &doc : *p) {
-          for (int i = 0; i < doc.words.size(); i++) {
-            ret.push_back({doc.words[i], 1});
-          }
-        }
-        return ret;
-      },
-      [](Term *term, int n) {
-        term->idf += n;
+  Context::mappartjoin(loaded_docs, terms,
+                       [](TypedPartition<Document> *p, Output<int, int> *o) {
+                         std::vector<std::pair<int, int>> ret;
+                         for (auto &doc : *p) {
+                           for (int i = 0; i < doc.words.size(); i++) {
+                             o->Add(doc.words[i], 1);
+                           }
+                         }
+                       },
+                       [](Term *term, int n) {
+                         term->idf += n;
 
-      })
+                       })
       ->SetCombine([](int *a, int b) { *a += b; })
       ->SetName("Out all the doc");
 
@@ -217,9 +257,8 @@ int main(int argc, char **argv) {
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,
-                              AbstractMapProgressTracker *t) {
+                              Output<int, int> *o) {
 
-        std::vector<std::pair<int, int>> ret;
         std::vector<std::shared_ptr<IndexedSeqPartition<Term>>> with_parts(
             FLAGS_num_term_partition);
         std::map<std::string, int> terms_map;
@@ -263,7 +302,7 @@ int main(int argc, char **argv) {
         // method2
         for (auto &doc : *p) {
           for (int i = 0; i < doc.words.size(); i++) {
-            size_t term = doc.words[i];
+            int term = doc.words[i];
             auto &with_p = with_parts[terms_key_part_mapper->Get(term)];
             auto *t = with_p->Find(term);
             CHECK_NOTNULL(t);
@@ -276,7 +315,6 @@ int main(int argc, char **argv) {
         for (int i = 0; i < FLAGS_num_term_partition; i++) {
           typed_cache->ReleasePart(i);
         }
-        return ret;
       },
       [](CountObjT *t, int) {})
       ->SetName("Send idf back to doc");
@@ -302,12 +340,13 @@ int main(int argc, char **argv) {
           loaded_docs, dense_rows, dense_rows,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,
-              AbstractMapProgressTracker *t) {
+              Output<int, std::vector<float>> *o) {
             std::vector<float> step_sum(num_params, 0);
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
-            auto with_parts = prepare_lr_params<DenseRow>(num_param_parts, typed_cache);
+            auto with_parts =
+                prepare_lr_params<DenseRow>(num_param_parts, typed_cache);
             // TOOD:FT for fetching map is not supported yet!
             // so make sure to kill after fetching
             // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("sleeping");
@@ -347,6 +386,8 @@ int main(int argc, char **argv) {
             // create the output
             auto kvs = create_lr_output(num_param_parts, num_param_per_part,
                                         num_params, count, step_sum);
+            for (auto &kv : kvs)
+              o->Add(kv.first, std::move(kv.second));
 
             LOG_IF(INFO, p->id == 0) << RED(
                 "Correct: " + std::to_string(correct_count) + ", Batch size: " +
@@ -394,12 +435,13 @@ int main(int argc, char **argv) {
           loaded_docs, dense_rows2, dense_rows2,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,
-              AbstractMapProgressTracker *t) {
+              Output<int, std::vector<float>> *o) {
             std::vector<float> step_sum(num_params, 0);
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
-            auto with_parts = prepare_lr_params<DenseRow>(num_param_parts, typed_cache);
+            auto with_parts =
+                prepare_lr_params<DenseRow>(num_param_parts, typed_cache);
             // TOOD:FT for fetching map is not supported yet!
             // so make sure to kill after fetching
             // LOG_IF(INFO, FLAGS_node_id == 0) << GREEN("sleeping");
@@ -439,6 +481,8 @@ int main(int argc, char **argv) {
             // create the output
             auto kvs = create_lr_output(num_param_parts, num_param_per_part,
                                         num_params, count, step_sum);
+            for (auto &kv : kvs)
+              o->Add(kv.first, std::move(kv.second));
 
             LOG_IF(INFO, p->id == 0) << RED(
                 "Correct: " + std::to_string(correct_count) + ", Batch size: " +
@@ -456,7 +500,6 @@ int main(int argc, char **argv) {
               typed_cache->ReleasePart(i);
             }
 
-            return kvs;
           },
           [](DenseRow *row, std::vector<float> v) {
             CHECK_EQ(row->params.size(), v.size());

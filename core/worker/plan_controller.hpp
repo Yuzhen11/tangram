@@ -134,23 +134,26 @@ class PlanController : public AbstractPlanController {
   int expected_num_iter_;
 
   // part -> version
-  std::map<int, int> map_versions_;
+  std::unordered_map<int, int> map_versions_;
 
   // part -> version
-  std::map<int, int> join_versions_;
+  std::unordered_map<int, int> join_versions_;
   // part -> version -> upstream_id (finished)
-  std::map<int, std::map<int, std::set<int>>> join_tracker_;
+  std::unordered_map<int, std::unordered_map<int, std::set<int>>> join_tracker_;
+  std::vector<int> join_tracker_size_;
+  void CalcJoinTrackerSize();
+  void ShowJoinTrackerSize();
 
   // for map_collection_id_ == join_collection_id_ only?
   // part, version
-  std::map<int, std::map<int, std::deque<VersionedJoinMeta>>> pending_joins_;
+  std::unordered_map<int, std::unordered_map<int, std::deque<VersionedJoinMeta>>> pending_joins_;
 
   std::set<int> running_maps_;
-  std::map<int, int> running_joins_;  // part_id -> upstream_id
+  std::unordered_map<int, int> running_joins_;  // part_id -> upstream_id
   // std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
-  std::map<int, int> running_fetches_;  // part_id, count
+  std::unordered_map<int, int> running_fetches_;  // part_id, count
   // part -> join, some joins are waiting as there is a join writing that part
-  std::map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
+  std::unordered_map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
 
   std::shared_ptr<Executor> fetch_executor_;
   std::shared_ptr<Executor> map_executor_;
@@ -171,9 +174,9 @@ class PlanController : public AbstractPlanController {
   struct MigrateData {
     int map_version;
     int join_version;
-    std::map<int, std::deque<VersionedJoinMeta>> pending_joins;
+    std::unordered_map<int, std::deque<VersionedJoinMeta>> pending_joins;
     std::deque<VersionedJoinMeta> waiting_joins;
-    std::map<int, std::set<int>> join_tracker;
+    std::unordered_map<int, std::set<int>> join_tracker;
 
     friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const MigrateData& d) {
       stream << d.map_version << d.join_version << d.pending_joins << d.waiting_joins << d.join_tracker;

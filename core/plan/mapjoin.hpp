@@ -31,33 +31,23 @@ MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT> GetMapJoin(int plan_
  */
 template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT>
 struct MapJoin : public MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>{
-  using MapFuncT = std::function<std::pair<typename ObjT2::KeyT, MsgT>(const ObjT1&)>;
-  using MapVecFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(const ObjT1&)>;
+  using MapFuncT = std::function<void(const ObjT1&, Output<typename ObjT2::KeyT, MsgT>*)>;
 
   MapJoin(int plan_id, C1* map_collection, C2* join_collection)
       : MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>(plan_id, map_collection, join_collection) {
   }
 
   void SetMapPart() {
-    CHECK((map != nullptr) ^ (map_vec != nullptr));
+    CHECK(map != nullptr);
     // construct the mappart
-    this->mappart = [this](TypedPartition<ObjT1>* p, AbstractMapProgressTracker* tracker) {
+    this->mappart = [this](TypedPartition<ObjT1>* p, 
+        Output<typename ObjT2::KeyT, MsgT>* o) {
       CHECK_NOTNULL(p);
-      std::vector<std::pair<typename ObjT2::KeyT, MsgT>> kvs;
       int i = 0;
       for (auto& elem : *p) {
-        if (map != nullptr) {
-          kvs.push_back(map(elem));
-        } else {
-          auto tmp  = map_vec(elem);  // TODO may be inefficient
-          kvs.insert(kvs.end(), tmp.begin(), tmp.end());
-        }
+        map(elem, o);
         i += 1;
-        if (i % 10 == 0) {
-          tracker->Report(i);
-        }
       }
-      return kvs;
     };
   }
   void Register(std::shared_ptr<AbstractFunctionStore> function_store) {
@@ -66,8 +56,6 @@ struct MapJoin : public MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>{
   }
 
   MapFuncT map;  // a -> b
-  MapVecFuncT map_vec;  // a -> [b] 
-
 };
 
 }  // namespace xyz

@@ -15,8 +15,7 @@ MapWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT,
 
 template<typename C1, typename C2, typename C3, typename ObjT1, typename ObjT2, typename ObjT3, typename MsgT>
 struct MapWithJoin : public MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT> {
-  using MapWithFuncT = std::function<std::pair<typename ObjT2::KeyT, MsgT>(const ObjT1&, TypedCache<ObjT3>*)>;
-  using MapVecWithFuncT = std::function<std::vector<std::pair<typename ObjT2::KeyT, MsgT>>(const ObjT1&, TypedCache<ObjT3>*)>;
+  using MapWithFuncT = std::function<void(const ObjT1&, TypedCache<ObjT3>*, Output<typename ObjT3::KeyT, MsgT>*)>;
 
   MapWithJoin(int plan_id, C1* map_collection, 
        C2* with_collection,
@@ -25,26 +24,16 @@ struct MapWithJoin : public MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT> {
   }
 
   void SetMapPartWith() {
-    CHECK((mapwith != nullptr) ^ (mapvec_with != nullptr));
+    CHECK(mapwith != nullptr);
     // construct the mappartwith
     this->mappartwith = [this](TypedPartition<ObjT1>* p, 
             TypedCache<ObjT2>* typed_cache,
-            AbstractMapProgressTracker* tracker) {
-      std::vector<std::pair<typename ObjT2::KeyT, MsgT>> kvs;
+            Output<typename ObjT3::KeyT, MsgT>* o) {
       int i = 0;
       for (auto& elem : *p) {
-        if (mapwith != nullptr) {
-          kvs.push_back(mapwith(elem, typed_cache));
-        } else {
-          auto tmp  = mapvec_with(elem, typed_cache);  // TODO may be inefficient
-          kvs.insert(kvs.end(), tmp.begin(), tmp.end());
-        }
+        mapwith(elem, typed_cache, o);
         i += 1;
-        if (i % 10 == 0) {
-          tracker->Report(i);
-        }
       }
-      return kvs;
     };
   }
 
@@ -54,7 +43,6 @@ struct MapWithJoin : public MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT> {
   }
 
   MapWithFuncT mapwith;  // a (with c) -> b
-  MapVecWithFuncT mapvec_with;  // a (with c) -> [b]
 };
 
 }  // namespace xyz

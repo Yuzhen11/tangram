@@ -17,9 +17,11 @@ namespace xyz {
  * Not thread-safe
  */
 template<typename KeyT, typename MsgT>
-class PartitionedMapOutput : public AbstractMapOutput {
+class Output: public AbstractMapOutput {
  public:
-  PartitionedMapOutput(std::shared_ptr<AbstractKeyToPartMapper> mapper)
+  using OutputKeyT = KeyT;
+  using OutputMsgT = MsgT;
+  Output(std::shared_ptr<AbstractKeyToPartMapper> mapper)
       :key_to_part_mapper_(mapper), buffer_(mapper->GetNumPart()), 
        buffer_pointers_(mapper->GetNumPart()) {
     for (int i = 0; i < buffer_.size(); ++ i) {
@@ -28,7 +30,7 @@ class PartitionedMapOutput : public AbstractMapOutput {
     }
     typed_mapper_ = static_cast<TypedKeyToPartMapper<KeyT>*>(key_to_part_mapper_.get());
   }
-  virtual ~PartitionedMapOutput() {}
+  virtual ~Output() {}
 
   virtual int GetBufferSize() {
     return buffer_.size();
@@ -44,6 +46,13 @@ class PartitionedMapOutput : public AbstractMapOutput {
     for (auto* buffer : buffer_pointers_) {
       buffer->SetCombineFunc(combine_func);
     }
+  }
+
+  void Add(KeyT key, MsgT msg) {
+    DCHECK(typed_mapper_);
+    auto part_id = typed_mapper_->Get(key);
+    DCHECK_LT(part_id, key_to_part_mapper_->GetNumPart());
+    buffer_pointers_[part_id]->Add(std::make_pair(std::move(key), std::move(msg)));
   }
 
   void Add(std::pair<KeyT, MsgT> msg) {

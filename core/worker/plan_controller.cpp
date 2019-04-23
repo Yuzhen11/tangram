@@ -1,6 +1,5 @@
 #include "core/worker/plan_controller.hpp"
 #include "core/scheduler/control.hpp"
-#include "core/partition/abstract_map_progress_tracker.hpp"
 #include "glog/logging.h"
 #include "base/color.hpp"
 
@@ -8,13 +7,13 @@
 #include <stdlib.h>
 //core/scheduler/control_manager.cpp; core/worker/plan_controller.cpp
 #define BGCP false
-//#define CPULIMIT
+// #define CPULIMIT
+
+// for migrate join like pr, enable MIGRATE_JOIN and use stop_joining_partitions_
+// for migrate map like kmeans, disable stop_joining_partitions_
+// #define MIGRATE_JOIN 
 
 namespace xyz {
-
-struct FakeTracker : public AbstractMapProgressTracker {
-  virtual void Report(int) override {}
-};
 
 PlanController::PlanController(Controller* controller)
   : controller_(controller) {
@@ -24,6 +23,7 @@ PlanController::PlanController(Controller* controller)
 }
 
 PlanController::~PlanController() {
+  ShowJoinTrackerSize();
   LOG(INFO) << RED("~PlanController: " + std::to_string(plan_id_));
 }
  
@@ -91,9 +91,10 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
 #ifdef CPULIMIT 
   std::thread cpu_limit([this, new_version](){
     if (controller_->engine_elem_.node.id == 1 &&
-        new_version == 2) {
+        new_version == 1) {
       LOG(INFO) << RED("[PlanController::UpdateVersion] start to run cpulimit on node 1");
-      system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 100 -e PageRankWith");
+      // system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 100 -e PageRankWith");
+      system("/data/opt/tmp/xuan/cpulimit/src/cpulimit -l 1600 -e KmeansRowExample");
       //system("/data/yuzhen/utils/runAll.sh \"pkill cpulimit\"");
     }
   });
@@ -125,9 +126,11 @@ void PlanController::FinishMap(SArrayBinStream bin) {
     }
   }
 
+#ifdef MIGRATE_JOIN
   if (!update_version) {
     return;
   }
+#endif
 
   if (map_versions_.find(part_id) == map_versions_.end()) {
     LOG(INFO) << "FinishMap for part not local";
@@ -202,6 +205,7 @@ bool PlanController::IsMapRunnable(int part_id) {
 bool PlanController::TryRunWaitingJoins(int part_id) {
   // if some fetches are in the waiting_joins_, 
   // join_collection_id_ == fetch_collection_id_
+#ifdef MIGRATE_JOIN
   {
     std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
     if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
@@ -209,6 +213,7 @@ bool PlanController::TryRunWaitingJoins(int part_id) {
       return false;
     }
   }
+#endif
   
   if (running_joins_.find(part_id) != running_joins_.end()) {
     // someone is joining this part
@@ -253,6 +258,8 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
     join_tracker_[part_id][version].insert(upstream_part_id);
   }
   if (join_tracker_[part_id][version].size() == num_upstream_part_) {
+    CalcJoinTrackerSize();
+    join_tracker_[part_id][version].clear(); //
     join_versions_[part_id] += 1;
 
     bool runcp = TryCheckpoint(part_id);
@@ -379,9 +386,7 @@ void PlanController::RunMap(int part_id, int version,
   };
 
   map_executor_->Add([this, part_id, version, p, AbortMap]() {
-    auto start = std::chrono::system_clock::now();
-    auto pt = std::make_shared<FakeTracker>();
-
+    // auto start = std::chrono::system_clock::now();
     {
       std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
       if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
@@ -393,10 +398,10 @@ void PlanController::RunMap(int part_id, int version,
     std::shared_ptr<AbstractMapOutput> map_output;
     if (type_ == SpecWrapper::Type::kMapJoin) {
       auto& map = controller_->engine_elem_.function_store->GetMap(GetRealId(plan_id_));
-      map_output = map(p, pt); 
+      map_output = map(p); 
     } else if (type_ == SpecWrapper::Type::kMapWithJoin){
       auto& mapwith = controller_->engine_elem_.function_store->GetMapWith(GetRealId(plan_id_));
-      map_output = mapwith(plan_id_, version, p, controller_->engine_elem_.fetcher, pt); 
+      map_output = mapwith(plan_id_, version, p, controller_->engine_elem_.fetcher); 
     } else {
       CHECK(false);
     }
@@ -409,7 +414,7 @@ void PlanController::RunMap(int part_id, int version,
       }
     }
     // 2. send to delayed_combiner
-    auto start2 = std::chrono::system_clock::now();
+    // auto start2 = std::chrono::system_clock::now();
     CHECK(delayed_combiner_);
     delayed_combiner_->AddMapOutput(part_id, version, map_output);
     Message msg;
@@ -426,11 +431,13 @@ void PlanController::RunMap(int part_id, int version,
     msg.AddData(bin.ToSArray());
     controller_->GetWorkQueue()->Push(msg);
     
+    /*
     auto end = std::chrono::system_clock::now();
     {
       std::unique_lock<std::mutex> lk(time_mu_);
       map_time_[part_id] = std::make_tuple(start, start2, end);
     }
+    */
   });
 }
 
@@ -500,6 +507,8 @@ bool PlanController::IsJoinedBefore(const VersionedShuffleMeta& meta) {
 void PlanController::RunJoin(VersionedJoinMeta meta) {
   // LOG(INFO) << meta.meta.DebugString();
   if (IsJoinedBefore(meta.meta)) {
+    // Need to TryRunWaitingJoins
+    TryRunWaitingJoins(meta.meta.part_id);
     return;
   }
   // LOG(INFO) << "RunJoin: " << meta.meta.DebugString();
@@ -509,7 +518,7 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
   // map wait for fetch, fetch wait for join, join is in running_joins_
   // but it cannot run because map does not finish and occupy the threadpool
   fetch_executor_->Add([this, meta]() {
-    auto start = std::chrono::system_clock::now();
+    // auto start = std::chrono::system_clock::now();
 
     if (local_map_mode_ && meta.meta.local_mode) {
       std::tuple<int, std::vector<int>, int> k;
@@ -551,11 +560,13 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     msg.AddData(bin.ToSArray());
     controller_->GetWorkQueue()->Push(msg);
     
+    /*
     auto end = std::chrono::system_clock::now();
     {
       std::unique_lock<std::mutex> lk(time_mu_);
       join_time_[meta.meta.part_id][meta.meta.upstream_part_id] = std::make_pair(start, end);
     }
+    */
   });
 }
 
@@ -602,6 +613,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
     return;
   }
 
+#ifdef MIGRATE_JOIN
   {
     std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
     if (stop_joining_partitions_.find(fetch_meta.meta.part_id) != stop_joining_partitions_.end()) {
@@ -610,6 +622,7 @@ void PlanController::ReceiveFetchRequest(Message msg) {
       return;
     }
   }
+#endif
 
   if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
     // if this part is joining
@@ -1010,9 +1023,19 @@ void PlanController::FinishLoadWith(SArrayBinStream bin) {
 }
 
 void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_meta) {
+  LOG(INFO) << "[Migrate] migrating start: " << migrate_meta.DebugString();
+  // std::thread th([this, migrate_meta]() mutable {
   CHECK_EQ(migrate_meta.collection_id, map_collection_id_) << "only consider map_collection first";
   CHECK_NE(migrate_meta.collection_id, join_collection_id_) << "only consider map_collection first";
   CHECK(map_versions_.find(migrate_meta.partition_id) != map_versions_.end());
+
+  // stop the running map
+  {
+    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
+    CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) == stop_joining_partitions_.end());
+    // insert the migrate partition into stop_joining_partitions_
+    stop_joining_partitions_[migrate_meta.partition_id] = true;
+  }
   
   // version
   int map_version = map_versions_[migrate_meta.partition_id];
@@ -1046,6 +1069,8 @@ void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_met
   msg.AddData(bin2.ToSArray());
   controller_->engine_elem_.sender->Send(std::move(msg));
   LOG(INFO) << "[Migrate] migrating: " << migrate_meta.DebugString();
+  // });
+  // th.detach();
 }
 
 void PlanController::ReassignMap(SArrayBinStream bin) {
@@ -1070,6 +1095,7 @@ void PlanController::ReassignMap(SArrayBinStream bin) {
 }
 
 void PlanController::MigratePartitionReceiveMapOnly(Message msg) {
+  LOG(INFO) << "MigratePartitionReceiveMapOnly start";
   CHECK_EQ(msg.data.size(), 5);
   SArrayBinStream ctrl2_bin, bin1, bin2;
   ctrl2_bin.FromSArray(msg.data[2]);
@@ -1085,8 +1111,10 @@ void PlanController::MigratePartitionReceiveMapOnly(Message msg) {
   auto& func = controller_->engine_elem_.function_store
       ->GetCreatePart(migrate_meta.collection_id);
   auto p = func();
+  p->id = migrate_meta.partition_id;
   p->FromBin(bin2);  // now I serialize in the controller thread
 
+  LOG(INFO) << "MigratePartitionReceiveMapOnly";
   RunMap(migrate_meta.partition_id, map_version, p);
 }
 
@@ -1114,6 +1142,31 @@ void PlanController::DisplayTime() {
   // nan if num is zero
   LOG(INFO) << "avg map time: " << avg_map_time << " ,avg map serialization time: " << avg_map_stime << " ,avg join time: " << avg_join_time;
 } 
+
+void PlanController::CalcJoinTrackerSize() {
+  int size = 0;
+  for (const auto& part: join_tracker_) {
+    for (const auto& v: part.second) {
+      size += v.second.size();
+    }
+  }
+  join_tracker_size_.push_back(size);
+}
+
+void PlanController::ShowJoinTrackerSize() {
+  std::stringstream ss;
+  int mini = INT_MAX;
+  int maxi = INT_MIN;
+  int sum = 0;
+  for (auto s : join_tracker_size_) {
+    ss << s << " ";
+    if (s > maxi) maxi = s;
+    if (s < mini) mini = s;
+    sum += s;
+  }
+  float avg = join_tracker_size_.empty() ? -1:sum*1./join_tracker_size_.size();
+  LOG(INFO) << "trackersize: min: " << mini << " max: " << maxi << " avg: " << avg << " all: " << ss.str();
+}
 
 }  // namespace
 

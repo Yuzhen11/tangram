@@ -27,6 +27,39 @@ struct return_type<ReturnType(ClassType::*)(Args...) const>
     using type = ReturnType;
 };
 
+template <typename T>
+struct function_traits
+    : public function_traits<decltype(&T::operator())>
+{};
+// For generic types, directly use the result of the signature of its 'operator()'
+
+template <typename ClassType, typename ReturnType, typename... Args>
+struct function_traits<ReturnType(ClassType::*)(Args...) const>
+// we specialize for pointers to member function
+{
+    enum { arity = sizeof...(Args) };
+    // arity is the number of arguments.
+
+    typedef ReturnType result_type;
+
+    struct arg0 {
+        typedef typename std::tuple_element<0, std::tuple<Args...>>::type type;
+    };
+    struct arg1 {
+        typedef typename std::tuple_element<1, std::tuple<Args...>>::type type;
+    };
+    struct arg2 {
+        typedef typename std::tuple_element<2, std::tuple<Args...>>::type type;
+    };
+    // template <size_t i>
+    // struct arg
+    // {
+    //     typedef typename std::tuple_element<i, std::tuple<Args...>>::type type;
+    //     // the i-th argument is equivalent to the i-th tuple element of a tuple
+    //     // composed of those arguments.
+    // };
+};
+
 struct CountObjT {
   using KeyT = int;
   using ValT = int;
@@ -85,10 +118,10 @@ class Context {
     auto* tmp_c = distribute(data, 1, prefix);
     auto* c = placeholder<D>(num_parts, prefix)->SetName("tmp collection in distribute_by_key");
     mapjoin(tmp_c, c, 
-      [](const D& d) {
-        return std::pair<typename D::KeyT, D>(d.Key(), d);
+      [](const D& d, Output<typename D::KeyT, D>* o) {
+        o->Add(d.Key(), d);
       }, 
-      [](D* d, const D& msg) {
+      [](D* d, D msg) {
         *d = msg;
       })->SetName(prefix+"::mapjoin");
     // TODO, remove tmp_c
@@ -100,9 +133,9 @@ class Context {
     std::string prefix = name + "::foreach collection " + c->Name();
     auto* tmp_c = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in foreach");
     mapjoin(c, tmp_c, 
-      [f](const typename C::ObjT& c) {
+      [f](const typename C::ObjT& c, Output<int, int>* o) {
         f(c);
-        return std::make_pair(0, 0);
+        o->Add(0, 0);
       },
       [](CountObjT*, int) {
         // dummy
@@ -223,9 +256,11 @@ class Context {
 
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mapjoin(C1* c1, C2* c2, M m, J j,
-    typename std::enable_if_t<std::is_object<typename return_type<M>::type::second_type>::value>* = 0) {
-    using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::second_type;
+  static auto* mapjoin(C1* c1, C2* c2, M m, J j) {
+    // using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::second_type;
+    using MsgTFromMap = typename std::remove_pointer<typename function_traits<decltype(m)>::arg1::type>::type::OutputMsgT;
+    using MsgT = typename function_traits<decltype(j)>::arg1::type;
+    static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->map = m;
     p->join = j;
@@ -234,19 +269,11 @@ class Context {
   }
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mapjoin(C1* c1, C2* c2, M m, J j,
-    typename std::enable_if_t<std::is_object<typename return_type<M>::type::value_type>::value >* = 0) {
-    using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::value_type::second_type;
-    auto *p = plans_.make<MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
-    p->map_vec = m;
-    p->join = j;
-    dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
-    return p;
-  }
-  
-  template<typename C1, typename C2, typename M, typename J>
   static auto* mappartjoin(C1* c1, C2* c2, M m, J j) {
-    using MsgT = typename decltype(m((TypedPartition<typename C1::ObjT>*)nullptr, (AbstractMapProgressTracker*)nullptr))::value_type::second_type;
+    // using MsgT = typename decltype(m((TypedPartition<typename C1::ObjT>*)nullptr))::value_type::second_type;
+    using MsgTFromMap = typename std::remove_pointer<typename function_traits<decltype(m)>::arg1::type>::type::OutputMsgT;
+    using MsgT = typename function_traits<decltype(j)>::arg1::type;
+    static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->mappart = m;
     p->join = j;
@@ -259,8 +286,9 @@ class Context {
     std::string prefix = name + "::count";
     auto *count_collection = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in count");
     mapjoin(c1, count_collection, 
-      [](const typename C1::ObjT& obj) {
-        return std::make_pair(0, 1);
+      [](const typename C1::ObjT& obj, Output<int,int>* o) {
+        // return std::make_pair(0, 1);
+        o->Add(0, 1);
       }, 
       [](CountObjT* a, int b) {
         a->b += b;
@@ -275,11 +303,14 @@ class Context {
 
   template<typename C1, typename C2, typename C3, typename M, typename J>
   static auto* mappartwithjoin(C1* c1, C2* c2, C3* c3, M m, J j) {
-    using MsgT = typename decltype(
-            m((TypedPartition<typename C1::ObjT>*)nullptr, 
-              (TypedCache<typename C2::ObjT>*)nullptr, 
-              (AbstractMapProgressTracker*)nullptr)
-            )::value_type::second_type;
+    // using MsgT = typename decltype(
+    //         m((TypedPartition<typename C1::ObjT>*)nullptr, 
+    //           (TypedCache<typename C2::ObjT>*)nullptr)
+    //         )::value_type::second_type;
+    //
+    using MsgTFromMap = typename std::remove_pointer<typename function_traits<decltype(m)>::arg2::type>::type::OutputMsgT;
+    using MsgT = typename function_traits<decltype(j)>::arg1::type;
+    static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapPartWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT>>(c1, c2, c3);
     p->mappartwith = m;
     p->join = j;
@@ -298,13 +329,10 @@ class Context {
     // meaning that no other plan can access c. This makes updating in c
     // safe.
     mappartjoin(c, c,
-      [](TypedPartition<typename C::ObjT>* p,
-         AbstractMapProgressTracker* t) {
+      [](TypedPartition<typename C::ObjT>* p, Output<typename C::ObjT::KeyT, int>* o) {
         auto* indexed_seq_partition = dynamic_cast<Indexable<typename C::ObjT>*>(p);
         CHECK_NOTNULL(indexed_seq_partition);
         indexed_seq_partition->Sort();
-        std::vector<std::pair<typename C::ObjT::KeyT, int>> ret;
-        return ret;
       },
       [](typename C::ObjT*, int) {
         // dummy
