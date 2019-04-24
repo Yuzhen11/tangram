@@ -16,8 +16,15 @@ For bugs in Husky, please file an issue on [github issue platform](https://githu
 
 For further discussions, please send email to *support@husky-project.com*.
 
-Dependencies
--------------
+## Learn Tangram
+
+* [Quick Start](https://github.com/Yuzhen11/tangram/wiki/Quick-Start)
+* [Programming Guide](https://github.com/Yuzhen11/tangram/wiki/Programming-Guide)
+* [API](https://github.com/Yuzhen11/tangram/wiki/API)
+* [Applications](https://github.com/Yuzhen11/tangram/wiki/Applications)
+* [Build](https://github.com/Yuzhen11/tangram/wiki/Build)
+
+## Dependencies
 
 Tangram has the following minimal dependencies:
 
