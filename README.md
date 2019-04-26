@@ -1,6 +1,6 @@
 # Tangram
 
-[![Build Status](https://travis-ci.com/Yuzhen11/tangram.svg?branch=master)](https://travis-ci.com/Yuzhen11/tangram)
+[![Build Status](https://travis-ci.com/Yuzhen11/tangram.svg?token=q177tztPAL6tTAyRzSkG&branch=master)](https://travis-ci.com/Yuzhen11/tangram)
 
 Tangram is a distributed data analytics framework which enjoys the benefits from both the immutable and mutable data abstractions. 
 
