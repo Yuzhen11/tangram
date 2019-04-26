@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "core/scheduler/scheduler_elem.hpp"
 
 #include "core/plan/spec_wrapper.hpp"
