@@ -4,6 +4,8 @@ group: edge
 
 language: python  # workaround for not setting CC/CXX with default value
 
+python: 2.7
+
 addons:
   apt:
     sources:
