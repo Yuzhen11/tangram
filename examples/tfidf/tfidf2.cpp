@@ -21,8 +21,8 @@ public:
   Document() = default;
   explicit Document(const KeyT &t) : title(t) {}
   KeyT title;
-  std::vector<float> tf;
-  std::vector<float> tf_idf;
+  std::vector<double> tf;
+  std::vector<double> tf_idf;
   std::vector<int> words;
   int total_words = 0;
   const KeyT &id() const { return title; }
@@ -102,7 +102,7 @@ int main(int argc, char **argv) {
           doc.tf.resize(doc.words.size());
           doc.tf_idf.resize(doc.words.size());
           for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
+            doc.tf.at(i) = static_cast<double>(count.at(i)) / doc.total_words;
           }
         }
 
@@ -143,7 +143,7 @@ int main(int argc, char **argv) {
           doc.tf.resize(doc.words.size());
           doc.tf_idf.resize(doc.words.size());
           for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<float>(count.at(i));
+            doc.tf.at(i) = static_cast<double>(count.at(i));
           }
         }
 
@@ -178,12 +178,12 @@ int main(int argc, char **argv) {
       ->SetName("Out all the doc");
 
   // Context::count(terms);
-  auto dummy_collection = Context::placeholder<KVObjT<int, float>>(1);
+  auto dummy_collection = Context::placeholder<KVObjT<int, double>>(1);
   Context::mappartwithjoin(
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,
-                              Output<int, float> *o) {
+                              Output<int, double> *o) {
 
         std::vector<std::shared_ptr<IndexedSeqPartition<Term>>> with_parts(
             FLAGS_num_term_partition);
@@ -196,7 +196,7 @@ int main(int argc, char **argv) {
           auto start_time = std::chrono::system_clock::now();
           auto part = typed_cache->GetPartition(idx);
           auto end_time = std::chrono::system_clock::now();
-          std::chrono::duration<float> duration = end_time - start_time;
+          std::chrono::duration<double> duration = end_time - start_time;
           // if (FLAGS_node_id == 0) {
           //   LOG(INFO) << GREEN("fetch time for " + std::to_string(idx) << " :
           //   " + std::to_string(duration.count()));
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
             std::string term  = doc.words[i];
             int count = terms_map[term];
             doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs /
-        float(count));
+        double(count));
           }
         }
         */
@@ -235,8 +235,8 @@ int main(int argc, char **argv) {
             int count = t->idf;
 	    // LOG(INFO) << "@@ tf: " << doc.tf[i] << " count: " << count;
             doc.tf_idf[i] =
-                // doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
-                doc.tf[i] * 1.0/ float(count);
+                // doc.tf[i] * std::log(FLAGS_num_of_docs / double(count));
+                doc.tf[i] * 1.0/ double(count);
 	    o->Add(0, doc.tf_idf[i]);
           }
         }
@@ -245,11 +245,11 @@ int main(int argc, char **argv) {
           typed_cache->ReleasePart(i);
         }
       },
-      [](KVObjT<int, float> *t, float acc) { t->b += acc; })
-      ->SetCombine([](float* a, float b) { *a += b; })
+      [](KVObjT<int, double> *t, double acc) { t->b += acc; })
+      ->SetCombine([](double* a, double b) { *a += b; })
       ->SetName("Send idf back to doc");
 
-      Context::foreach(dummy_collection, [](const KVObjT<int, float>& obj) {
+      Context::foreach(dummy_collection, [](const KVObjT<int, double>& obj) {
         LOG(INFO) << "********** res: " << obj.b << " *********";
       });
   Runner::Run();
