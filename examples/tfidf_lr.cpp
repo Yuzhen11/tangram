@@ -15,8 +15,8 @@ DEFINE_int32(num_of_docs, 1, "# number of docs");
 DEFINE_int32(num_doc_partition, 10, "");
 DEFINE_int32(num_term_partition, 10, "");
 
-// lr
 DEFINE_bool(is_sgd, false, "Full gradient descent or mini-batch SGD");
+
 
 using namespace xyz;
 
@@ -26,8 +26,8 @@ public:
   Document() = default;
   explicit Document(const KeyT &t) : title(t) {}
   KeyT title;
-  std::vector<float> tf;
-  std::vector<float> tf_idf;
+  std::vector<double> tf;
+  std::vector<double> tf_idf;
   std::vector<int> words;
   int label; // for training
   int total_words = 0;
@@ -50,7 +50,7 @@ class Term {
 public:
   using KeyT = int;
   Term() = default;
-  explicit Term(const KeyT &term) : termid(term) {}
+  explicit Term(const KeyT &term) : termid(term) { idf = 0; }
   KeyT termid;
   int idf;
   const KeyT &id() const { return termid; }
@@ -67,8 +67,8 @@ public:
 
 // lr
 static std::pair<int, int> sgd_train(TypedPartition<Document> *p, bool is_sgd,
-                                     std::vector<float> &old_params,
-                                     std::vector<float> &step_sum, double alpha,
+                                     std::vector<double> &old_params,
+                                     std::vector<double> &step_sum, double alpha,
                                      int num_params) {
   auto data_iter = p->begin();
   int count = 0, correct_count = 0;
@@ -87,7 +87,7 @@ static std::pair<int, int> sgd_train(TypedPartition<Document> *p, bool is_sgd,
     CHECK_EQ(words.size(), tf_idf.size());
     int y = data_iter->label;
 
-    float pred_y = 0.0;
+    double pred_y = 0.0;
     for (int i = 0; i < tf_idf.size(); i++) {
       pred_y += old_params[words[i]] * tf_idf[i];
     }
@@ -119,63 +119,13 @@ int main(int argc, char **argv) {
               << ", timeout: " << combine_timeout;
   }
 
-  // load and generate two collections
-  /*
-  auto loaded_docs =
-      Context::load_wholefiles(FLAGS_url, [](std::string content) {
-        // parse extract title
-        std::regex rgx(".*?title=\"(.*?)\".*?");
-        std::smatch match;
-        std::string title;
-        if (std::regex_search(content, match, rgx)) {
-          // LOG(INFO) << match[1];
-          title = match[1];
-        } else {
-          CHECK(false) << "cannot match title";
-        }
-
-        Document doc(title);
-        std::vector<int> count;
-        if (content.size() > 0) {
-          boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
-          boost::tokenizer<boost::char_separator<char>> tok(content, sep);
-          for (auto &w : tok) {
-            doc.words.push_back(std::hash<std::string>{}(w) % FLAGS_num_params);
-            // std::transform(doc.words.back().begin(), doc.words.back().end(),
-            // doc.words.back().begin(), ::tolower);
-          }
-          doc.total_words = doc.words.size();
-          std::sort(doc.words.begin(), doc.words.end());
-          int n = 0;
-          for (int i = 0, j = 0; i < doc.words.size(); i = j) {
-            for (j = i + 1; j < doc.words.size(); j++) {
-              if (doc.words.at(i) != doc.words.at(j))
-                break;
-            }
-            count.push_back(j - i);
-            doc.words[n++] = doc.words[i];
-          }
-          doc.words.resize(n);
-          doc.words.shrink_to_fit();
-          doc.tf.resize(doc.words.size());
-          doc.tf_idf.resize(doc.words.size());
-          for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
-          }
-          doc.label = rand() % 2; // random label
-        }
-
-        return doc;
-      });
-      */
-
   auto loaded_docs =
       Context::load(FLAGS_url, [](std::string content) {
         // parse extract title
-
         Document doc("");
         std::vector<int> count;
         if (content.size() > 0) {
+	  std::transform(content.begin(), content.end(), content.begin(), ::tolower);
           // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
           boost::char_separator<char> sep(" \t\n");
           boost::tokenizer<boost::char_separator<char>> tok(content, sep);
@@ -202,12 +152,13 @@ int main(int argc, char **argv) {
           doc.tf.resize(doc.words.size());
           doc.tf_idf.resize(doc.words.size());
           for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
+            doc.tf.at(i) = static_cast<double>(count.at(i)) / doc.total_words;
           }
         }
 
         return doc;
       });
+  Context::count(loaded_docs);
 
   // no need indexed_docs using pull model.
   // auto indexed_docs =
@@ -233,7 +184,7 @@ int main(int argc, char **argv) {
   */
 
   // Context::sort_each_partition(indexed_docs);
-  Context::sort_each_partition(terms);
+  // Context::sort_each_partition(terms);
 
   Context::mappartjoin(loaded_docs, terms,
                        [](TypedPartition<Document> *p, Output<int, int> *o) {
@@ -252,12 +203,12 @@ int main(int argc, char **argv) {
       ->SetName("Out all the doc");
 
   // Context::count(terms);
-  auto dummy_collection = Context::placeholder<CountObjT>(1);
+  auto dummy_collection = Context::placeholder<KVObjT<int, double>>(1);
   Context::mappartwithjoin(
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,
-                              Output<int, int> *o) {
+                              Output<int, double> *o) {
 
         std::vector<std::shared_ptr<IndexedSeqPartition<Term>>> with_parts(
             FLAGS_num_term_partition);
@@ -281,23 +232,6 @@ int main(int argc, char **argv) {
         // LOG(INFO) << "fetch done";
         // method1: copy and find
 
-        /*
-        for (auto with_p : with_parts) {
-          for (auto& term : *with_p) {
-            terms_map[term.id()] = term.idf;
-          }
-        }
-
-        LOG(INFO) << "building local terms_map";
-        for (auto& doc : *p) {
-          for(int i = 0; i < doc.words.size(); i++){
-            std::string term  = doc.words[i];
-            int count = terms_map[term];
-            doc.tf_idf[i] = doc.tf[i] * std::log(FLAGS_num_of_docs /
-        float(count));
-          }
-        }
-        */
 
         // method2
         for (auto &doc : *p) {
@@ -308,7 +242,7 @@ int main(int argc, char **argv) {
             CHECK_NOTNULL(t);
             int count = t->idf;
             doc.tf_idf[i] =
-                doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
+                doc.tf[i] * std::log(FLAGS_num_of_docs / double(count));
           }
         }
 
@@ -316,8 +250,13 @@ int main(int argc, char **argv) {
           typed_cache->ReleasePart(i);
         }
       },
-      [](CountObjT *t, int) {})
+      [](KVObjT<int, double> *t, double acc) { t->b += acc; })
+      ->SetCombine([](double* a, double b) { *a += b; })
       ->SetName("Send idf back to doc");
+
+  Context::foreach(dummy_collection, [](const KVObjT<int, double>& obj) {
+    LOG(INFO) << "********** res: " << obj.b << " *********";
+  });
 
   // Logistic regression
   int num_params = FLAGS_num_params + 2;
@@ -340,8 +279,8 @@ int main(int argc, char **argv) {
           loaded_docs, dense_rows, dense_rows,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,
-              Output<int, std::vector<float>> *o) {
-            std::vector<float> step_sum(num_params, 0);
+              Output<int, std::vector<double>> *o) {
+            std::vector<double> step_sum(num_params, 0);
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
@@ -364,7 +303,7 @@ int main(int argc, char **argv) {
 
             // 2. copy params
             begin_time = std::chrono::steady_clock::now();
-            auto old_params = copy_lr_params(with_parts, num_param_parts,
+            auto old_params = copy_lr_params<double>(with_parts, num_param_parts,
                                              num_params, num_param_per_part);
 
             end_time = std::chrono::steady_clock::now();
@@ -384,7 +323,7 @@ int main(int argc, char **argv) {
             int correct_count = count_correct.second;
 
             // create the output
-            auto kvs = create_lr_output(num_param_parts, num_param_per_part,
+            auto kvs = create_lr_output<double>(num_param_parts, num_param_per_part,
                                         num_params, count, step_sum);
             for (auto &kv : kvs)
               o->Add(kv.first, std::move(kv.second));
@@ -392,7 +331,7 @@ int main(int argc, char **argv) {
             LOG_IF(INFO, p->id == 0) << RED(
                 "Correct: " + std::to_string(correct_count) + ", Batch size: " +
                 std::to_string(count) + ", Accuracy: " +
-                std::to_string(correct_count / float(count)) + " on part 0");
+                std::to_string(correct_count / double(count)) + " on part 0");
 
             end_time = std::chrono::steady_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -407,7 +346,7 @@ int main(int argc, char **argv) {
 
             return kvs;
           },
-          [](DenseRow *row, std::vector<float> v) {
+          [](DenseRow *row, std::vector<double> v) {
             CHECK_EQ(row->params.size(), v.size());
             for (int i = 0; i < v.size(); ++i) {
               row->params[i] += v[i];
@@ -419,7 +358,7 @@ int main(int argc, char **argv) {
           ->SetCheckpointInterval(5, "/tmp/tmp/yz")
 #endif
           ->SetCombine(
-              [](std::vector<float> *v, const std::vector<float> &o) {
+              [](std::vector<double> *v, const std::vector<double> &o) {
                 CHECK_EQ(v->size(), o.size());
                 for (int i = 0; i < v->size(); ++i) {
                   (*v)[i] += o[i];
@@ -428,6 +367,7 @@ int main(int argc, char **argv) {
               combine_timeout);
 
   // lr2
+  /*
   auto dense_rows2 =
       create_dense_rows(num_param_parts, num_params, num_param_per_part);
   auto p2 =
@@ -435,8 +375,8 @@ int main(int argc, char **argv) {
           loaded_docs, dense_rows2, dense_rows2,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,
-              Output<int, std::vector<float>> *o) {
-            std::vector<float> step_sum(num_params, 0);
+              Output<int, std::vector<double>> *o) {
+            std::vector<double> step_sum(num_params, 0);
 
             // 1. prepare params
             auto begin_time = std::chrono::steady_clock::now();
@@ -459,7 +399,7 @@ int main(int argc, char **argv) {
 
             // 2. copy params
             begin_time = std::chrono::steady_clock::now();
-            auto old_params = copy_lr_params(with_parts, num_param_parts,
+            auto old_params = copy_lr_params<double>(with_parts, num_param_parts,
                                              num_params, num_param_per_part);
 
             end_time = std::chrono::steady_clock::now();
@@ -479,7 +419,7 @@ int main(int argc, char **argv) {
             int correct_count = count_correct.second;
 
             // create the output
-            auto kvs = create_lr_output(num_param_parts, num_param_per_part,
+            auto kvs = create_lr_output<double>(num_param_parts, num_param_per_part,
                                         num_params, count, step_sum);
             for (auto &kv : kvs)
               o->Add(kv.first, std::move(kv.second));
@@ -487,7 +427,7 @@ int main(int argc, char **argv) {
             LOG_IF(INFO, p->id == 0) << RED(
                 "Correct: " + std::to_string(correct_count) + ", Batch size: " +
                 std::to_string(count) + ", Accuracy: " +
-                std::to_string(correct_count / float(count)) + " on part 0");
+                std::to_string(correct_count / double(count)) + " on part 0");
 
             end_time = std::chrono::steady_clock::now();
             duration = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -501,7 +441,7 @@ int main(int argc, char **argv) {
             }
 
           },
-          [](DenseRow *row, std::vector<float> v) {
+          [](DenseRow *row, std::vector<double> v) {
             CHECK_EQ(row->params.size(), v.size());
             for (int i = 0; i < v.size(); ++i) {
               row->params[i] += v[i];
@@ -513,13 +453,14 @@ int main(int argc, char **argv) {
           ->SetCheckpointInterval(5, "/tmp/tmp/yz")
 #endif
           ->SetCombine(
-              [](std::vector<float> *v, const std::vector<float> &o) {
+              [](std::vector<double> *v, const std::vector<double> &o) {
                 CHECK_EQ(v->size(), o.size());
                 for (int i = 0; i < v->size(); ++i) {
                   (*v)[i] += o[i];
                 }
               },
               combine_timeout);
+  */
 
   Runner::Run();
 }

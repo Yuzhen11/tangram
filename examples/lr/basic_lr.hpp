@@ -251,10 +251,11 @@ static auto prepare_lr_params(int num_param_parts,
 }
 
 // for DenseRow
+template<typename T = float>
 static auto copy_lr_params(
     std::vector<std::shared_ptr<TypedPartition<DenseRow>>> &with_parts,
     int num_param_parts, int num_params, int num_param_per_part) {
-  std::vector<float> old_params(num_params);
+  std::vector<T> old_params(num_params);
   for (auto with_p : with_parts) {
     auto iter1 = with_p->begin();
     auto end_iter = with_p->end();
@@ -274,17 +275,18 @@ static auto copy_lr_params(
   return old_params;
 }
 
+template<typename T = float>
 static auto create_lr_output(int num_param_parts, int num_param_per_part,
                              int num_params, int count,
-                             std::vector<float> &step_sum) {
-  std::vector<std::pair<int, std::vector<float>>> kvs(num_param_parts);
+                             std::vector<T> &step_sum) {
+  std::vector<std::pair<int, std::vector<T>>> kvs(num_param_parts);
   for (int i = 0; i < num_param_parts - 1; ++i) {
     kvs[i].first = i;
     kvs[i].second.resize(num_param_per_part);
     auto begin = step_sum.begin() + i * num_param_per_part;
     auto end = step_sum.begin() + (i + 1) * num_param_per_part;
     std::transform(begin, end, kvs[i].second.begin(),
-                   [count](float v) { return v / count; });
+                   [count](T v) { return v / count; });
   }
   auto last_part_id = num_param_parts - 1;
   kvs[last_part_id].first = last_part_id;
@@ -295,6 +297,6 @@ static auto create_lr_output(int num_param_parts, int num_param_per_part,
   }
   auto begin = step_sum.begin() + last_part_id * num_param_per_part;
   std::transform(begin, step_sum.end(), kvs[last_part_id].second.begin(),
-                 [count](float v) { return v / count; });
+                 [count](T v) { return v / count; });
   return kvs;
 }
