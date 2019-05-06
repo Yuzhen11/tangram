@@ -43,7 +43,7 @@ public:
   // using KeyT = std::size_t;
   using KeyT = int;
   Term() = default;
-  explicit Term(const KeyT &term) : termid(term) {}
+  explicit Term(const KeyT &term) : termid(term) { idf = 0; }
   KeyT termid;
   int idf;
   const KeyT &id() const { return termid; }
@@ -116,11 +116,13 @@ int main(int argc, char **argv) {
         Document doc("");
         std::vector<int> count;
         if (content.size() > 0) {
+	  std::transform(content.begin(), content.end(), content.begin(), ::tolower);
           // boost::char_separator<char> sep(" \t\n.,()\'\":;!?<>");
           boost::char_separator<char> sep(" \t\n");
           boost::tokenizer<boost::char_separator<char>> tok(content, sep);
           for (auto &w : tok) {
-            doc.words.push_back(std::hash<std::string>{}(w)%1000);
+            // doc.words.push_back(std::hash<std::string>{}(w)%1000);
+            doc.words.push_back(std::hash<std::string>{}(w)%(2<<18));
             // doc.words.push_back(std::hash<std::string>{}(w)%(2<<20));
             // std::transform(doc.words.back().begin(), doc.words.back().end(),
             // doc.words.back().begin(), ::tolower);
@@ -141,13 +143,14 @@ int main(int argc, char **argv) {
           doc.tf.resize(doc.words.size());
           doc.tf_idf.resize(doc.words.size());
           for (int i = 0; i < doc.words.size(); i++) {
-            doc.tf.at(i) = static_cast<float>(count.at(i)) / doc.total_words;
+            doc.tf.at(i) = static_cast<float>(count.at(i));
           }
         }
 
         return doc;
       });
 
+  Context::count(loaded_docs);
   // no need indexed_docs using pull model.
   // auto indexed_docs =
   // Context::placeholder<Document>(FLAGS_num_doc_partition);
@@ -169,18 +172,18 @@ int main(int argc, char **argv) {
                        },
                        [](Term *term, int n) {
                          term->idf += n;
-
+			 // LOG(INFO) << "idf: " << term->idf;
                        })
       ->SetCombine([](int *a, int b) { *a += b; })
       ->SetName("Out all the doc");
 
   // Context::count(terms);
-  auto dummy_collection = Context::placeholder<CountObjT>(1);
+  auto dummy_collection = Context::placeholder<KVObjT<int, float>>(1);
   Context::mappartwithjoin(
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,
-                              Output<int, int> *o) {
+                              Output<int, float> *o) {
 
         std::vector<std::shared_ptr<IndexedSeqPartition<Term>>> with_parts(
             FLAGS_num_term_partition);
@@ -193,7 +196,7 @@ int main(int argc, char **argv) {
           auto start_time = std::chrono::system_clock::now();
           auto part = typed_cache->GetPartition(idx);
           auto end_time = std::chrono::system_clock::now();
-          std::chrono::duration<double> duration = end_time - start_time;
+          std::chrono::duration<float> duration = end_time - start_time;
           // if (FLAGS_node_id == 0) {
           //   LOG(INFO) << GREEN("fetch time for " + std::to_string(idx) << " :
           //   " + std::to_string(duration.count()));
@@ -230,8 +233,11 @@ int main(int argc, char **argv) {
             auto *t = with_p->Find(term);
             CHECK_NOTNULL(t);
             int count = t->idf;
+	    // LOG(INFO) << "@@ tf: " << doc.tf[i] << " count: " << count;
             doc.tf_idf[i] =
-                doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
+                // doc.tf[i] * std::log(FLAGS_num_of_docs / float(count));
+                doc.tf[i] * 1.0/ float(count);
+	    o->Add(0, doc.tf_idf[i]);
           }
         }
 
@@ -239,7 +245,12 @@ int main(int argc, char **argv) {
           typed_cache->ReleasePart(i);
         }
       },
-      [](CountObjT *t, int) {})
+      [](KVObjT<int, float> *t, float acc) { t->b += acc; })
+      ->SetCombine([](float* a, float b) { *a += b; })
       ->SetName("Send idf back to doc");
+
+      Context::foreach(dummy_collection, [](const KVObjT<int, float>& obj) {
+        LOG(INFO) << "********** res: " << obj.b << " *********";
+      });
   Runner::Run();
 }

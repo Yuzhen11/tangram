@@ -78,6 +78,25 @@ struct CountObjT {
   }
 };
 
+template <typename KT, typename VT>
+struct KVObjT {
+  using KeyT = KT;
+  using ValT = VT;
+  KVObjT() = default;
+  KVObjT(KeyT key) : a(key), b(0) {}
+  KeyT Key() const { return a; }
+  KeyT a;
+  ValT b;
+  friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const KVObjT& obj) {
+    stream << obj.a << obj.b;
+    return stream;
+  }
+  friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, KVObjT& obj) {
+    stream >> obj.a >> obj.b;
+    return stream;
+  }
+};
+
 template <typename Base> class Store {
 public:
   template <typename O = Base, typename... ArgT> 
