@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
   auto vertex =
       Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       loaded_dataset, vertex,
       [](TypedPartition<Vertex> *p, Output<int, std::vector<int>> *o) {
         for (auto &v : *p) {
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
 #endif
 
   auto p2 =
-      Context::mappartjoin(
+      Context::mappartupdate(
           vertex, vertex,
           [](TypedPartition<Vertex> *p, Output<int, float> *o) {
             for (auto &v : *p) {

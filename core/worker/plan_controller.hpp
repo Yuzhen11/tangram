@@ -118,12 +118,12 @@ class PlanController : public AbstractPlanController {
 
   // TODO: to be setup
   int map_collection_id_;
-  int join_collection_id_;
+  int update_collection_id_;
   int fetch_collection_id_ = -1; 
   int plan_id_;
   int num_upstream_part_;
-  int num_join_part_;
-  int num_local_join_part_;
+  int num_update_part_;
+  int num_local_update_part_;
   int num_local_map_part_;
   SpecWrapper::Type type_;
   int checkpoint_interval_;
@@ -137,62 +137,62 @@ class PlanController : public AbstractPlanController {
   std::unordered_map<int, int> map_versions_;
 
   // part -> version
-  std::unordered_map<int, int> join_versions_;
+  std::unordered_map<int, int> update_versions_;
   // part -> version -> upstream_id (finished)
-  std::unordered_map<int, std::unordered_map<int, std::set<int>>> join_tracker_;
-  std::vector<int> join_tracker_size_;
+  std::unordered_map<int, std::unordered_map<int, std::set<int>>> update_tracker_;
+  std::vector<int> update_tracker_size_;
   void CalcJoinTrackerSize();
   void ShowJoinTrackerSize();
 
-  // for map_collection_id_ == join_collection_id_ only?
+  // for map_collection_id_ == update_collection_id_ only?
   // part, version
-  std::unordered_map<int, std::unordered_map<int, std::deque<VersionedJoinMeta>>> pending_joins_;
+  std::unordered_map<int, std::unordered_map<int, std::deque<VersionedJoinMeta>>> pending_updates_;
 
   std::set<int> running_maps_;
-  std::unordered_map<int, int> running_joins_;  // part_id -> upstream_id
+  std::unordered_map<int, int> running_updates_;  // part_id -> upstream_id
   // std::map<int, std::set<int>> running_fetches_;// part_id, <upstream_part_id>
   std::unordered_map<int, int> running_fetches_;  // part_id, count
-  // part -> join, some joins are waiting as there is a join writing that part
-  std::unordered_map<int, std::deque<VersionedJoinMeta>> waiting_joins_;
+  // part -> update, some updates are waiting as there is a update writing that part
+  std::unordered_map<int, std::deque<VersionedJoinMeta>> waiting_updates_;
 
   std::shared_ptr<Executor> fetch_executor_;
   std::shared_ptr<Executor> map_executor_;
 
   std::mutex time_mu_;  
   std::map<int, std::tuple<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>> map_time_;//part id
-  std::map<int, std::map<int, std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>>> join_time_;//part id
+  std::map<int, std::map<int, std::pair<std::chrono::system_clock::time_point, std::chrono::system_clock::time_point>>> update_time_;//part id
 
   bool local_map_mode_ = true;  // TODO: turn it on
   MapOutputStreamStore stream_store_;
 
   std::map<int, int> flush_all_count_; //migrate part id, flush all count
-  std::map<int, bool> stop_joining_partitions_; //migrate part id, flag indicating whether it could be erased
-  std::mutex stop_joining_partitions_mu_;
+  std::map<int, bool> stop_updateing_partitions_; //migrate part id, flag indicating whether it could be erased
+  std::mutex stop_updateing_partitions_mu_;
 
   std::map<int, bool> load_finished_;
 
   struct MigrateData {
     int map_version;
-    int join_version;
-    std::unordered_map<int, std::deque<VersionedJoinMeta>> pending_joins;
-    std::deque<VersionedJoinMeta> waiting_joins;
-    std::unordered_map<int, std::set<int>> join_tracker;
+    int update_version;
+    std::unordered_map<int, std::deque<VersionedJoinMeta>> pending_updates;
+    std::deque<VersionedJoinMeta> waiting_updates;
+    std::unordered_map<int, std::set<int>> update_tracker;
 
     friend SArrayBinStream& operator<<(xyz::SArrayBinStream& stream, const MigrateData& d) {
-      stream << d.map_version << d.join_version << d.pending_joins << d.waiting_joins << d.join_tracker;
+      stream << d.map_version << d.update_version << d.pending_updates << d.waiting_updates << d.update_tracker;
       return stream;
     }
     friend SArrayBinStream& operator>>(xyz::SArrayBinStream& stream, MigrateData& d) {
-      stream >> d.map_version >> d.join_version >> d.pending_joins >> d.waiting_joins >> d.join_tracker;
+      stream >> d.map_version >> d.update_version >> d.pending_updates >> d.waiting_updates >> d.update_tracker;
       return stream;
     }
     std::string DebugString() const {
       std::stringstream ss;
       ss << "map_version: " << map_version;
-      ss << ", join_version: " << join_version;
-      ss << ", pending_join size: " << pending_joins.size();
-      ss << ", waiting_joins size: " << waiting_joins.size();
-      ss << ", join_tracker size: " << join_tracker.size();
+      ss << ", update_version: " << update_version;
+      ss << ", pending_update size: " << pending_updates.size();
+      ss << ", waiting_updates size: " << waiting_updates.size();
+      ss << ", update_tracker size: " << update_tracker.size();
       return ss.str();
     }
   };

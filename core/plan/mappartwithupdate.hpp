@@ -14,7 +14,7 @@
 
 #include "core/plan/abstract_function_store.hpp"
 #include "core/plan/plan_spec.hpp"
-#include "core/plan/join_helper.hpp"
+#include "core/plan/update_helper.hpp"
 #include "glog/logging.h"
 
 namespace xyz {
@@ -45,14 +45,14 @@ struct MapPartWithJoin : public PlanBase {
   using MapPartWithTempFuncT = AbstractFunctionStore::MapWith;
 
   MapPartWithJoin(int _plan_id, C1* _map_collection, 
-          C2* _with_collection, C3* _join_collection)
+          C2* _with_collection, C3* _update_collection)
       : PlanBase(_plan_id), map_collection(_map_collection), 
-       with_collection(_with_collection), join_collection(_join_collection) {
+       with_collection(_with_collection), update_collection(_update_collection) {
     std::stringstream ss;
     ss << "{";
     ss << "map collection: " << map_collection->Name();
     ss << ", with collection: " << with_collection->Name();
-    ss << ", join collection: " << join_collection->Name();
+    ss << ", update collection: " << update_collection->Name();
     ss << "}";
     description_ = ss.str();
   }
@@ -86,7 +86,7 @@ struct MapPartWithJoin : public PlanBase {
     // TODO the with collection
     SpecWrapper w;
     w.SetSpec<MapWithJoinSpec>(plan_id, SpecWrapper::Type::kMapWithJoin,
-            map_collection->Id(), join_collection->Id(), combine_timeout, num_iter, 
+            map_collection->Id(), update_collection->Id(), combine_timeout, num_iter, 
             staleness, checkpoint_interval, checkpoint_path, 
             description_, with_collection->Id());
     w.name = name;
@@ -106,9 +106,9 @@ struct MapPartWithJoin : public PlanBase {
       return map_output;
     });
 
-    CHECK_NOTNULL(join);
-    function_store->AddJoin(plan_id, GetJoinPartFunc<ObjT3, MsgT>(join));
-    function_store->AddJoin2(plan_id, GetJoinPartFunc2<ObjT3, MsgT>(join));
+    CHECK_NOTNULL(update);
+    function_store->AddJoin(plan_id, GetJoinPartFunc<ObjT3, MsgT>(update));
+    function_store->AddJoin2(plan_id, GetJoinPartFunc2<ObjT3, MsgT>(update));
   }
 
   MapPartWithTempFuncT GetMapPartWithFunc() {
@@ -120,8 +120,8 @@ struct MapPartWithJoin : public PlanBase {
               with_collection->Id(), fetcher, this->with_collection->GetMapper(), 
               staleness, local_mode);
       auto* p = static_cast<TypedPartition<ObjT1>*>(partition.get());
-      CHECK_NOTNULL(this->join_collection->GetMapper());
-      auto output = std::make_shared<Output<typename ObjT3::KeyT, MsgT>>(this->join_collection->GetMapper());
+      CHECK_NOTNULL(this->update_collection->GetMapper());
+      auto output = std::make_shared<Output<typename ObjT3::KeyT, MsgT>>(this->update_collection->GetMapper());
       CHECK_NOTNULL(p);
       CHECK_NOTNULL(output);
       mappartwith(p, &typed_cache, output.get());
@@ -131,10 +131,10 @@ struct MapPartWithJoin : public PlanBase {
 
   C1* map_collection;
   C2* with_collection;
-  C3* join_collection;
+  C3* update_collection;
 
   MapPartWithFuncT mappartwith;
-  JoinFuncT join;
+  JoinFuncT update;
   CombineFuncT combine_func;
 
   int num_iter = 1;

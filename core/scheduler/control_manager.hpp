@@ -68,11 +68,11 @@ class ControlManager {
   std::map<int, std::map<int, int>> map_node_count_;
 
   // plan_id -> part_id -> {version, time}
-  std::map<int, std::map<int, std::pair<int, Timepoint>>> join_part_versions_;
+  std::map<int, std::map<int, std::pair<int, Timepoint>>> update_part_versions_;
   // plan_id -> node_id -> {version, time}
-  std::map<int, std::map<int, std::pair<int, Timepoint>>> join_node_versions_;
+  std::map<int, std::map<int, std::pair<int, Timepoint>>> update_node_versions_;
   // plan_id -> node_id -> # min_version part
-  std::map<int, std::map<int, int>> join_node_count_;
+  std::map<int, std::map<int, int>> update_node_count_;
   // plan_id -> version -> part ids
   std::map<int, std::map<int, std::set<int>>> cp_count_;
 
@@ -86,7 +86,7 @@ class ControlManager {
   
   // plan_id -> collection_id -> part_to_node
   // TODO: this is only used for map-only recovery 
-  // (no join partition partitions lost when a machine fails)
+  // (no update partition partitions lost when a machine fails)
   std::map<int, std::map<int, std::vector<int>>> cached_part_to_node_;
 };
 

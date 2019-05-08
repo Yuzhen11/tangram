@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
   auto data_blocks =
       Context::placeholder<DataBlock, RoundRobinKeyToPartMapper<int>>(
           FLAGS_kNumPartition);
-  Context::mapjoin(load_collection, data_blocks,
+  Context::mapupdate(load_collection, data_blocks,
                    [](const Record &r, Output<int, Record> *o) {
                      o->Add(r.user % FLAGS_kNumPartition, r);
                    },
@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
   auto collectors =
       Context::placeholder<Collector, RoundRobinKeyToPartMapper<int>>(
           FLAGS_kNumPartition);
-  Context::mapjoin(dummy_distribute_collection, collectors,
+  Context::mapupdate(dummy_distribute_collection, collectors,
                    [](int, Output<int, int> *o) {
                      for (int i = 0; i < FLAGS_kNumPartition; ++i) {
                        o->Add(i, i);
@@ -247,7 +247,7 @@ int main(int argc, char **argv) {
   */
 
   // main logic
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       data_blocks, collectors, collectors,
       [](TypedPartition<DataBlock> *p, TypedCache<Collector> *typed_cache,
          Output<int, Msg> *o) {
@@ -407,7 +407,7 @@ int main(int argc, char **argv) {
   // rmse
   // this mse only calculate a part of the training samples!
   auto rmse = Context::placeholder<RMSE>(1);
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       data_blocks, collectors, rmse,
       [](TypedPartition<DataBlock> *p, TypedCache<Collector> *typed_cache,
          Output<int, std::tuple<int, float, int>> *o) {
@@ -479,7 +479,7 @@ int main(int argc, char **argv) {
         }
       },
       [](RMSE *rmse, std::tuple<int, float, int> m) {
-        // LOG(INFO) << "join rmse: " << m.first << " " << m.second;
+        // LOG(INFO) << "update rmse: " << m.first << " " << m.second;
         rmse->p.first += std::get<0>(m);
         rmse->p.second += std::get<1>(m);
         rmse->update_count += std::get<2>(m);

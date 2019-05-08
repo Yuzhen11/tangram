@@ -40,10 +40,10 @@ int main(int argc, char **argv) {
               << ", timeout: " << combine_timeout;
   }
 
-  // use load_block_meta, read the block in mappartjoin
+  // use load_block_meta, read the block in mappartupdate
   auto lines = Context::load_block_meta(FLAGS_url);
   auto wordcount = Context::placeholder<WC>(FLAGS_num_parts);
-  Context::mappartjoin(
+  Context::mappartupdate(
       lines, wordcount,
       [](TypedPartition<std::string> *p, Output<std::string, int> *o) {
         auto *bp = dynamic_cast<BlockPartition *>(p);

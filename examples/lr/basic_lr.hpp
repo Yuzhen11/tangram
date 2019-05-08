@@ -166,7 +166,7 @@ template <typename Collection> static auto *repartition(Collection *dataset) {
   int num_data_parts = FLAGS_num_data_parts;
   auto points =
       Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
-  Context::mappartjoin(
+  Context::mappartupdate(
       dataset, points,
       [num_data_parts](TypedPartition<Point> *p, Output<int, Point> *o) {
         int i = rand() % num_data_parts;
@@ -215,7 +215,7 @@ static auto *create_dense_rows(int num_param_parts, int num_params,
   auto dense_rows = Context::placeholder<DenseRow>(num_param_parts);
   // init the param
   auto dummy_collection = Context::distribute<int>({1});
-  Context::mapjoin(
+  Context::mapupdate(
       dummy_collection, dense_rows,
       [num_param_parts](int, Output<int, int> *o) {
         for (int i = 0; i < num_param_parts; ++i) {

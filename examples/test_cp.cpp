@@ -23,23 +23,23 @@ struct ObjT {
 
 void mj() {
   std::vector<int> seed;
-  // 2 map parts and 1 join part
+  // 2 map parts and 1 update part
   //
-  // 1. kill the first machine to simulate losing join partitions
-  // 2. kill the second machine to simulate not losing join partitions
+  // 1. kill the first machine to simulate losing update partitions
+  // 2. kill the second machine to simulate not losing update partitions
   const int num_map_part = 2;
-  const int num_join_part = 1;
+  const int num_update_part = 1;
   for (int i = 0; i < num_map_part; ++i) {
     seed.push_back(i);
   }
   auto c1 = Context::distribute(seed, num_map_part);
-  auto c2 = Context::placeholder<ObjT>(num_join_part);
+  auto c2 = Context::placeholder<ObjT>(num_update_part);
 
   Context::checkpoint(c1, "/tmp/tmp/yuzhen/c0");
   Context::checkpoint(c2, "/tmp/tmp/yuzhen/c1");
 
-  // mapjoin
-  Context::mapjoin(
+  // mapupdate
+  Context::mapupdate(
       c1, c2,
       [](int id, Output<int, int> *o) {
         LOG(INFO) << GREEN("id: " + std::to_string(id) + ", sleep for: " +
@@ -49,7 +49,7 @@ void mj() {
       },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       })
       ->SetIter(10)
       ->SetStaleness(0)
@@ -59,18 +59,18 @@ void mj() {
 void mpj() {
   std::vector<int> seed;
   const int num_map_part = 2;
-  const int num_join_part = num_map_part;
+  const int num_update_part = num_map_part;
   for (int i = 0; i < num_map_part; ++i) {
     seed.push_back(i);
   }
   auto c0 = Context::distribute(seed, num_map_part);
-  auto c1 = Context::placeholder<ObjT>(num_join_part);
+  auto c1 = Context::placeholder<ObjT>(num_update_part);
 
   Context::checkpoint(c0, "/tmp/tmp/jasper/c0");
   Context::checkpoint(c1, "/tmp/tmp/jasper/c1");
 
-  // mappartjoin
-  Context::mappartjoin(
+  // mappartupdate
+  Context::mappartupdate(
       c0, c1,
       [](TypedPartition<int> *p, Output<int, int> *o) {
         LOG(INFO) << GREEN("Sleep for: " + std::to_string(2000) + " ms");
@@ -82,7 +82,7 @@ void mpj() {
       },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       })
       ->SetIter(10)
       ->SetStaleness(0)

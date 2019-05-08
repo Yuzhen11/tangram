@@ -168,7 +168,7 @@ int main(int argc, char **argv) {
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition,
                                           terms_key_part_mapper);
   /*
-  Context::mappartjoin(
+  Context::mappartupdate(
       loaded_docs, indexed_docs,
       [](TypedPartition<Document>* p) {
         std::vector<std::pair<std::string, Document>> ret;
@@ -186,7 +186,7 @@ int main(int argc, char **argv) {
   // Context::sort_each_partition(indexed_docs);
   // Context::sort_each_partition(terms);
 
-  Context::mappartjoin(loaded_docs, terms,
+  Context::mappartupdate(loaded_docs, terms,
                        [](TypedPartition<Document> *p, Output<int, int> *o) {
                          std::vector<std::pair<int, int>> ret;
                          for (auto &doc : *p) {
@@ -204,7 +204,7 @@ int main(int argc, char **argv) {
 
   // Context::count(terms);
   auto dummy_collection = Context::placeholder<KVObjT<int, double>>(1);
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,
@@ -275,7 +275,7 @@ int main(int argc, char **argv) {
 
   // auto params = Context::placeholder<Param>(num_param_parts);
   auto p1 =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           loaded_docs, dense_rows, dense_rows,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,
@@ -371,7 +371,7 @@ int main(int argc, char **argv) {
   auto dense_rows2 =
       create_dense_rows(num_param_parts, num_params, num_param_per_part);
   auto p2 =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           loaded_docs, dense_rows2, dense_rows2,
           [num_params, alpha, is_sgd, num_param_parts, num_param_per_part](
               TypedPartition<Document> *p, TypedCache<DenseRow> *typed_cache,

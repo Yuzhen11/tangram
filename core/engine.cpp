@@ -17,7 +17,7 @@ void Engine::Init(Engine::Config config) {
   engine_elem_.namenode = config.namenode;
   engine_elem_.port = config.port;
   engine_elem_.num_local_threads = config.num_local_threads;
-  engine_elem_.num_join_threads = config.num_join_threads;
+  engine_elem_.num_update_threads = config.num_update_threads;
   engine_elem_.num_combine_threads = config.num_combine_threads;
   config_ = config;
 }

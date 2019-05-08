@@ -139,25 +139,25 @@ void ControlManager::ReceiveFinishCP(int plan_id, int part_id, int version) {
 	return;
   }
   cp_count_[plan_id][version].insert(part_id);
-  auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
-  int collection_id = mapjoin_spec->join_collection_id;
-  if (cp_count_[plan_id][version].size() == elem_->collection_map->Get(mapjoin_spec->map_collection_id).num_partition) {
-    if (mapjoin_spec->checkpoint_interval != 0) {
-      int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
-      CHECK(mapjoin_spec->checkpoint_path.size());
-      std::string checkpoint_path = mapjoin_spec->checkpoint_path;
+  auto* mapupdate_spec = specs_[plan_id].GetMapJoinSpec();
+  int collection_id = mapupdate_spec->update_collection_id;
+  if (cp_count_[plan_id][version].size() == elem_->collection_map->Get(mapupdate_spec->map_collection_id).num_partition) {
+    if (mapupdate_spec->checkpoint_interval != 0) {
+      int cp_iter = versions_[plan_id] / mapupdate_spec->checkpoint_interval;
+      CHECK(mapupdate_spec->checkpoint_path.size());
+      std::string checkpoint_path = mapupdate_spec->checkpoint_path;
       checkpoint_path = checkpoint_path + "/cp-" + std::to_string(cp_iter);
-      collection_status_->AddCP(mapjoin_spec->join_collection_id, checkpoint_path);
+      collection_status_->AddCP(mapupdate_spec->update_collection_id, checkpoint_path);
       LOG(INFO) << RED("[ControlManager::UpdateVersion] BGCP: checkpoint added for collection: "
-              + std::to_string(mapjoin_spec->join_collection_id) + ", path: " + checkpoint_path);
+              + std::to_string(mapupdate_spec->update_collection_id) + ", path: " + checkpoint_path);
     }
   }
 }
 
 void ControlManager::TryMigrate(int plan_id){
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
-    int max_version = versions_[plan_id] + mapjoin_spec->staleness + 1;
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  if (mapupdate_spec->map_collection_id == mapupdate_spec->update_collection_id) {
+    int max_version = versions_[plan_id] + mapupdate_spec->staleness + 1;
     std::map<int, std::vector<int>> nodes; // version, node ids
     for (auto node : map_node_versions_[plan_id]) {
       nodes[node.second.first].push_back(node.first);
@@ -170,7 +170,7 @@ void ControlManager::TryMigrate(int plan_id){
       }
       break; //only migrate for the min version
     }
-    auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+    auto& collection_view = elem_->collection_map->Get(mapupdate_spec->map_collection_id);
    
     //TODO: better schedule migration
     std::vector<std::tuple<int, int, int>> meta;
@@ -209,8 +209,8 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
   auto& part_versions = map_part_versions_[ctrl.plan_id];
   auto& node_versions = map_node_versions_[ctrl.plan_id];
   auto& node_count = map_node_count_[ctrl.plan_id];
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
-  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapupdate_spec->map_collection_id);
   auto& part_to_node_map = collection_view.mapper.Get();
 
   CHECK_EQ(part_versions[ctrl.part_id].first + 1, ctrl.version) << "version updated by 1 every time";
@@ -239,11 +239,11 @@ void ControlManager::HandleUpdateMapVersion(ControllerMsg ctrl) {
 }
 
 void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
-  auto& part_versions = join_part_versions_[ctrl.plan_id];
-  auto& node_versions = join_node_versions_[ctrl.plan_id];
-  auto& node_count = join_node_count_[ctrl.plan_id];
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
-  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
+  auto& part_versions = update_part_versions_[ctrl.plan_id];
+  auto& node_versions = update_node_versions_[ctrl.plan_id];
+  auto& node_count = update_node_count_[ctrl.plan_id];
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[ctrl.plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapupdate_spec->update_collection_id);
   auto& part_to_node_map = collection_view.mapper.Get();
 
   CHECK_EQ(part_versions[ctrl.part_id].first + 1, ctrl.version) << "version updated by 1 every time";
@@ -259,7 +259,7 @@ void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
       node_versions[node_id].second = std::chrono::system_clock::now();
 
       // LOG(INFO) << DebugVersions(ctrl.plan_id);
-      LOG(INFO) << "node: " << node_id << ", join version: " << node_versions[node_id].first;
+      LOG(INFO) << "node: " << node_id << ", update version: " << node_versions[node_id].first;
       // update node_count to next version
       node_count[node_id] = 0;
       for (auto& pv : part_versions) {
@@ -268,17 +268,17 @@ void ControlManager::HandleUpdateJoinVersion(ControllerMsg ctrl) {
         }
       }
       // try update version
-      bool update_join_version = true;
+      bool update_update_version = true;
       for (auto& node_version : node_versions) {
-        if (node_count[node_version.first] == 0) {  // no join part there
+        if (node_count[node_version.first] == 0) {  // no update part there
           continue;
         }
         if (node_version.second.first == versions_[ctrl.plan_id]) {
-          update_join_version = false;
+          update_update_version = false;
           break;
         }
       }
-      if (update_join_version) {
+      if (update_update_version) {
         UpdateVersion(ctrl.plan_id);
       }
     }
@@ -291,17 +291,17 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
     migrate_time[part_id].first = std::chrono::system_clock::now();
   }
 
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
   if (dynamic_cast<MapWithJoinSpec*>(specs_[plan_id].spec.get()) != nullptr &&
-      mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id
+      mapupdate_spec->map_collection_id == mapupdate_spec->update_collection_id
       ) { // only for mapwith and co-allocated
-    auto* mapjoin_spec = static_cast<MapWithJoinSpec*>(specs_[plan_id].spec.get());
-    if (mapjoin_spec->map_collection_id != mapjoin_spec->with_collection_id) {
+    auto* mapupdate_spec = static_cast<MapWithJoinSpec*>(specs_[plan_id].spec.get());
+    if (mapupdate_spec->map_collection_id != mapupdate_spec->with_collection_id) {
       // no need to migrate with_part if map collection equals with collection
-      auto& collection_view = elem_->collection_map->Get(mapjoin_spec->with_collection_id);
+      auto& collection_view = elem_->collection_map->Get(mapupdate_spec->with_collection_id);
       auto& part_to_node = collection_view.mapper.Mutable();
 
-      std::string url = collection_status_->GetLastCP(mapjoin_spec->with_collection_id);
+      std::string url = collection_status_->GetLastCP(mapupdate_spec->with_collection_id);
       std::vector<int> with_parts;
       for (std::tuple<int, int, int> submeta : meta) {
         int from_id = std::get<0>(submeta);
@@ -313,8 +313,8 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
         part_to_node[part_id] = to_id;
         with_parts.push_back(std::get<2>(submeta));
       }
-      int with_collection_id = mapjoin_spec->with_collection_id;
-      checkpoint_loader_->LoadCheckpointPartial(mapjoin_spec->with_collection_id,
+      int with_collection_id = mapupdate_spec->with_collection_id;
+      checkpoint_loader_->LoadCheckpointPartial(mapupdate_spec->with_collection_id,
           url, with_parts, [this, plan_id, meta, with_collection_id]() {
         //load checkpoint finished
         //1. update with collection view
@@ -340,8 +340,8 @@ void ControlManager::PreBatchMigrate(int plan_id, std::vector<std::tuple<int, in
 }
 
 void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, int>> meta) {
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapupdate_spec->update_collection_id);
   auto& part_to_node = collection_view.mapper.Mutable();
   for (std::tuple<int, int, int> submeta : meta) {
     int from_id = std::get<0>(submeta);
@@ -350,23 +350,23 @@ void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, 
     CHECK_LT(part_id, part_to_node.size());
     CHECK_EQ(part_to_node[part_id], from_id) << ", part_id: " << part_id;
     
-    //migrate join 
+    //migrate update 
     part_to_node[part_id] = to_id;
     auto current_time = std::chrono::system_clock::now();
-    CHECK_EQ(join_part_versions_[plan_id][part_id].first, versions_[plan_id]) << "only migrate for the minimum version";
+    CHECK_EQ(update_part_versions_[plan_id][part_id].first, versions_[plan_id]) << "only migrate for the minimum version";
     // LOG(INFO) << DebugVersions(plan_id);
     // update from_id
-    // try to update join_node_versions_ and join_node_count_
-    CHECK_EQ(join_part_versions_[plan_id][part_id].first, join_node_versions_[plan_id][from_id].first);
-    if (join_node_count_[plan_id][from_id] > 1) {
-      join_node_count_[plan_id][from_id] -= 1;
-    } else if (join_node_count_[plan_id][from_id] == 1) {
+    // try to update update_node_versions_ and update_node_count_
+    CHECK_EQ(update_part_versions_[plan_id][part_id].first, update_node_versions_[plan_id][from_id].first);
+    if (update_node_count_[plan_id][from_id] > 1) {
+      update_node_count_[plan_id][from_id] -= 1;
+    } else if (update_node_count_[plan_id][from_id] == 1) {
       // 1. find a new min version for from_id
       int new_min = 1000000;
       for (int i = 0; i < part_to_node.size(); ++ i) {
         if (part_to_node[i] == from_id) {
-          if (join_part_versions_[plan_id][i].first < new_min) {
-            new_min = join_part_versions_[plan_id][i].first;
+          if (update_part_versions_[plan_id][i].first < new_min) {
+            new_min = update_part_versions_[plan_id][i].first;
           }
         }
       }
@@ -374,21 +374,21 @@ void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, 
       int count = 0;
       for (int i = 0; i < part_to_node.size(); ++ i) {
         if (part_to_node[i] == from_id) {
-          if (join_part_versions_[plan_id][i].first == new_min) {
+          if (update_part_versions_[plan_id][i].first == new_min) {
             count += 1;
           }
         }
       }
-      join_node_count_[plan_id][from_id] = count;
-      join_node_versions_[plan_id][from_id].first = new_min;
-      join_node_versions_[plan_id][from_id].second = current_time;
-      LOG(INFO) << "[ControlManager::Migrate] update join_node_versions_ for node: " << from_id << " to " << new_min << ", min_count: " << count;
+      update_node_count_[plan_id][from_id] = count;
+      update_node_versions_[plan_id][from_id].first = new_min;
+      update_node_versions_[plan_id][from_id].second = current_time;
+      LOG(INFO) << "[ControlManager::Migrate] update update_node_versions_ for node: " << from_id << " to " << new_min << ", min_count: " << count;
     } else {
       CHECK(false);
     }
 
-    // migrate map if map collection equals join collection
-    if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
+    // migrate map if map collection equals update collection
+    if (mapupdate_spec->map_collection_id == mapupdate_spec->update_collection_id) {
       if (map_node_versions_[plan_id][from_id].first == map_part_versions_[plan_id][part_id].first) {
         // migrating the min version
         if (map_node_count_[plan_id][from_id] > 1) {
@@ -424,17 +424,17 @@ void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, 
     }
 
     // update to_id
-    if (join_part_versions_[plan_id][part_id].first < join_node_versions_[plan_id][to_id].first) {
-      join_node_count_[plan_id][to_id] = 1;
-      join_node_versions_[plan_id][to_id].first = join_part_versions_[plan_id][part_id].first;
-    } else if (join_part_versions_[plan_id][part_id].first == join_node_versions_[plan_id][to_id].first) {
-      join_node_count_[plan_id][to_id] += 1;
+    if (update_part_versions_[plan_id][part_id].first < update_node_versions_[plan_id][to_id].first) {
+      update_node_count_[plan_id][to_id] = 1;
+      update_node_versions_[plan_id][to_id].first = update_part_versions_[plan_id][part_id].first;
+    } else if (update_part_versions_[plan_id][part_id].first == update_node_versions_[plan_id][to_id].first) {
+      update_node_count_[plan_id][to_id] += 1;
     } else {
       // do nothing.
     }
 
     // for map
-    if (mapjoin_spec->map_collection_id == mapjoin_spec->join_collection_id) {
+    if (mapupdate_spec->map_collection_id == mapupdate_spec->update_collection_id) {
       if (map_part_versions_[plan_id][part_id].first < map_node_versions_[plan_id][to_id].first) {
         map_node_count_[plan_id][to_id] = 1;
         map_node_versions_[plan_id][to_id].first = map_part_versions_[plan_id][part_id].first;
@@ -448,7 +448,7 @@ void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, 
     MigrateMeta migrate_meta;
     migrate_meta.flag = MigrateMeta::MigrateFlag::kStartMigrate;
     migrate_meta.plan_id = plan_id;
-    migrate_meta.collection_id = mapjoin_spec->join_collection_id;
+    migrate_meta.collection_id = mapupdate_spec->update_collection_id;
     migrate_meta.partition_id = part_id;
     migrate_meta.from_id = from_id;
     migrate_meta.to_id = to_id;
@@ -462,9 +462,9 @@ void ControlManager::BatchMigrate(int plan_id, std::vector<std::tuple<int, int, 
 void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int part_id) {
   // some checking
   CHECK(map_part_versions_[plan_id].find(part_id) != map_part_versions_[plan_id].end());
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  auto& collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
-  CHECK_NE(mapjoin_spec->map_collection_id, mapjoin_spec->join_collection_id);
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  auto& collection_view = elem_->collection_map->Get(mapupdate_spec->map_collection_id);
+  CHECK_NE(mapupdate_spec->map_collection_id, mapupdate_spec->update_collection_id);
   auto& part_to_node = collection_view.mapper.Get();
   CHECK_LT(part_id, part_to_node.size());
   CHECK_EQ(part_to_node[part_id], from_id);
@@ -472,7 +472,7 @@ void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int par
   MigrateMeta migrate_meta;
   migrate_meta.flag = MigrateMeta::MigrateFlag::kStartMigrateMapOnly;
   migrate_meta.plan_id = plan_id;
-  migrate_meta.collection_id = mapjoin_spec->map_collection_id;
+  migrate_meta.collection_id = mapupdate_spec->map_collection_id;
   migrate_meta.partition_id = part_id;
   migrate_meta.from_id = from_id;
   migrate_meta.to_id = to_id;
@@ -483,18 +483,18 @@ void ControlManager::MigrateMapOnly(int plan_id, int from_id, int to_id, int par
 }
 
 void ControlManager::UpdateVersion(int plan_id) {
-  auto* mapjoin_spec = specs_[plan_id].GetMapJoinSpec();
+  auto* mapupdate_spec = specs_[plan_id].GetMapJoinSpec();
   versions_[plan_id] ++;
 
-  if (!BGCP && mapjoin_spec->checkpoint_interval != 0 
-          && versions_[plan_id] % mapjoin_spec->checkpoint_interval == 0) {
-    int cp_iter = versions_[plan_id] / mapjoin_spec->checkpoint_interval;
-    CHECK(mapjoin_spec->checkpoint_path.size());
-    std::string checkpoint_path = mapjoin_spec->checkpoint_path;
+  if (!BGCP && mapupdate_spec->checkpoint_interval != 0 
+          && versions_[plan_id] % mapupdate_spec->checkpoint_interval == 0) {
+    int cp_iter = versions_[plan_id] / mapupdate_spec->checkpoint_interval;
+    CHECK(mapupdate_spec->checkpoint_path.size());
+    std::string checkpoint_path = mapupdate_spec->checkpoint_path;
     checkpoint_path = checkpoint_path + "/cp-" + std::to_string(cp_iter);
-    collection_status_->AddCP(mapjoin_spec->join_collection_id, checkpoint_path);
+    collection_status_->AddCP(mapupdate_spec->update_collection_id, checkpoint_path);
     LOG(INFO) << RED("[ControlManager::UpdateVersion] checkpoint added for collection: "
-            + std::to_string(mapjoin_spec->join_collection_id) + ", path: " + checkpoint_path);
+            + std::to_string(mapupdate_spec->update_collection_id) + ", path: " + checkpoint_path);
   }
 
   //record time 
@@ -543,8 +543,8 @@ void ControlManager::RunPlan(SpecWrapper spec, std::function<void()> f) {
 }
 
 void ControlManager::ReassignMap(int plan_id, int collection_id) {
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  CHECK_EQ(collection_id, mapjoin_spec->map_collection_id) << "only support map now (no with)";
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  CHECK_EQ(collection_id, mapupdate_spec->map_collection_id) << "only support map now (no with)";
   // 1. identify the updated parts
   std::vector<std::tuple<int, int, int>> reassignments;  // part_id, from_id, to_id
   auto& cached_part_to_node = cached_part_to_node_[plan_id][collection_id];
@@ -592,13 +592,13 @@ void ControlManager::Init(int plan_id) {
     map_node_versions_[plan_id][node.second.node.id].second = start_time_;
     map_node_count_[plan_id][node.second.node.id] = 0;
 
-    join_node_versions_[plan_id][node.second.node.id].first = 0;
-    join_node_versions_[plan_id][node.second.node.id].second = start_time_;
-    join_node_count_[plan_id][node.second.node.id] = 0;
+    update_node_versions_[plan_id][node.second.node.id].first = 0;
+    update_node_versions_[plan_id][node.second.node.id].second = start_time_;
+    update_node_count_[plan_id][node.second.node.id] = 0;
   }
 
-  auto* mapjoin_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
-  auto& map_collection_view = elem_->collection_map->Get(mapjoin_spec->map_collection_id);
+  auto* mapupdate_spec = static_cast<MapJoinSpec*>(specs_[plan_id].spec.get());
+  auto& map_collection_view = elem_->collection_map->Get(mapupdate_spec->map_collection_id);
   auto& map_part_to_node_map = map_collection_view.mapper.Get();
   for (int i = 0; i < map_part_to_node_map.size(); ++ i) {
     map_node_count_[plan_id][map_part_to_node_map[i]] += 1;
@@ -606,15 +606,15 @@ void ControlManager::Init(int plan_id) {
     map_part_versions_[plan_id][i].second = start_time_;
   }
 
-  auto& join_collection_view = elem_->collection_map->Get(mapjoin_spec->join_collection_id);
-  auto& join_part_to_node_map = join_collection_view.mapper.Get();
-  for (int i = 0; i < join_part_to_node_map.size(); ++ i) {
-    join_node_count_[plan_id][join_part_to_node_map[i]] += 1;
-    join_part_versions_[plan_id][i].first = 0;
-    join_part_versions_[plan_id][i].second = start_time_;
+  auto& update_collection_view = elem_->collection_map->Get(mapupdate_spec->update_collection_id);
+  auto& update_part_to_node_map = update_collection_view.mapper.Get();
+  for (int i = 0; i < update_part_to_node_map.size(); ++ i) {
+    update_node_count_[plan_id][update_part_to_node_map[i]] += 1;
+    update_part_versions_[plan_id][i].first = 0;
+    update_part_versions_[plan_id][i].second = start_time_;
   }
   // set the cached_part_to_node_
-  cached_part_to_node_[plan_id][mapjoin_spec->map_collection_id] = map_part_to_node_map;
+  cached_part_to_node_[plan_id][mapupdate_spec->map_collection_id] = map_part_to_node_map;
 }
 
 int ControlManager::GetCurVersion(int plan_id) {
@@ -636,16 +636,16 @@ std::string ControlManager::DebugVersions(int plan_id) {
     ss << pv.first << ": " << pv.second << ", ";
   }
 
-  ss << "\njoin_part_versions_: ";
-  for (auto& pv : join_part_versions_[plan_id]) {
+  ss << "\nupdate_part_versions_: ";
+  for (auto& pv : update_part_versions_[plan_id]) {
     ss << pv.first << ": " << pv.second.first << ", ";
   }
-  ss << "\njoin_node_versions_: ";
-  for (auto& pv : join_node_versions_[plan_id]) {
+  ss << "\nupdate_node_versions_: ";
+  for (auto& pv : update_node_versions_[plan_id]) {
     ss << pv.first << ": " << pv.second.first << ", ";
   }
-  ss << "\njoin_node_count_: ";
-  for (auto& pv : join_node_count_[plan_id]) {
+  ss << "\nupdate_node_count_: ";
+  for (auto& pv : update_node_count_[plan_id]) {
     ss << pv.first << ": " << pv.second << ", ";
   }
   return ss.str();

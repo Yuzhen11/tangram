@@ -7,7 +7,7 @@ namespace xyz {
 
 DelayedCombiner::DelayedCombiner(PlanController* plan_controller, int combine_timeout)
   : plan_controller_(plan_controller), combine_timeout_(combine_timeout) {
-  store_.resize(plan_controller_->num_join_part_);
+  store_.resize(plan_controller_->num_update_part_);
   if (combine_timeout_ > 0 && combine_timeout_ <= kMaxCombineTimeout) {
     detect_thread_ = std::thread([this]() {
       PeriodicCombine();
@@ -22,7 +22,7 @@ void DelayedCombiner::AddMapOutput(int upstream_part_id, int version,
         std::shared_ptr<AbstractMapOutput> map_output) {
   std::lock_guard<std::mutex> lk(mu_);
   int buffer_size = map_output->GetBufferSize();
-  CHECK_EQ(buffer_size, plan_controller_->num_join_part_);
+  CHECK_EQ(buffer_size, plan_controller_->num_update_part_);
 
   for (int part_id = 0; part_id < buffer_size; ++ part_id) {
     CHECK_LT(part_id, store_.size());
@@ -121,7 +121,7 @@ void DelayedCombiner::PrepareMsgAndSend(int part_id, int version,
   msg.meta.sender = plan_controller_->controller_->Qid();
   CHECK(plan_controller_->controller_->engine_elem_.collection_map);
   msg.meta.recver = GetControllerActorQid(plan_controller_->controller_->engine_elem_.
-          collection_map->Lookup(plan_controller_->join_collection_id_, part_id));
+          collection_map->Lookup(plan_controller_->update_collection_id_, part_id));
   msg.meta.flag = Flag::kOthers;
 
   // SArrayBinStream bin;
@@ -133,7 +133,7 @@ void DelayedCombiner::PrepareMsgAndSend(int part_id, int version,
 
   PlanController::VersionedShuffleMeta meta;
   meta.plan_id = plan_controller_->plan_id_;
-  meta.collection_id = plan_controller_->join_collection_id_;
+  meta.collection_id = plan_controller_->update_collection_id_;
   meta.upstream_part_id = -1;
   meta.ext_upstream_part_ids = upstream_part_ids;
   meta.part_id = part_id;

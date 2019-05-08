@@ -28,7 +28,7 @@ class Engine {
     std::string scheduler;
     int scheduler_port;
     int num_local_threads;
-    int num_join_threads;
+    int num_update_threads;
     int num_combine_threads;
     std::string namenode;
     int port;
@@ -38,7 +38,7 @@ class Engine {
       ss << ", scheduler: " << scheduler;
       ss << ", scheduler_port: " << scheduler_port;
       ss << ", num_local_threads: " << num_local_threads;
-      ss << ", num_join_threads: " << num_join_threads;
+      ss << ", num_update_threads: " << num_update_threads;
       ss << ", num_combine_threads: " << num_combine_threads;
       ss << ", namenode: " << namenode;
       ss << ", port: " << port;

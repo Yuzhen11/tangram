@@ -1,7 +1,7 @@
 #include "gtest/gtest.h"
 #include "glog/logging.h"
 
-#include "core/plan/mapjoin.hpp"
+#include "core/plan/mapupdate.hpp"
 #include "core/partition/seq_partition.hpp"
 #include "core/map_output/partitioned_map_output.hpp"
 
@@ -32,7 +32,7 @@ TEST_F(TestMapJoin, Create) {
   plan.map = [](ObjT a, Output<typename ObjT::KeyT, int>* o) {
     o->Add(a.Key(), 1);
   };
-  plan.join = [](ObjT* obj, int m) {
+  plan.update = [](ObjT* obj, int m) {
     obj->b += m;
   };
 }

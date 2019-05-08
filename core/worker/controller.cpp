@@ -119,7 +119,7 @@ void Controller::Setup(SArrayBinStream bin) {
 
 // terminate a plan
 // TODO: there may be some tasks still running or pending in the executors.
-// For map (without fetch), join and fetch, should be ok. 
+// For map (without fetch), update and fetch, should be ok. 
 // The only possible remaining task is map (with fetch).
 void Controller::TerminatePlan(int plan_id) {
   CHECK(plan_controllers_.find(plan_id) != plan_controllers_.end());

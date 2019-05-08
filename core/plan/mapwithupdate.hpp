@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/plan/mappartwithjoin.hpp"
+#include "core/plan/mappartwithupdate.hpp"
 
 namespace xyz {
 
@@ -19,8 +19,8 @@ struct MapWithJoin : public MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT> {
 
   MapWithJoin(int plan_id, C1* map_collection, 
        C2* with_collection,
-       C3* join_collection) 
-      : MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT>(plan_id, map_collection, with_collection, join_collection) {
+       C3* update_collection) 
+      : MapPartWithJoin<C1,C2,C3,ObjT1,ObjT2,ObjT3,MsgT>(plan_id, map_collection, with_collection, update_collection) {
   }
 
   void SetMapPartWith() {

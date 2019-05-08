@@ -18,7 +18,7 @@ struct Spec {
 
 struct MapJoinSpec : public Spec {
   int map_collection_id;
-  int join_collection_id;
+  int update_collection_id;
   int combine_timeout = 0;
   int num_iter = 1;
   int staleness = 0;
@@ -28,30 +28,30 @@ struct MapJoinSpec : public Spec {
   MapJoinSpec() = default;
   MapJoinSpec(int mid, int jid, int comb, int iter, int s, 
           int cp, std::string path, std::string d)
-      : map_collection_id(mid), join_collection_id(jid), 
+      : map_collection_id(mid), update_collection_id(jid), 
         combine_timeout(comb), num_iter(iter), staleness(s), checkpoint_interval(cp),
         checkpoint_path(path), description(d) {}
   virtual void ToBin(SArrayBinStream& bin) override {
-    bin << map_collection_id << join_collection_id 
+    bin << map_collection_id << update_collection_id 
         << combine_timeout << num_iter << staleness << checkpoint_interval
         << checkpoint_path << description;
   }
   virtual void FromBin(SArrayBinStream& bin) override {
-    bin >> map_collection_id >> join_collection_id
+    bin >> map_collection_id >> update_collection_id
         >> combine_timeout >> num_iter >> staleness >> checkpoint_interval
         >> checkpoint_path >> description;
   }
   virtual ReadWriteVector GetReadWrite() const {
-    if (map_collection_id == join_collection_id) {
+    if (map_collection_id == update_collection_id) {
       return {{}, {map_collection_id}};
     } else {
-      return {{map_collection_id}, {join_collection_id}};
+      return {{map_collection_id}, {update_collection_id}};
     }
   }
   virtual std::string DebugString() const {
     std::stringstream ss;
     ss << "map_collection_id: " << map_collection_id;
-    ss << ", join_collection_id: " << join_collection_id;
+    ss << ", update_collection_id: " << update_collection_id;
     ss << ", combine_timeout: " << combine_timeout;
     ss << ", num_iter: " << num_iter;
     ss << ", staleness: " << staleness;
@@ -78,13 +78,13 @@ struct MapWithJoinSpec : public MapJoinSpec {
   }
   virtual ReadWriteVector GetReadWrite() const {
     std::vector<int> read;
-    if (map_collection_id != join_collection_id) {
+    if (map_collection_id != update_collection_id) {
       read.push_back(map_collection_id);
     }
-    if (with_collection_id != join_collection_id) {
+    if (with_collection_id != update_collection_id) {
       read.push_back(with_collection_id);
     }
-    return {read, {join_collection_id}};
+    return {read, {update_collection_id}};
   }
   virtual std::string DebugString() const {
     std::stringstream ss;

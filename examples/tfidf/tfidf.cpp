@@ -125,7 +125,7 @@ int main(int argc, char **argv) {
 
   auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
-  Context::mappartjoin(
+  Context::mappartupdate(
       loaded_docs, indexed_docs,
       [](TypedPartition<Document> *p, Output<std::string, Document> *o) {
         for (auto &doc : *p) {
@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
 
   Context::sort_each_partition(indexed_docs);
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       indexed_docs, terms,
       [](TypedPartition<Document> *p, Output<std::string, Msg> *o) {
         for (auto &doc : *p) {
@@ -159,7 +159,7 @@ int main(int argc, char **argv) {
 
   // Context::count(terms);
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       terms, indexed_docs,
       [](TypedPartition<Term> *p, Output<std::string, std::pair<int, int>> *o) {
         for (auto &term : *p) {

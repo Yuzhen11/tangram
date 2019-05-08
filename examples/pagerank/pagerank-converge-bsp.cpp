@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
   auto vertex =
       Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       loaded_dataset, vertex,
       [](TypedPartition<Vertex> *p, Output<int, std::vector<int>> *o) {
         for (auto &v : *p) {
@@ -114,7 +114,7 @@ int main(int argc, char **argv) {
   // Context::count(vertex);
 
   for (int i = 0; i < 10; ++i) {
-    Context::mappartjoin(
+    Context::mappartupdate(
         vertex, vertex,
         [](TypedPartition<Vertex> *p, Output<int, double> *o) {
           for (auto &v : *p) {
@@ -138,7 +138,7 @@ int main(int argc, char **argv) {
                    });
   }
 
-  Context::mappartjoin(vertex, vertex,
+  Context::mappartupdate(vertex, vertex,
                        [](TypedPartition<Vertex> *p, Output<int, double> *o) {
                          for (auto &v : *p) {
                            v.pr = v.pr + 0.15;
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
                        [](Vertex *v, double contrib) {});
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
-  Context::mapjoin(
+  Context::mapupdate(
       vertex, topk,
       [](const Vertex &vertex,
          Output<int, std::vector<std::pair<int, double>>> *o) {
@@ -195,7 +195,7 @@ int main(int argc, char **argv) {
       })
       ->SetName("find topk");
 
-  Context::mapjoin(topk, topk, // print top 10
+  Context::mapupdate(topk, topk, // print top 10
                    [](const TopK &topk, Output<int, int> *o) {
                      CHECK_EQ(topk.vertices.size(), 10);
                      LOG(INFO) << "Top K:";

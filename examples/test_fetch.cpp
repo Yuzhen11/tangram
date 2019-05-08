@@ -29,18 +29,18 @@ int main(int argc, char **argv) {
   auto c2 = Context::placeholder<ObjT>(10);
   auto c3 = Context::placeholder<ObjT>(10);
 
-  // mapjoin
-  Context::mapjoin(c1, c2, [](std::string word,
+  // mapupdate
+  Context::mapupdate(c1, c2, [](std::string word,
                               Output<std::string, int> *o) { o->Add(word, 1); },
                    [](ObjT *obj, int m) {
                      obj->b += m;
-                     // LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+                     // LOG(INFO) << "update result: " << obj->a << " " << obj->b;
                    });
 
-  // mappartwithjoin
-  // with_collection != join_collection
-  // map c1, with c2, join c3
-  Context::mappartwithjoin(
+  // mappartwithupdate
+  // with_collection != update_collection
+  // map c1, with c2, update c3
+  Context::mappartwithupdate(
       c1, c2, c3,
       [](TypedPartition<std::string> *p, TypedCache<ObjT> *typed_cache,
          Output<std::string, int> *o) {
@@ -62,14 +62,14 @@ int main(int argc, char **argv) {
       },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       })
       ->SetIter(10)
       ->SetStaleness(1);
 
-  // with_collection == join_collection
-  // map c1, with c2, join c2
-  Context::mappartwithjoin(
+  // with_collection == update_collection
+  // map c1, with c2, update c2
+  Context::mappartwithupdate(
       c1, c2, c2,
       [](TypedPartition<std::string> *p, TypedCache<ObjT> *typed_cache,
          Output<std::string, int> *o) {
@@ -91,7 +91,7 @@ int main(int argc, char **argv) {
       },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       })
       ->SetIter(10)
       ->SetStaleness(1);

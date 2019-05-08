@@ -40,7 +40,7 @@ int main(int argc, char **argv) {
   auto pr_pair = Context::placeholder<PRpair>(100);
   auto diff = Context::placeholder<Diff>(1);
   // lines1 -> pr_pair
-  Context::mappartjoin(
+  Context::mappartupdate(
       lines1, pr_pair,
       [](TypedPartition<std::string> *p, Output<int, double> *o) {
         auto *bp = dynamic_cast<BlockPartition *>(p);
@@ -61,7 +61,7 @@ int main(int argc, char **argv) {
       [](PRpair *p, double c) { p->pr1 = c; });
 
   // lines2 -> pr_pair
-  Context::mappartjoin(
+  Context::mappartupdate(
       lines2, pr_pair,
       [](TypedPartition<std::string> *p, Output<int, double> *o) {
         auto *bp = dynamic_cast<BlockPartition *>(p);
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
       },
       [](PRpair *p, double c) { p->pr2 = c; });
 
-  Context::mapjoin(pr_pair, diff,
+  Context::mapupdate(pr_pair, diff,
                    [](PRpair p, Output<int, double> *o) {
                      // LOG(INFO) << "pr1, pr2, diff: "
                      //   << p.pr1 << " " << p.pr2 << " " << fabs(p.pr2 -

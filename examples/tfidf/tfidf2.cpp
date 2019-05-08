@@ -162,7 +162,7 @@ int main(int argc, char **argv) {
   // Context::sort_each_partition(indexed_docs);
   Context::sort_each_partition(terms);
 
-  Context::mappartjoin(loaded_docs, terms,
+  Context::mappartupdate(loaded_docs, terms,
                        [](TypedPartition<Document> *p, Output<int, int> *o) {
                          for (auto &doc : *p) {
                            for (int i = 0; i < doc.words.size(); i++) {
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 
   // Context::count(terms);
   auto dummy_collection = Context::placeholder<KVObjT<int, double>>(1);
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       loaded_docs, terms, dummy_collection,
       [terms_key_part_mapper](TypedPartition<Document> *p,
                               TypedCache<Term> *typed_cache,

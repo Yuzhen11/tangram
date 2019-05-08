@@ -331,7 +331,7 @@ int main(int argc, char **argv) {
   // std::make_shared<HashKeyToPartMapper<int>>(num_graph_parts);
   auto graph =
       Context::placeholder<Vertex>(num_graph_parts, graph_key_part_mapper);
-  Context::mapjoin(
+  Context::mapupdate(
       dataset, graph,
       [](const Vertex &vertex,
          Output<int, std::pair<char, std::vector<Vertex>>> *o) {
@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
   Context::sort_each_partition(graph);
 
   auto matcher = Context::placeholder<Matcher>(num_matcher_parts);
-  Context::mapjoin(
+  Context::mapupdate(
       dataset, matcher,
       [num_matchers](const Vertex &vertex, Output<int, int> *o) {
         int matcherId = vertex.id % num_matchers;
@@ -369,7 +369,7 @@ int main(int argc, char **argv) {
   // matcher id, (round id, postition id, vertex id, label, parent id, sibling
   // ids)
   using MsgT = std::vector<std::tuple<int, int, int, char, int, std::set<int>>>;
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       matcher, graph, matcher,
       [pattern, num_matcher_parts, num_graph_parts, graph_key_part_mapper,
        num_matchers](
@@ -519,7 +519,7 @@ int main(int argc, char **argv) {
   //| |
   // -c-b-d
   auto count = Context::placeholder<CountObj>(1);
-  Context::mappartjoin(
+  Context::mappartupdate(
       matcher, count,
       [](TypedPartition<Matcher> *p,
          Output<int, std::tuple<int64_t, int64_t, int64_t>> *o) {
@@ -603,7 +603,7 @@ int main(int argc, char **argv) {
         std::get<2>(*msg1) += std::get<2>(msg2);
       })
       ->SetName("Count Matched Pattern");
-  Context::mappartjoin(
+  Context::mappartupdate(
       count, count,
       [](TypedPartition<CountObj> *p, Output<int, int> *o) {
         for (CountObj obj : *p) {

@@ -27,7 +27,7 @@ struct EngineElem {
   int port;
 
   int num_local_threads;
-  int num_join_threads;
+  int num_update_threads;
   int num_combine_threads;
 };
 

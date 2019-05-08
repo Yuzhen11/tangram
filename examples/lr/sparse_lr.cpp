@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
   auto params = create_range_params(num_params, num_param_per_part);
 
   auto p =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           points, params, params,
           [num_params, alpha, local_batch_size](
               TypedPartition<IndexedPoints> *p, TypedCache<Param> *typed_cache,

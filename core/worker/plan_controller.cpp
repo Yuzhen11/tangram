@@ -9,15 +9,15 @@
 #define BGCP false
 // #define CPULIMIT
 
-// for migrate join like pr, enable MIGRATE_JOIN and use stop_joining_partitions_
-// for migrate map like kmeans, disable stop_joining_partitions_
+// for migrate update like pr, enable MIGRATE_JOIN and use stop_updateing_partitions_
+// for migrate map like kmeans, disable stop_updateing_partitions_
 // #define MIGRATE_JOIN 
 
 namespace xyz {
 
 PlanController::PlanController(Controller* controller)
   : controller_(controller) {
-  fetch_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_join_threads);
+  fetch_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_update_threads);
   map_executor_ = std::make_shared<Executor>(controller_->engine_elem_.num_local_threads);
   local_map_mode_ = true;
 }
@@ -37,7 +37,7 @@ void PlanController::Setup(SpecWrapper spec) {
   }
   auto* p = static_cast<MapJoinSpec*>(spec.spec.get());
   map_collection_id_ = p->map_collection_id;
-  join_collection_id_ = p->join_collection_id;
+  update_collection_id_ = p->update_collection_id;
   checkpoint_interval_ = p->checkpoint_interval;
   checkpoint_path_ = p->checkpoint_path;
   if (checkpoint_interval_ != 0) {
@@ -45,18 +45,18 @@ void PlanController::Setup(SpecWrapper spec) {
   }
   plan_id_ = spec.id;
   num_upstream_part_ = controller_->engine_elem_.collection_map->GetNumParts(map_collection_id_);
-  num_join_part_ = controller_->engine_elem_.collection_map->GetNumParts(join_collection_id_);
-  num_local_join_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(join_collection_id_);
+  num_update_part_ = controller_->engine_elem_.collection_map->GetNumParts(update_collection_id_);
+  num_local_update_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(update_collection_id_);
   num_local_map_part_ = controller_->engine_elem_.partition_manager->GetNumLocalParts(map_collection_id_);
   min_version_ = 0;
   staleness_ = p->staleness;
   expected_num_iter_ = p->num_iter;
   CHECK_NE(expected_num_iter_, 0);
   map_versions_.clear();
-  join_versions_.clear();
-  join_tracker_.clear();
-  pending_joins_.clear();
-  waiting_joins_.clear();
+  update_versions_.clear();
+  update_tracker_.clear();
+  pending_updates_.clear();
+  waiting_updates_.clear();
   int combine_timeout = p->combine_timeout;
   delayed_combiner_ = std::make_shared<DelayedCombiner>(this, combine_timeout);
 
@@ -64,9 +64,9 @@ void PlanController::Setup(SpecWrapper spec) {
   for (auto& part : parts) {
     map_versions_[part->id] = 0;
   }
-  parts = controller_->engine_elem_.partition_manager->Get(join_collection_id_);
+  parts = controller_->engine_elem_.partition_manager->Get(update_collection_id_);
   for (auto& part : parts) {
-    join_versions_[part->id] = 0;
+    update_versions_[part->id] = 0;
   }
 
   SArrayBinStream reply_bin;
@@ -104,8 +104,8 @@ void PlanController::UpdateVersion(SArrayBinStream bin) {
   CHECK_LT(new_version, expected_num_iter_);
   CHECK_EQ(new_version, min_version_+1);
   min_version_ = new_version;
-  for (auto& part_version : join_tracker_) {
-    part_version.second.erase(new_version-1);  // erase old join_tracker content
+  for (auto& part_version : update_tracker_) {
+    part_version.second.erase(new_version-1);  // erase old update_tracker content
   }
   TryRunSomeMaps();
 }
@@ -118,11 +118,11 @@ void PlanController::FinishMap(SArrayBinStream bin) {
 
   {
     // the migrate partition is running map
-    // when finished running map and stop_joining is erasable
-    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-    if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end() &&
-        stop_joining_partitions_[part_id]) {
-      stop_joining_partitions_.erase(part_id);
+    // when finished running map and stop_updateing is erasable
+    std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+    if (stop_updateing_partitions_.find(part_id) != stop_updateing_partitions_.end() &&
+        stop_updateing_partitions_[part_id]) {
+      stop_updateing_partitions_.erase(part_id);
     }
   }
 
@@ -140,15 +140,15 @@ void PlanController::FinishMap(SArrayBinStream bin) {
   map_versions_[part_id] += 1;
   ReportFinishPart(ControllerMsg::Flag::kMap, part_id, map_versions_[part_id]);
 
-  if (map_collection_id_ == join_collection_id_) {
-    if (!pending_joins_[part_id][last_version].empty()) {
-      while (!pending_joins_[part_id][last_version].empty()) {
-        waiting_joins_[part_id].push_back(pending_joins_[part_id][last_version].front());
-        pending_joins_[part_id][last_version].pop_front();
+  if (map_collection_id_ == update_collection_id_) {
+    if (!pending_updates_[part_id][last_version].empty()) {
+      while (!pending_updates_[part_id][last_version].empty()) {
+        waiting_updates_[part_id].push_back(pending_updates_[part_id][last_version].front());
+        pending_updates_[part_id][last_version].pop_front();
       }
-      pending_joins_[part_id].erase(last_version);
+      pending_updates_[part_id].erase(last_version);
     }
-    // try run waiting joins if map_collection_id_ == join_collection_id_
+    // try run waiting updates if map_collection_id_ == update_collection_id_
     TryRunWaitingJoins(part_id);
   }
   // select other maps
@@ -177,16 +177,16 @@ bool PlanController::IsMapRunnable(int part_id) {
   if (running_maps_.find(part_id) != running_maps_.end()) {
     return false;
   }
-  // 2. if mid == jid, check whether there is running join for this part
-  if (map_collection_id_ == join_collection_id_
-          && running_joins_.find(part_id) != running_joins_.end()) {
+  // 2. if mid == jid, check whether there is running update for this part
+  if (map_collection_id_ == update_collection_id_
+          && running_updates_.find(part_id) != running_updates_.end()) {
     return false;
   }
   // 3. if mid == jid, check whether this part is migrating
   {
-    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-    if (map_collection_id_ == join_collection_id_
-            && stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
+    std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+    if (map_collection_id_ == update_collection_id_
+            && stop_updateing_partitions_.find(part_id) != stop_updateing_partitions_.end()) {
       return false;
     }
   }
@@ -203,40 +203,40 @@ bool PlanController::IsMapRunnable(int part_id) {
 }
 
 bool PlanController::TryRunWaitingJoins(int part_id) {
-  // if some fetches are in the waiting_joins_, 
-  // join_collection_id_ == fetch_collection_id_
+  // if some fetches are in the waiting_updates_, 
+  // update_collection_id_ == fetch_collection_id_
 #ifdef MIGRATE_JOIN
   {
-    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-    if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
-      // if this part is migrating, do not join or fetch
+    std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+    if (stop_updateing_partitions_.find(part_id) != stop_updateing_partitions_.end()) {
+      // if this part is migrating, do not update or fetch
       return false;
     }
   }
 #endif
   
-  if (running_joins_.find(part_id) != running_joins_.end()) {
-    // someone is joining this part
+  if (running_updates_.find(part_id) != running_updates_.end()) {
+    // someone is updateing this part
     return false;
   }
 
-  if (fetch_collection_id_ == join_collection_id_ 
+  if (fetch_collection_id_ == update_collection_id_ 
           && running_fetches_[part_id] > 0) {
     // someone is fetching this part
     return false;
   }
 
-  if (map_collection_id_ == join_collection_id_ 
+  if (map_collection_id_ == update_collection_id_ 
           && running_maps_.find(part_id) != running_maps_.end()) {
     // someone is mapping this part
     return false;
   }
 
-  // see whether there is any waiting joins
-  auto& joins = waiting_joins_[part_id];
-  if (!joins.empty()) {
-    VersionedJoinMeta meta = joins.front();
-    joins.pop_front();
+  // see whether there is any waiting updates
+  auto& updates = waiting_updates_[part_id];
+  if (!updates.empty()) {
+    VersionedJoinMeta meta = updates.front();
+    updates.pop_front();
     if (!meta.meta.is_fetch) {
       RunJoin(meta);
     } else {
@@ -252,22 +252,22 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
   std::vector<int> upstream_part_ids;
   bin >> part_id >> version >> upstream_part_ids;
   // LOG(INFO) << "FinishJoin: partid, version: " << part_id << " " << version;
-  running_joins_.erase(part_id);
+  running_updates_.erase(part_id);
 
   for (auto upstream_part_id : upstream_part_ids) {
-    join_tracker_[part_id][version].insert(upstream_part_id);
+    update_tracker_[part_id][version].insert(upstream_part_id);
   }
-  if (join_tracker_[part_id][version].size() == num_upstream_part_) {
+  if (update_tracker_[part_id][version].size() == num_upstream_part_) {
     CalcJoinTrackerSize();
-    join_tracker_[part_id][version].clear(); //
-    join_versions_[part_id] += 1;
+    update_tracker_[part_id][version].clear(); //
+    update_versions_[part_id] += 1;
 
     bool runcp = TryCheckpoint(part_id);
     if (runcp) {
       // if runcp, whether BGCP or not, ReportFinishPart after checkpoint
       return;
     } else {
-      ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
+      ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, update_versions_[part_id]);
     }
   }
   TryRunWaitingJoins(part_id);
@@ -275,23 +275,23 @@ void PlanController::FinishJoin(SArrayBinStream bin) {
 
 bool PlanController::TryCheckpoint(int part_id) {
   /*
-  if (join_versions_[part_id] == expected_num_iter_) {
+  if (update_versions_[part_id] == expected_num_iter_) {
     // TODO: ignore the last one
     return false;
   }
   */
-  if (checkpoint_interval_ != 0 && join_versions_[part_id] % checkpoint_interval_ == 0) {
-    int checkpoint_iter = join_versions_[part_id] / checkpoint_interval_;
+  if (checkpoint_interval_ != 0 && update_versions_[part_id] % checkpoint_interval_ == 0) {
+    int checkpoint_iter = update_versions_[part_id] / checkpoint_interval_;
     std::string dest_url = checkpoint_path_ + 
         "/cp-" + std::to_string(checkpoint_iter);
-    dest_url = GetCheckpointUrl(dest_url, join_collection_id_, part_id);
+    dest_url = GetCheckpointUrl(dest_url, update_collection_id_, part_id);
 
-    CHECK(running_joins_.find(part_id) == running_joins_.end());
-    running_joins_.insert({part_id, -1});
+    CHECK(running_updates_.find(part_id) == running_updates_.end());
+    running_updates_.insert({part_id, -1});
     // TODO: is it ok to use the fetch_executor? can it be block due to other operations?
     fetch_executor_->Add([this, part_id, dest_url]() {
-      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, part_id));
-      auto part = controller_->engine_elem_.partition_manager->Get(join_collection_id_, part_id);
+      CHECK(controller_->engine_elem_.partition_manager->Has(update_collection_id_, part_id));
+      auto part = controller_->engine_elem_.partition_manager->Get(update_collection_id_, part_id);
 
       SArrayBinStream bin;
       part->ToBin(bin);
@@ -311,7 +311,7 @@ bool PlanController::TryCheckpoint(int part_id) {
           bool rc = writer->Write(dest_url, bin.GetPtr(), bin.Size());
           CHECK_EQ(rc, 0);
           LOG(INFO) << "BGCP: writing checkpoint to " << dest_url << ", node: " << controller_->engine_elem_.node.id;
-  	      ReportFinishPart(ControllerMsg::Flag::kFinishCP, part_id, join_versions_[part_id]);
+  	      ReportFinishPart(ControllerMsg::Flag::kFinishCP, part_id, update_versions_[part_id]);
 		});
 		cp_write.detach();
 	  }
@@ -340,9 +340,9 @@ void PlanController::FinishCheckpoint(SArrayBinStream bin) {
   int part_id;
   bin >> part_id;
   LOG(INFO) << "finish checkpoint: " << part_id;
-  CHECK(running_joins_.find(part_id) != running_joins_.end());
-  running_joins_.erase(part_id);
-  ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, join_versions_[part_id]);
+  CHECK(running_updates_.find(part_id) != running_updates_.end());
+  running_updates_.erase(part_id);
+  ReportFinishPart(ControllerMsg::Flag::kJoin, part_id, update_versions_[part_id]);
   TryRunWaitingJoins(part_id);
   TryRunSomeMaps();
 }
@@ -388,8 +388,8 @@ void PlanController::RunMap(int part_id, int version,
   map_executor_->Add([this, part_id, version, p, AbortMap]() {
     // auto start = std::chrono::system_clock::now();
     {
-      std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-      if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
+      std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+      if (stop_updateing_partitions_.find(part_id) != stop_updateing_partitions_.end()) {
         AbortMap(plan_id_, part_id, controller_);
         return;
       }
@@ -407,8 +407,8 @@ void PlanController::RunMap(int part_id, int version,
     }
   
     {
-      std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-      if (stop_joining_partitions_.find(part_id) != stop_joining_partitions_.end()) {
+      std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+      if (stop_updateing_partitions_.find(part_id) != stop_updateing_partitions_.end()) {
         AbortMap(plan_id_, part_id, controller_);
         return;
       }
@@ -450,54 +450,54 @@ void PlanController::ReceiveJoin(Message msg) {
   ctrl2_bin >> meta;
   // LOG(INFO) << "ReceiveJoin: " << meta.DebugString();
 
-  VersionedJoinMeta join_meta;
-  join_meta.meta = meta;
-  join_meta.bin = bin;
+  VersionedJoinMeta update_meta;
+  update_meta.meta = meta;
+  update_meta.bin = bin;
 
-  if (join_versions_.find(meta.part_id) == join_versions_.end()) {
+  if (update_versions_.find(meta.part_id) == update_versions_.end()) {
     // if receive something that is not belong to here
-    buffered_requests_[meta.part_id].push_back(join_meta);
+    buffered_requests_[meta.part_id].push_back(update_meta);
     //LOG(INFO) << "part to migrate: " << meta.part_id <<  ", buffered requsts size: " << buffered_requests_[meta.part_id].size();
     return;
   }
 
-  // if already joined, omit it.
-  // still need to check again in RunJoin as this upstream_part_id may be in waiting joins.
+  // if already updateed, omit it.
+  // still need to check again in RunJoin as this upstream_part_id may be in waiting updates.
   if (IsJoinedBefore(meta)) {
     return;
   }
 
-  if (map_collection_id_ == join_collection_id_) {
+  if (map_collection_id_ == update_collection_id_) {
     if (meta.version >= map_versions_[meta.part_id]) {
-      pending_joins_[meta.part_id][meta.version].push_back(join_meta);
+      pending_updates_[meta.part_id][meta.version].push_back(update_meta);
       return;
     }
   }
 
-  waiting_joins_[meta.part_id].push_back(join_meta);
+  waiting_updates_[meta.part_id].push_back(update_meta);
   TryRunWaitingJoins(meta.part_id);
 }
 
-// check whether this upstream_part_id is joined already
+// check whether this upstream_part_id is updateed already
 bool PlanController::IsJoinedBefore(const VersionedShuffleMeta& meta) {
   if (meta.upstream_part_id == -1) {
     CHECK_GT(meta.ext_upstream_part_ids.size(), 0);
-    bool result = join_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(0))
-      != join_tracker_[meta.part_id][meta.version].end();
+    bool result = update_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(0))
+      != update_tracker_[meta.part_id][meta.version].end();
     for (int i = 1; i < meta.ext_upstream_part_ids.size(); i++) {
       CHECK_EQ(result, 
-          join_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(i))
-          != join_tracker_[meta.part_id][meta.version].end());
+          update_tracker_[meta.part_id][meta.version].find(meta.ext_upstream_part_ids.at(i))
+          != update_tracker_[meta.part_id][meta.version].end());
     }
     if (result) {
-      LOG(INFO) << "[PlanController::IsJoinedBefore] (ext_upstream_part_ids)ignore join, already joined: " << meta.DebugString();
+      LOG(INFO) << "[PlanController::IsJoinedBefore] (ext_upstream_part_ids)ignore update, already updateed: " << meta.DebugString();
     } 
     return result;
   }
 
-  if (join_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
-      != join_tracker_[meta.part_id][meta.version].end()) {
-    LOG(INFO) << "[PlanController::IsJoinedBefore] ignore join, already joined: " << meta.DebugString();
+  if (update_tracker_[meta.part_id][meta.version].find(meta.upstream_part_id)
+      != update_tracker_[meta.part_id][meta.version].end()) {
+    LOG(INFO) << "[PlanController::IsJoinedBefore] ignore update, already updateed: " << meta.DebugString();
     return true;
   } else {
     return false;
@@ -512,10 +512,10 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     return;
   }
   // LOG(INFO) << "RunJoin: " << meta.meta.DebugString();
-  CHECK(running_joins_.find(meta.meta.part_id) == running_joins_.end());
-  running_joins_.insert({meta.meta.part_id, meta.meta.upstream_part_id});
+  CHECK(running_updates_.find(meta.meta.part_id) == running_updates_.end());
+  running_updates_.insert({meta.meta.part_id, meta.meta.upstream_part_id});
   // use the fetch_executor to avoid the case:
-  // map wait for fetch, fetch wait for join, join is in running_joins_
+  // map wait for fetch, fetch wait for update, update is in running_updates_
   // but it cannot run because map does not finish and occupy the threadpool
   fetch_executor_->Add([this, meta]() {
     // auto start = std::chrono::system_clock::now();
@@ -529,15 +529,15 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
       }
       auto stream = stream_store_.Get(k);
       stream_store_.Remove(k);
-      auto& join_func = controller_->engine_elem_.function_store->GetJoin2(GetRealId(plan_id_));
-      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
-      auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
-      join_func(p, stream);
+      auto& update_func = controller_->engine_elem_.function_store->GetJoin2(GetRealId(plan_id_));
+      CHECK(controller_->engine_elem_.partition_manager->Has(update_collection_id_, meta.meta.part_id));
+      auto p = controller_->engine_elem_.partition_manager->Get(update_collection_id_, meta.meta.part_id);
+      update_func(p, stream);
     } else {
-      auto& join_func = controller_->engine_elem_.function_store->GetJoin(GetRealId(plan_id_));
-      CHECK(controller_->engine_elem_.partition_manager->Has(join_collection_id_, meta.meta.part_id));
-      auto p = controller_->engine_elem_.partition_manager->Get(join_collection_id_, meta.meta.part_id);
-      join_func(p, meta.bin);
+      auto& update_func = controller_->engine_elem_.function_store->GetJoin(GetRealId(plan_id_));
+      CHECK(controller_->engine_elem_.partition_manager->Has(update_collection_id_, meta.meta.part_id));
+      auto p = controller_->engine_elem_.partition_manager->Get(update_collection_id_, meta.meta.part_id);
+      update_func(p, meta.bin);
     }
 
     Message msg;
@@ -564,7 +564,7 @@ void PlanController::RunJoin(VersionedJoinMeta meta) {
     auto end = std::chrono::system_clock::now();
     {
       std::unique_lock<std::mutex> lk(time_mu_);
-      join_time_[meta.meta.part_id][meta.meta.upstream_part_id] = std::make_pair(start, end);
+      update_time_[meta.meta.part_id][meta.meta.upstream_part_id] = std::make_pair(start, end);
     }
     */
   });
@@ -597,17 +597,17 @@ void PlanController::ReceiveFetchRequest(Message msg) {
   
   CHECK(fetch_meta.meta.is_fetch == true);
 
-  bool join_fetch = (fetch_meta.meta.collection_id == join_collection_id_);
+  bool update_fetch = (fetch_meta.meta.collection_id == update_collection_id_);
 
-  if (!join_fetch) {
+  if (!update_fetch) {
     RunFetchRequest(fetch_meta);
     return;
   }
 
-  // otherise join_fetch
-  CHECK(join_fetch);
+  // otherise update_fetch
+  CHECK(update_fetch);
 
-  if (join_versions_.find(fetch_meta.meta.part_id) == join_versions_.end()) {
+  if (update_versions_.find(fetch_meta.meta.part_id) == update_versions_.end()) {
     // if receive something that is not belong to here
     buffered_requests_[fetch_meta.meta.part_id].push_back(fetch_meta);
     return;
@@ -615,18 +615,18 @@ void PlanController::ReceiveFetchRequest(Message msg) {
 
 #ifdef MIGRATE_JOIN
   {
-    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-    if (stop_joining_partitions_.find(fetch_meta.meta.part_id) != stop_joining_partitions_.end()) {
+    std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+    if (stop_updateing_partitions_.find(fetch_meta.meta.part_id) != stop_updateing_partitions_.end()) {
       // if migrating this part
-      waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+      waiting_updates_[fetch_meta.meta.part_id].push_back(fetch_meta);
       return;
     }
   }
 #endif
 
-  if (running_joins_.find(fetch_meta.meta.part_id) != running_joins_.end()) {
-    // if this part is joining
-    waiting_joins_[fetch_meta.meta.part_id].push_back(fetch_meta);
+  if (running_updates_.find(fetch_meta.meta.part_id) != running_updates_.end()) {
+    // if this part is updateing
+    waiting_updates_[fetch_meta.meta.part_id].push_back(fetch_meta);
   } else {
     RunFetchRequest(fetch_meta);
   }
@@ -637,8 +637,8 @@ void PlanController::RunFetchRequest(VersionedJoinMeta fetch_meta) {
 
   // identify the version
   int version = -1;
-  if (fetch_collection_id_ == join_collection_id_) {
-    version = join_versions_[fetch_meta.meta.part_id];
+  if (fetch_collection_id_ == update_collection_id_) {
+    version = update_versions_[fetch_meta.meta.part_id];
   } else {
     version = std::numeric_limits<int>::max();
   }
@@ -777,14 +777,14 @@ void PlanController::MigratePartitionStartMigrate(MigrateMeta migrate_meta) {
 
   if (migrate_meta.from_id == controller_->engine_elem_.node.id) {
     // stop the update to the partition.
-    CHECK_EQ(migrate_meta.collection_id, join_collection_id_) << "the migrate collection must be the join collection";
-    // TODO: now the migrate partition must be join_collection
-    CHECK(join_versions_.find(migrate_meta.partition_id) != join_versions_.end());
+    CHECK_EQ(migrate_meta.collection_id, update_collection_id_) << "the migrate collection must be the update collection";
+    // TODO: now the migrate partition must be update_collection
+    CHECK(update_versions_.find(migrate_meta.partition_id) != update_versions_.end());
     {
-      std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-      CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) == stop_joining_partitions_.end());
-      // insert the migrate partition into stop_joining_partitions_
-      stop_joining_partitions_[migrate_meta.partition_id] = false;
+      std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+      CHECK(stop_updateing_partitions_.find(migrate_meta.partition_id) == stop_updateing_partitions_.end());
+      // insert the migrate partition into stop_updateing_partitions_
+      stop_updateing_partitions_[migrate_meta.partition_id] = false;
     }
   }
 }
@@ -797,10 +797,10 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
   flush_all_count_[migrate_meta.partition_id] += 1;
   LOG(INFO) << "[Migrate] Received one Flush signal";
   if (flush_all_count_[migrate_meta.partition_id] == migrate_meta.num_nodes) {
-    if (running_joins_.find(migrate_meta.partition_id) != running_joins_.end()) {
-      // if there is a join/fetch task for this part
+    if (running_updates_.find(migrate_meta.partition_id) != running_updates_.end()) {
+      // if there is a update/fetch task for this part
       // push a msg to the msg queue to run this function again
-      LOG(INFO) << "there is a join/fetch for part, try to migrate partition and msgs later " << migrate_meta.partition_id;
+      LOG(INFO) << "there is a update/fetch for part, try to migrate partition and msgs later " << migrate_meta.partition_id;
       flush_all_count_[migrate_meta.partition_id] -= 1;
       CHECK(migrate_meta.flag == MigrateMeta::MigrateFlag::kFlushAll);
       Message flush_msg;
@@ -821,17 +821,17 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
 
     // flush the buffered data structure to to_id
     {
-      std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-      CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) != 
-          stop_joining_partitions_.end());
-      // stop_joining is erasable from now on
-      stop_joining_partitions_[migrate_meta.partition_id] = true;
+      std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+      CHECK(stop_updateing_partitions_.find(migrate_meta.partition_id) != 
+          stop_updateing_partitions_.end());
+      // stop_updateing is erasable from now on
+      stop_updateing_partitions_[migrate_meta.partition_id] = true;
       if (running_maps_.find(migrate_meta.partition_id) != running_maps_.end()) {
         // migrate a partition in running_maps
         // delay, leave it to RunMap to erase
         // RunMap will call FinishMap to erase it whether aborted or not
       } else {
-        stop_joining_partitions_.erase(migrate_meta.partition_id);
+        stop_updateing_partitions_.erase(migrate_meta.partition_id);
       }
     }
     LOG(INFO) << "[Migrate] Received all Flush signal for partition "
@@ -841,15 +841,15 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
     migrate_meta.flag = MigrateMeta::MigrateFlag::kDest;
     // construct the MigrateData
     MigrateData data;
-    if (map_collection_id_ == join_collection_id_) {
+    if (map_collection_id_ == update_collection_id_) {
       data.map_version = map_versions_[migrate_meta.partition_id];
       map_versions_.erase(migrate_meta.partition_id);
       num_local_map_part_ -= 1;
       // TryUpdateMapVersion();
     }
-    data.join_version = join_versions_[migrate_meta.partition_id];
-    data.pending_joins = std::move(pending_joins_[migrate_meta.partition_id]);
-    data.waiting_joins = std::move(waiting_joins_[migrate_meta.partition_id]);
+    data.update_version = update_versions_[migrate_meta.partition_id];
+    data.pending_updates = std::move(pending_updates_[migrate_meta.partition_id]);
+    data.waiting_updates = std::move(waiting_updates_[migrate_meta.partition_id]);
 
     auto serialize_from_stream_store = [this](VersionedJoinMeta& meta) {
       std::tuple<int, std::vector<int>, int> k;
@@ -864,24 +864,24 @@ void PlanController::MigratePartitionReceiveFlushAll(MigrateMeta migrate_meta) {
       meta.bin = bin;
       meta.meta.local_mode = false;
     };
-    for (auto& version_joins : data.pending_joins) {
-      for (auto& join_meta : version_joins.second) {
-        if (local_map_mode_ && join_meta.meta.local_mode) {
-          serialize_from_stream_store(join_meta);
+    for (auto& version_updates : data.pending_updates) {
+      for (auto& update_meta : version_updates.second) {
+        if (local_map_mode_ && update_meta.meta.local_mode) {
+          serialize_from_stream_store(update_meta);
         }
       } 
     }
-    for (auto& join_meta : data.waiting_joins) {
-      if (local_map_mode_ && join_meta.meta.local_mode) {
-        serialize_from_stream_store(join_meta);
+    for (auto& update_meta : data.waiting_updates) {
+      if (local_map_mode_ && update_meta.meta.local_mode) {
+        serialize_from_stream_store(update_meta);
       }
     } 
-    data.join_tracker = std::move(join_tracker_[migrate_meta.partition_id]);
-    join_versions_.erase(migrate_meta.partition_id);
-    num_local_join_part_ -= 1;
-    pending_joins_.erase(migrate_meta.partition_id);
-    waiting_joins_.erase(migrate_meta.partition_id);
-    join_tracker_.erase(migrate_meta.partition_id);
+    data.update_tracker = std::move(update_tracker_[migrate_meta.partition_id]);
+    update_versions_.erase(migrate_meta.partition_id);
+    num_local_update_part_ -= 1;
+    pending_updates_.erase(migrate_meta.partition_id);
+    waiting_updates_.erase(migrate_meta.partition_id);
+    update_tracker_.erase(migrate_meta.partition_id);
     Message msg;
     msg.meta.sender = controller_->engine_elem_.node.id;
     msg.meta.recver = GetControllerActorQid(migrate_meta.to_id);
@@ -923,7 +923,7 @@ void PlanController::MigratePartitionDest(Message msg) {
 
   {
     if (fetch_collection_id_ != -1 &&
-        map_collection_id_ == join_collection_id_ &&
+        map_collection_id_ == update_collection_id_ &&
         map_collection_id_ != fetch_collection_id_ &&
         (load_finished_.find(migrate_meta.partition_id) == load_finished_.end() || !load_finished_[migrate_meta.partition_id])
        ) { // only for mapwith and co-allocated
@@ -955,7 +955,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   }
 
   LOG(INFO) << "[MigrateDone] " << migrate_data.DebugString();
-  if (map_collection_id_ == join_collection_id_) {
+  if (map_collection_id_ == update_collection_id_) {
     CHECK(map_versions_.find(migrate_meta.partition_id) == map_versions_.end());
     map_versions_[migrate_meta.partition_id] = migrate_data.map_version;
     num_local_map_part_ += 1;
@@ -963,26 +963,26 @@ void PlanController::MigratePartitionDest(Message msg) {
   } else {
     migrate_data.map_version = -1;
   }
-  CHECK(join_versions_.find(migrate_meta.partition_id) == join_versions_.end());
-  CHECK(pending_joins_.find(migrate_meta.partition_id) == pending_joins_.end());
-  CHECK(waiting_joins_.find(migrate_meta.partition_id) == waiting_joins_.end());
-  CHECK(join_tracker_.find(migrate_meta.partition_id) == join_tracker_.end());
-  join_versions_[migrate_meta.partition_id] = migrate_data.join_version;
-  pending_joins_[migrate_meta.partition_id] = std::move(migrate_data.pending_joins);
-  waiting_joins_[migrate_meta.partition_id] = std::move(migrate_data.waiting_joins);
-  join_tracker_[migrate_meta.partition_id] = std::move(migrate_data.join_tracker);
-  num_local_join_part_ += 1;
+  CHECK(update_versions_.find(migrate_meta.partition_id) == update_versions_.end());
+  CHECK(pending_updates_.find(migrate_meta.partition_id) == pending_updates_.end());
+  CHECK(waiting_updates_.find(migrate_meta.partition_id) == waiting_updates_.end());
+  CHECK(update_tracker_.find(migrate_meta.partition_id) == update_tracker_.end());
+  update_versions_[migrate_meta.partition_id] = migrate_data.update_version;
+  pending_updates_[migrate_meta.partition_id] = std::move(migrate_data.pending_updates);
+  waiting_updates_[migrate_meta.partition_id] = std::move(migrate_data.waiting_updates);
+  update_tracker_[migrate_meta.partition_id] = std::move(migrate_data.update_tracker);
+  num_local_update_part_ += 1;
 
   // handle buffered request
   LOG(INFO) << "[MigrateDone] part to migrate: " << migrate_meta.partition_id 
     <<", buffered_requests_ size: " << buffered_requests_[migrate_meta.partition_id].size();
   for (auto& request: buffered_requests_[migrate_meta.partition_id]) {
     CHECK_EQ(request.meta.part_id, migrate_meta.partition_id);
-    if (map_collection_id_ == join_collection_id_
+    if (map_collection_id_ == update_collection_id_
         && request.meta.version >= map_versions_[request.meta.part_id]) {
-      pending_joins_[request.meta.part_id][request.meta.version].push_back(request);
+      pending_updates_[request.meta.part_id][request.meta.version].push_back(request);
     } else {
-      waiting_joins_[request.meta.part_id].push_back(request);
+      waiting_updates_[request.meta.part_id].push_back(request);
     }
   }
   buffered_requests_[migrate_meta.partition_id].clear();
@@ -995,7 +995,7 @@ void PlanController::MigratePartitionDest(Message msg) {
   CHECK(!controller_->engine_elem_.partition_manager->Has(migrate_meta.collection_id, migrate_meta.partition_id));
   controller_->engine_elem_.partition_manager->Insert(migrate_meta.collection_id, migrate_meta.partition_id, std::move(p));
 
-  if (map_collection_id_ == join_collection_id_) {
+  if (map_collection_id_ == update_collection_id_) {
     TryRunSomeMaps();
   }
   TryRunWaitingJoins(migrate_meta.partition_id);
@@ -1026,15 +1026,15 @@ void PlanController::MigratePartitionStartMigrateMapOnly(MigrateMeta migrate_met
   LOG(INFO) << "[Migrate] migrating start: " << migrate_meta.DebugString();
   // std::thread th([this, migrate_meta]() mutable {
   CHECK_EQ(migrate_meta.collection_id, map_collection_id_) << "only consider map_collection first";
-  CHECK_NE(migrate_meta.collection_id, join_collection_id_) << "only consider map_collection first";
+  CHECK_NE(migrate_meta.collection_id, update_collection_id_) << "only consider map_collection first";
   CHECK(map_versions_.find(migrate_meta.partition_id) != map_versions_.end());
 
   // stop the running map
   {
-    std::lock_guard<std::mutex> lk(stop_joining_partitions_mu_);
-    CHECK(stop_joining_partitions_.find(migrate_meta.partition_id) == stop_joining_partitions_.end());
-    // insert the migrate partition into stop_joining_partitions_
-    stop_joining_partitions_[migrate_meta.partition_id] = true;
+    std::lock_guard<std::mutex> lk(stop_updateing_partitions_mu_);
+    CHECK(stop_updateing_partitions_.find(migrate_meta.partition_id) == stop_updateing_partitions_.end());
+    // insert the migrate partition into stop_updateing_partitions_
+    stop_updateing_partitions_[migrate_meta.partition_id] = true;
   }
   
   // version
@@ -1122,7 +1122,7 @@ void PlanController::DisplayTime() {
   std::lock_guard<std::mutex> lk(time_mu_);
   double avg_map_time = 0;
   double avg_map_stime = 0;
-  double avg_join_time = 0;
+  double avg_update_time = 0;
   std::chrono::duration<double> duration;
   for (auto& x : map_time_) {
     duration = std::get<1>(x.second) - std::get<0>(x.second);
@@ -1130,27 +1130,27 @@ void PlanController::DisplayTime() {
     duration = std::get<2>(x.second) - std::get<1>(x.second);
     avg_map_stime += duration.count();
   }
-  for (auto& x : join_time_) {
+  for (auto& x : update_time_) {
     for (auto& y : x.second) {
       duration = y.second.second - y.second.first;
-      avg_join_time += duration.count();
+      avg_update_time += duration.count();
     }
   }
   avg_map_time /= num_local_map_part_;
   avg_map_stime /= num_local_map_part_;
-  avg_join_time = avg_join_time / num_local_join_part_;// num_upstream_part_;
+  avg_update_time = avg_update_time / num_local_update_part_;// num_upstream_part_;
   // nan if num is zero
-  LOG(INFO) << "avg map time: " << avg_map_time << " ,avg map serialization time: " << avg_map_stime << " ,avg join time: " << avg_join_time;
+  LOG(INFO) << "avg map time: " << avg_map_time << " ,avg map serialization time: " << avg_map_stime << " ,avg update time: " << avg_update_time;
 } 
 
 void PlanController::CalcJoinTrackerSize() {
   int size = 0;
-  for (const auto& part: join_tracker_) {
+  for (const auto& part: update_tracker_) {
     for (const auto& v: part.second) {
       size += v.second.size();
     }
   }
-  join_tracker_size_.push_back(size);
+  update_tracker_size_.push_back(size);
 }
 
 void PlanController::ShowJoinTrackerSize() {
@@ -1158,13 +1158,13 @@ void PlanController::ShowJoinTrackerSize() {
   int mini = INT_MAX;
   int maxi = INT_MIN;
   int sum = 0;
-  for (auto s : join_tracker_size_) {
+  for (auto s : update_tracker_size_) {
     ss << s << " ";
     if (s > maxi) maxi = s;
     if (s < mini) mini = s;
     sum += s;
   }
-  float avg = join_tracker_size_.empty() ? -1:sum*1./join_tracker_size_.size();
+  float avg = update_tracker_size_.empty() ? -1:sum*1./update_tracker_size_.size();
   LOG(INFO) << "trackersize: min: " << mini << " max: " << maxi << " avg: " << avg << " all: " << ss.str();
 }
 

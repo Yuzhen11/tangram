@@ -182,7 +182,7 @@ int main(int argc, char **argv) {
   auto data_blocks =
       Context::placeholder<DataBlock, RoundRobinKeyToPartMapper<int>>(
           FLAGS_kNumPartition);
-  Context::mapjoin(load_collection, data_blocks,
+  Context::mapupdate(load_collection, data_blocks,
                    [](const Record &r) {
                      return std::make_pair(r.user % FLAGS_kNumPartition, r);
                    },
@@ -198,7 +198,7 @@ int main(int argc, char **argv) {
   auto collectors =
       Context::placeholder<Collector, RoundRobinKeyToPartMapper<int>>(
           FLAGS_kNumPartition);
-  Context::mapjoin(dummy_distribute_collection, collectors,
+  Context::mapupdate(dummy_distribute_collection, collectors,
                    [](int) {
                      std::vector<std::pair<int, int>> ret;
                      for (int i = 0; i < FLAGS_kNumPartition; ++i) {
@@ -230,7 +230,7 @@ int main(int argc, char **argv) {
   */
 
   // main logic
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       data_blocks, collectors, collectors,
       [](TypedPartition<DataBlock> *p, TypedCache<Collector> *typed_cache) {
         CHECK_EQ(p->GetSize(), 1);
@@ -357,7 +357,7 @@ int main(int argc, char **argv) {
   // rmse
   // this mse only calculate a part of the training samples!
   auto rmse = Context::placeholder<RMSE>(1);
-  Context::mappartwithjoin(
+  Context::mappartwithupdate(
       data_blocks, collectors, rmse,
       [](TypedPartition<DataBlock> *p, TypedCache<Collector> *typed_cache) {
         CHECK_EQ(p->GetSize(), 1);
@@ -385,7 +385,7 @@ int main(int argc, char **argv) {
         return ret;
       },
       [](RMSE *rmse, std::pair<int, float> m) {
-        // LOG(INFO) << "join rmse: " << m.first << " " << m.second;
+        // LOG(INFO) << "update rmse: " << m.first << " " << m.second;
         rmse->p.first += m.first;
         rmse->p.second += m.second;
       })

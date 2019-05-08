@@ -127,7 +127,7 @@ int main(int argc, char **argv) {
   auto file_meta = Context::load_wholefiles_meta(FLAGS_url);
   auto indexed_docs = Context::placeholder<Document>(FLAGS_num_doc_partition);
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       file_meta, indexed_docs,
       [parse_doc](TypedPartition<std::string> *p,
                   Output<std::string, Document> *o) {
@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   auto terms = Context::placeholder<Term>(FLAGS_num_term_partition);
   Context::sort_each_partition(indexed_docs);
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       indexed_docs, terms,
       [](TypedPartition<Document> *p, Output<std::string, Msg> *o) {
         for (auto &doc : *p) {
@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
 
   // Context::count(terms);
 
-  Context::mappartjoin(
+  Context::mappartupdate(
       terms, indexed_docs,
       [](TypedPartition<Term> *p, Output<std::string, std::pair<int, int>> *o) {
         for (auto &term : *p) {

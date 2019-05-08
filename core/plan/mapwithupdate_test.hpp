@@ -2,7 +2,7 @@
 #include "glog/logging.h"
 
 #include "core/partition/seq_partition.hpp"
-#include "core/plan/mapwithjoin.hpp"
+#include "core/plan/mapwithupdate.hpp"
 
 namespace xyz {
 namespace {

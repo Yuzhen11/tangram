@@ -18,12 +18,12 @@ const FunctionStore::MapWith& FunctionStore::GetMapWith(int id) {
   return mapwiths_[id];
 }
 const FunctionStore::JoinFuncT& FunctionStore::GetJoin(int id) {
-  CHECK(joins_.find(id) != joins_.end());
-  return joins_[id];
+  CHECK(updates_.find(id) != updates_.end());
+  return updates_[id];
 }
 const FunctionStore::JoinFunc2T& FunctionStore::GetJoin2(int id) {
-  CHECK(joins2_.find(id) != joins2_.end());
-  return joins2_[id];
+  CHECK(updates2_.find(id) != updates2_.end());
+  return updates2_[id];
 }
 
 const FunctionStore::CreatePartFromBinFuncT& FunctionStore::GetCreatePartFromBin(int id) {
@@ -73,10 +73,10 @@ void FunctionStore::AddMergeCombine(int id, MergeCombineFuncT merge_combine) {
 }
 
 void FunctionStore::AddJoin(int id, JoinFuncT func) {
-  joins_.insert({id, func});
+  updates_.insert({id, func});
 }
 void FunctionStore::AddJoin2(int id, JoinFunc2T func) {
-  joins2_.insert({id, func});
+  updates2_.insert({id, func});
 }
 
 void FunctionStore::AddMapWith(int id, MapWith func) {

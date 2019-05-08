@@ -4,8 +4,8 @@
 #include "core/plan/collection.hpp"
 #include "core/plan/plan_base.hpp"
 
-#include "core/plan/mapjoin.hpp"
-#include "core/plan/mapwithjoin.hpp"
+#include "core/plan/mapupdate.hpp"
+#include "core/plan/mapwithupdate.hpp"
 #include "core/plan/distribute.hpp"
 #include "core/plan/load.hpp"
 #include "core/plan/write.hpp"
@@ -136,13 +136,13 @@ class Context {
     std::string prefix = name+"::distribute_by_key";
     auto* tmp_c = distribute(data, 1, prefix);
     auto* c = placeholder<D>(num_parts, prefix)->SetName("tmp collection in distribute_by_key");
-    mapjoin(tmp_c, c, 
+    mapupdate(tmp_c, c, 
       [](const D& d, Output<typename D::KeyT, D>* o) {
         o->Add(d.Key(), d);
       }, 
       [](D* d, D msg) {
         *d = msg;
-      })->SetName(prefix+"::mapjoin");
+      })->SetName(prefix+"::mapupdate");
     // TODO, remove tmp_c
     return c;
   }
@@ -151,14 +151,14 @@ class Context {
   static void foreach(C* c, F f, std::string name = "") {
     std::string prefix = name + "::foreach collection " + c->Name();
     auto* tmp_c = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in foreach");
-    mapjoin(c, tmp_c, 
+    mapupdate(c, tmp_c, 
       [f](const typename C::ObjT& c, Output<int, int>* o) {
         f(c);
         o->Add(0, 0);
       },
       [](CountObjT*, int) {
         // dummy
-      })->SetName(prefix+"::mapjoin");
+      })->SetName(prefix+"::mapupdate");
     // TODO: remove tmp_c
   }
 
@@ -275,27 +275,27 @@ class Context {
 
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mapjoin(C1* c1, C2* c2, M m, J j) {
+  static auto* mapupdate(C1* c1, C2* c2, M m, J j) {
     // using MsgT = typename decltype(m(*(typename C1::ObjT*)nullptr))::second_type;
     using MsgTFromMap = typename std::remove_pointer<typename function_traits<decltype(m)>::arg1::type>::type::OutputMsgT;
     using MsgT = typename function_traits<decltype(j)>::arg1::type;
     static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->map = m;
-    p->join = j;
+    p->update = j;
     dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
 
   template<typename C1, typename C2, typename M, typename J>
-  static auto* mappartjoin(C1* c1, C2* c2, M m, J j) {
+  static auto* mappartupdate(C1* c1, C2* c2, M m, J j) {
     // using MsgT = typename decltype(m((TypedPartition<typename C1::ObjT>*)nullptr))::value_type::second_type;
     using MsgTFromMap = typename std::remove_pointer<typename function_traits<decltype(m)>::arg1::type>::type::OutputMsgT;
     using MsgT = typename function_traits<decltype(j)>::arg1::type;
     static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapPartJoin<C1, C2, typename C1::ObjT, typename C2::ObjT, MsgT>>(c1, c2);
     p->mappart = m;
-    p->join = j;
+    p->update = j;
     dag_.AddDagNode(p->plan_id, {c1->Id()}, {c2->Id()});
     return p;
   }
@@ -304,7 +304,7 @@ class Context {
   static void count(C1* c1, std::string name = "") {
     std::string prefix = name + "::count";
     auto *count_collection = placeholder<CountObjT>(1, prefix)->SetName("tmp collection in count");
-    mapjoin(c1, count_collection, 
+    mapupdate(c1, count_collection, 
       [](const typename C1::ObjT& obj, Output<int,int>* o) {
         // return std::make_pair(0, 1);
         o->Add(0, 1);
@@ -313,7 +313,7 @@ class Context {
         a->b += b;
       })
     ->SetCombine([](int* a, int b) { *a += b; })
-    ->SetName(prefix+"::mapjoin");
+    ->SetName(prefix+"::mapupdate");
     foreach(count_collection, [](const CountObjT& obj) {
       LOG(INFO) << "********** count: " << obj.b << " *********";
     });
@@ -321,7 +321,7 @@ class Context {
   }
 
   template<typename C1, typename C2, typename C3, typename M, typename J>
-  static auto* mappartwithjoin(C1* c1, C2* c2, C3* c3, M m, J j) {
+  static auto* mappartwithupdate(C1* c1, C2* c2, C3* c3, M m, J j) {
     // using MsgT = typename decltype(
     //         m((TypedPartition<typename C1::ObjT>*)nullptr, 
     //           (TypedCache<typename C2::ObjT>*)nullptr)
@@ -332,7 +332,7 @@ class Context {
     static_assert(std::is_same<MsgT, MsgTFromMap>::value, "...");
     auto *p = plans_.make<MapPartWithJoin<C1, C2, C3, typename C1::ObjT, typename C2::ObjT, typename C3::ObjT, MsgT>>(c1, c2, c3);
     p->mappartwith = m;
-    p->join = j;
+    p->update = j;
     dag_.AddDagNode(p->plan_id, {c1->Id(), c2->Id()}, {c3->Id()});
     return p;
   }
@@ -343,11 +343,11 @@ class Context {
   template<typename C>
   static void sort_each_partition(C* c,
     typename std::enable_if_t<std::is_base_of<Indexable<typename C::ObjT>, typename C::PartT>::value >* = 0) {
-    // map c, join c. even though map should not update the partition,
-    // we can still update the partition as we are saying we will join c
+    // map c, update c. even though map should not update the partition,
+    // we can still update the partition as we are saying we will update c
     // meaning that no other plan can access c. This makes updating in c
     // safe.
-    mappartjoin(c, c,
+    mappartupdate(c, c,
       [](TypedPartition<typename C::ObjT>* p, Output<typename C::ObjT::KeyT, int>* o) {
         auto* indexed_seq_partition = dynamic_cast<Indexable<typename C::ObjT>*>(p);
         CHECK_NOTNULL(indexed_seq_partition);

@@ -24,7 +24,7 @@ int main(int argc, char **argv) {
 
   auto lines = Context::load_block_meta(FLAGS_url);
   auto sum = Context::placeholder<Sum>(1);
-  Context::mappartjoin(
+  Context::mappartupdate(
       lines, sum,
       [](TypedPartition<std::string> *p, Output<int, double> *o) {
         auto *bp = dynamic_cast<BlockPartition *>(p);

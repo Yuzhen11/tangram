@@ -54,8 +54,8 @@ class FunctionStore : public AbstractFunctionStore {
  private:
   std::map<int, MapFuncT> maps_;
   std::map<int, MergeCombineFuncT> merge_combines_;
-  std::map<int, JoinFuncT> joins_;
-  std::map<int, JoinFunc2T> joins2_;
+  std::map<int, JoinFuncT> updates_;
+  std::map<int, JoinFunc2T> updates2_;
   std::map<int, MapWith> mapwiths_;
 
   std::map<int, CreatePartFromBinFuncT> create_part_from_bin_;

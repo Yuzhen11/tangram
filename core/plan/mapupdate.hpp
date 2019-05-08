@@ -13,7 +13,7 @@
 #include "core/plan/abstract_function_store.hpp"
 #include "core/plan/plan_spec.hpp"
 
-#include "core/plan/mappartjoin.hpp"
+#include "core/plan/mappartupdate.hpp"
 
 namespace xyz {
 
@@ -33,8 +33,8 @@ template<typename C1, typename C2, typename ObjT1, typename ObjT2, typename MsgT
 struct MapJoin : public MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>{
   using MapFuncT = std::function<void(const ObjT1&, Output<typename ObjT2::KeyT, MsgT>*)>;
 
-  MapJoin(int plan_id, C1* map_collection, C2* join_collection)
-      : MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>(plan_id, map_collection, join_collection) {
+  MapJoin(int plan_id, C1* map_collection, C2* update_collection)
+      : MapPartJoin<C1, C2, ObjT1, ObjT2, MsgT>(plan_id, map_collection, update_collection) {
   }
 
   void SetMapPart() {

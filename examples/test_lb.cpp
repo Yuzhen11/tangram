@@ -26,15 +26,15 @@ struct ObjT {
 void mr() {
   std::vector<int> seed;
   const int num_map_part = 5;
-  const int num_join_part = num_map_part;
+  const int num_update_part = num_map_part;
   for (int i = 0; i < num_map_part; ++i) {
     seed.push_back(i);
   }
   auto c1 = Context::distribute(seed, num_map_part);
-  auto c2 = Context::placeholder<ObjT>(num_join_part);
+  auto c2 = Context::placeholder<ObjT>(num_update_part);
 
-  // mapjoin
-  Context::mapjoin(
+  // mapupdate
+  Context::mapupdate(
       c1, c2,
       [](int id, Output<int, int> *o) {
         LOG(INFO) << GREEN("id: " + std::to_string(id) + ", sleep for: " +
@@ -44,21 +44,21 @@ void mr() {
       },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       });
 }
 
 void pr() {
   std::vector<ObjT> seed;
   const int num_map_part = 5;
-  const int num_join_part = num_map_part;
+  const int num_update_part = num_map_part;
   for (int i = 0; i < num_map_part; ++i) {
     seed.push_back(ObjT(i));
   }
   auto c1 = Context::distribute_by_key(seed, num_map_part);
 
-  // mapjoin
-  Context::mapjoin(c1, c1,
+  // mapupdate
+  Context::mapupdate(c1, c1,
                    [](ObjT obj, Output<int, int> *o) {
                      int id = obj.a;
                      // LOG(INFO) << GREEN("id: "+word+", sleep for: "

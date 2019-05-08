@@ -101,7 +101,7 @@ int main(int argc, char **argv) {
   auto vertex =
       Context::placeholder<Vertex>(FLAGS_num_parts)->SetName("vertex");
   auto p1 =
-      Context::mappartjoin(dataset, vertex,
+      Context::mappartupdate(dataset, vertex,
                            [](TypedPartition<Links> *p, Output<int, int> *o) {
                              for (auto &v : *p) {
                                o->Add(v.vertex_id, 0);
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
           ->SetName("construct vertex from dataset");
 
   auto links = Context::placeholder<Links>(FLAGS_num_parts)->SetName("links");
-  auto p2 = Context::mappartjoin(
+  auto p2 = Context::mappartupdate(
                 dataset, links,
                 [](TypedPartition<Links> *p, Output<int, std::vector<int>> *o) {
                   for (auto &v : *p) {
@@ -145,7 +145,7 @@ int main(int argc, char **argv) {
 #endif
 
   auto p =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           vertex, links, vertex,
           [](TypedPartition<Vertex> *p, TypedCache<Links> *typed_cache,
              Output<int, float> *o) {
@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
           ->SetName("pagerank main logic");
 
   auto topk = Context::placeholder<TopK>(1)->SetName("topk");
-  Context::mapjoin(
+  Context::mapupdate(
       vertex, topk,
       [](const Vertex &vertex, Output<int, std::vector<Vertex>> *o) {
         std::vector<Vertex> vertices;
@@ -220,7 +220,7 @@ int main(int argc, char **argv) {
       })
       ->SetName("find topk");
 
-  Context::mapjoin(topk, topk, // print top 10
+  Context::mapupdate(topk, topk, // print top 10
                    [](const TopK &topk, Output<int, int> *o) {
                      CHECK_EQ(topk.vertices.size(), 10);
                      LOG(INFO) << "Top K:";

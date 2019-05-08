@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
   auto url_table =
       Context::distribute_by_key(seeds, 400, "distribute the seed");
 
-  Context::mapjoin(
+  Context::mapupdate(
       url_table, url_table,
       [](const UrlElem &url_elem, Output<std::string, UrlElem::Status> *o) {
         if (url_elem.status == UrlElem::Status::ToFetch) {

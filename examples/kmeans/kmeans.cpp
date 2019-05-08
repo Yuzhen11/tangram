@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   int num_data_parts = FLAGS_num_data_parts;
   auto points =
       Context::placeholder<IndexedPoints>(num_data_parts)->SetName("points");
-  auto p0 = Context::mappartjoin(dataset, points,
+  auto p0 = Context::mappartupdate(dataset, points,
                                  [num_data_parts](TypedPartition<Point> *p,
                                                   Output<int, Point> *o) {
                                    for (auto &v : *p) {
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   auto init_points =
       Context::placeholder<IndexedPoints>(1)->SetName("init_points");
   auto p1 =
-      Context::mappartjoin(
+      Context::mappartupdate(
           dataset, init_points,
           [K, num_data_parts](TypedPartition<Point> *p, Output<int, Point> *o) {
             int num_local_data = 0;
@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
           [](IndexedPoints *ip, Point p) { ip->points.push_back(p); })
           ->SetName("construct init_points from dataset");
 
-  auto p2 = Context::mappartjoin(
+  auto p2 = Context::mappartupdate(
                 init_points, params,
                 [K, num_dims](TypedPartition<IndexedPoints> *p,
                               Output<int, float> *o) {
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
                 ->SetName("Init the K clusters");
 
   auto p3 =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           points, params, params,
           [num_params, num_dims, K, alpha, is_sgd, num_param_parts,
            range_key_to_part_mapper](TypedPartition<IndexedPoints> *p,

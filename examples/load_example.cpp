@@ -30,12 +30,12 @@ int main(int argc, char **argv) {
   auto c1 = Context::load(FLAGS_url, [](std::string s) { return s; });
   auto c2 = Context::placeholder<ObjT>(1);
 
-  auto p = Context::mapjoin(
+  auto p = Context::mapupdate(
       c1, c2,
       [](std::string word, Output<std::string, int> *o) { o->Add(word, 1); },
       [](ObjT *obj, int m) {
         obj->b += m;
-        LOG(INFO) << "join result: " << obj->a << " " << obj->b;
+        LOG(INFO) << "update result: " << obj->a << " " << obj->b;
       });
 
   Context::write(c2, FLAGS_output_url,

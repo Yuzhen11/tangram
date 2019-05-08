@@ -61,7 +61,7 @@ void Fetcher::FinishPart(FetchMeta meta) {
     local_access_count_[{meta.collection_id, meta.partition_id}] -= 1;
     // when no one is accessing this part, SendFinishPart
     // TODO: the reference count of local part will drop to 0 even
-    // when fetch_collection != join_collection (fetch_collection 
+    // when fetch_collection != update_collection (fetch_collection 
     // is immutable), and thus local part need to be refetched.
     // But it should be fast
     if (local_access_count_[{meta.collection_id, meta.partition_id}] == 0) {
@@ -80,7 +80,7 @@ void Fetcher::FinishPart(FetchMeta meta) {
     local_access_count_[p] -= 1;
     // when no one is accessing this part, SendFinishPart
     // TODO: the reference count of local part will drop to 0 even
-    // when fetch_collection != join_collection (fetch_collection 
+    // when fetch_collection != update_collection (fetch_collection 
     // is immutable), and thus local part need to be refetched.
     // But it should be fast
     if (local_access_count_[p] == 0) {

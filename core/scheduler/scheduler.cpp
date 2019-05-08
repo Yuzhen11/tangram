@@ -170,14 +170,14 @@ void Scheduler::FinishRecovery() {
     CHECK(spec.type == SpecWrapper::Type::kMapJoin
        || spec.type == SpecWrapper::Type::kMapWithJoin);
 
-    auto* mapjoin_spec = program_.specs[pid].GetMapJoinSpec();
+    auto* mapupdate_spec = program_.specs[pid].GetMapJoinSpec();
     int cur_version = control_manager_->GetCurVersion(pid);
-    LOG(INFO) << mapjoin_spec->DebugString();
-    CHECK(mapjoin_spec->checkpoint_interval);
-    int new_iter = mapjoin_spec->num_iter - 
-        (cur_version / mapjoin_spec->checkpoint_interval * mapjoin_spec->checkpoint_interval);
+    LOG(INFO) << mapupdate_spec->DebugString();
+    CHECK(mapupdate_spec->checkpoint_interval);
+    int new_iter = mapupdate_spec->num_iter - 
+        (cur_version / mapupdate_spec->checkpoint_interval * mapupdate_spec->checkpoint_interval);
     // directly update the version
-    mapjoin_spec->num_iter = new_iter;
+    mapupdate_spec->num_iter = new_iter;
 
     spec.id = GetRecoverPlanId(pid);  // setting a new id
     LOG(INFO) << RED("rerunning plan for recovery: " + std::to_string(spec.id) 

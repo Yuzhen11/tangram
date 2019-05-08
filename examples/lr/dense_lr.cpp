@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
 #endif
 
   auto p1 =
-      Context::mappartwithjoin(
+      Context::mappartwithupdate(
           points, params, params,
           [num_params, alpha, num_param_parts](TypedPartition<IndexedPoints> *p,
                                                TypedCache<Param> *typed_cache,
