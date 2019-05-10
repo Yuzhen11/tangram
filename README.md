@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/Yuzhen11/tangram.svg?branch=master)](https://travis-ci.org/Yuzhen11/tangram)
 
-Tangram is a distributed data analytics framework which enjoys the benefits from both the immutable and mutable data abstractions. 
+*Tangram* is a distributed data analytics framework which enjoys the benefits from both the immutable and mutable data abstractions. 
 
 Data analytics frameworks that adopt immutable data abstraction usually provide better support for _failure recovery_ and _straggler mitigation_, while those that adopt mutable data abstraction are more efficient for iterative workloads thanks to their support for _in-place state updates_ and _asynchronous execution_. Most existing frameworks adopt either one of the two data abstractions and do not enjoy the benefits of the other. 
 
@@ -10,11 +10,9 @@ Tangram adopts a novel programming model named **MapUpdate**, which can determin
 
 Tangram supports a variety of workloads including bulk processing, graph analytics, and iterative machine learning.
 
-For more details about Tangram, please check our [Wiki](https://github.com/Yuzhen11/tangram/wiki).
+For more details about *Tangram*, please check our [Wiki](https://github.com/Yuzhen11/tangram/wiki).
 
-For bugs in Husky, please file an issue on [github issue platform](https://github.com/Yuzhen11/tangram/issues).
-
-For further discussions, please send email to *support@husky-project.com*.
+For bugs in *Tangram*, please file an issue on [github issue platform](https://github.com/Yuzhen11/tangram/issues).
 
 ## Learn Tangram
 
@@ -84,7 +82,7 @@ Tangram provides a set unit tests (based on [gtest 1.7.0](https://github.com/goo
 License
 ---------------
 
-Copyright 2016-2019 Husky Team
+Copyright 2017-2019 Husky Team
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
