@@ -53,7 +53,6 @@ make SchedulerMain      # Build the Scheduler
 make -j                 # Build all applications with all threads
 ```
 
-TODO: upload a docker file to dockerhub.
 
 ## Run a Tangram Program
 
@@ -78,6 +77,11 @@ Tangram provides a set unit tests (based on [gtest 1.7.0](https://github.com/goo
 
     $ make HuskyUnitTest  # yes, it is HuskyUnitTest
     $ ./HuskyUnitTest
+
+Publication
+---------------
+
+Yuzhen Huang, Xiao Yan, James Cheng, Guanxian Jiang, Tatiana Jin, An Xu, Zhanhan Liu and Shuo Tu. Tangram: Bridging Immutable and Mutable Abstractions for Distributed Data Analytics. (USENIX ATC '19). 
 
 License
 ---------------
