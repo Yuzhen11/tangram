@@ -81,7 +81,7 @@ Tangram provides a set unit tests (based on [gtest 1.7.0](https://github.com/goo
 Publication
 ---------------
 
-Yuzhen Huang, Xiao Yan, James Cheng, Guanxian Jiang, Tatiana Jin, An Xu, Zhanhan Liu and Shuo Tu. **Tangram: Bridging Immutable and Mutable Abstractions for Distributed Data Analytics. (USENIX ATC '19)**. 
+Yuzhen Huang, Xiao Yan, Guanxian Jiang, Tatiana Jin, James Cheng, An Xu, Zhanhan Liu and Shuo Tu. **Tangram: Bridging Immutable and Mutable Abstractions for Distributed Data Analytics. (USENIX ATC '19)**. 
 
 License
 ---------------
